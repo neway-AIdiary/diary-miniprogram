@@ -56,9 +56,17 @@
         <view class="diary-media" wx:if="{{item.mediaPreview.length > 0}}">
           <view class="diary-media-item" wx:for="{{item.mediaPreview}}" wx:for-item="m" wx:key="fileID">
             <image class="diary-media-img" src="{{m.fileID}}" mode="aspectFill" wx:if="{{m.type === 'image'}}" />
-            <view class="diary-media-img diary-media-video" wx:else>
-              <text class="diary-media-video-icon">▶</text>
-            </view>
+            <block wx:elif="{{m.type === 'video'}}">
+              <!-- 视频：有云端封面显示首帧封面 + 播放角标；无封面（老视频）沿用灰底占位 -->
+              <image class="diary-media-img" src="{{m.thumb}}" mode="aspectFill" wx:if="{{m.thumb}}"></image>
+              <view class="diary-media-img diary-media-video" wx:else>
+                <text class="diary-media-video-icon">▶</text>
+              </view>
+              <view class="diary-media-video-tag" wx:if="{{m.thumb}}">
+                <text>▶</text>
+                <text wx:if="{{m.duration}}" class="diary-media-video-tag-dur">{{m.duration}}s</text>
+              </view>
+            </block>
           </view>
         </view>
         <view class="diary-location" wx:if="{{item.locationText || item.weatherText}}">

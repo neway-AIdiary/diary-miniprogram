@@ -6,7 +6,8 @@
  *   3. 存储用量估算：本地累计已上传字节（删除日记/编辑移除媒体并清理云端时会同步扣减
  *      所删媒体的 size，近似云存储真实占用），达到默认免费额度量级（5GB）的 80% 时弹窗提醒一次
  *   4. 删除日记自动清理云端媒体：上传成功会在媒体项记录 size，
- *      删除日记时收集 fileID 调 wx.cloud.deleteFile 批量删除，并同步扣减本地用量估算
+ *      删除日记时收集 fileID（视频连同其云端封面 thumb）调 wx.cloud.deleteFile 批量删除，
+ *      并同步扣减本地用量估算
  *   5. 编辑日记移除媒体「保存时才真删」：编辑会话内先只从编辑列表移除（不立即删云端，
  *      避免取消编辑导致日记引用的文件已删）；保存成功时用 computeRemovedFiles 算出
  *      「旧媒体中被移除的 ∪ 会话新增但未保留的」统一清理（deleteMediaItems）；
@@ -119,13 +120,30 @@ function getMediaUsage() {
 function sumMediaBytes(mediaList) {
   let total = 0
   ;(mediaList || []).forEach(m => {
-    if (m && typeof m.size === 'number' && m.size > 0) total += m.size
+    itemCloudFiles(m).forEach(f => { total += f.size })
   })
   return total
 }
 
+// 媒体项「所属云文件」展开：主文件 + 视频封面缩略图（thumb 为 cloud:// 时）
+// 用途：收集清理/删除日记/编辑移除时把封面视同主文件一并处理与用量统计，封面不残留云端
+function itemCloudFiles(m) {
+  const out = []
+  if (!m) return out
+  const id = m.fileID
+  if (id && typeof id === 'string' && id.indexOf('cloud://') === 0) {
+    out.push({ fileID: id, type: m.type || 'image', size: (typeof m.size === 'number' && m.size > 0) ? m.size : 0 })
+  }
+  const tid = m.thumb
+  if (m.type === 'video' && tid && typeof tid === 'string' && tid.indexOf('cloud://') === 0) {
+    out.push({ fileID: tid, type: 'image', size: (typeof m.thumbSize === 'number' && m.thumbSize > 0) ? m.thumbSize : 0 })
+  }
+  return out
+}
+
 /**
  * 收集需清理的云文件 fileID（去重；仅收 cloud:// 开头，避免误删本地/导入媒体）
+ * 视频媒体项同时收集其云端封面（thumb），保证删除日记时封面一并删除
  * @param {Array|Object} diaries 单条日记或日记数组
  * @returns {Array<string>}
  */
@@ -135,11 +153,13 @@ function collectFileIDs(diaries) {
   const out = []
   list.forEach(d => {
     ;(d && d.media || []).forEach(m => {
-      const id = m && m.fileID
-      if (id && typeof id === 'string' && id.indexOf('cloud://') === 0 && !seen[id]) {
-        seen[id] = 1
-        out.push(id)
-      }
+      itemCloudFiles(m).forEach(f => {
+        const id = f.fileID
+        if (id && !seen[id]) {
+          seen[id] = 1
+          out.push(id)
+        }
+      })
     })
   })
   return out
@@ -148,26 +168,26 @@ function collectFileIDs(diaries) {
 /**
  * 计算「编辑保存后应清理」的云端媒体项（编辑日记移除媒体/新增又移除时用）：
  *   旧媒体中被移除的 ∪ 本会话新增上传但最终未保留的。
- * 仅收 cloud:// 开头（避免误删本地/导入媒体），按 fileID 去重，保留 size 供用量扣减。
+ * 媒体项的主文件与视频封面（thumb）分别展开为独立清理项，按 fileID 去重并保留 size 供用量扣减。
  * @param {Array} originMedia  进入编辑前的日记 media（保存前快照）
- * @param {Array} sessionUploaded 本次编辑会话内新上传的媒体项 {fileID,size,...}
- * @param {Array} finalMedia   保存结果的 media（不在其中的旧/会话文件将被清理）
+ * @param {Array} sessionUploaded 本次编辑会话内新上传的媒体项（建议存完整项，含 thumb/thumbSize）
+ * @param {Array} finalMedia   保存结果的 media（主文件与封面都在其中的旧/会话文件将被保留）
  * @returns {Array<{fileID:string, type?:string, size:number}>}
  */
 function computeRemovedFiles(originMedia, sessionUploaded, finalMedia) {
   const keep = {}
   ;(finalMedia || []).forEach(m => {
-    const id = m && m.fileID
-    if (id) keep[id] = 1
+    itemCloudFiles(m).forEach(f => { keep[f.fileID] = 1 })
   })
   const out = []
   const seen = {}
   const scan = (list) => {
     ;(list || []).forEach(m => {
-      const id = m && m.fileID
-      if (!id || typeof id !== 'string' || id.indexOf('cloud://') !== 0 || seen[id] || keep[id]) return
-      seen[id] = 1
-      out.push({ fileID: id, type: m.type, size: (typeof m.size === 'number' && m.size > 0) ? m.size : 0 })
+      itemCloudFiles(m).forEach(f => {
+        if (seen[f.fileID] || keep[f.fileID]) return
+        seen[f.fileID] = 1
+        out.push(f)
+      })
     })
   }
   scan(originMedia)

@@ -164,17 +164,23 @@ Page({
     }
   },
 
-  // 把日记媒体转为编辑用数组：{ fileID, type, duration, size }
+  // 把日记媒体转为编辑用数组：{ fileID, type, duration, size, thumb, thumbSize }
   buildEditMedia(media) {
     if (!Array.isArray(media)) return []
     return media
       .filter(m => m && m.fileID)
-      .map(m => ({
-        fileID: m.fileID,
-        type: m.type === 'video' ? 'video' : 'image',
-        duration: m.duration || 0,
-        size: m.size || 0
-      }))
+      .map(m => {
+        const isVideo = m.type === 'video'
+        const cloudThumb = isVideo && m.thumb && String(m.thumb).indexOf('cloud://') === 0 ? m.thumb : ''
+        return {
+          fileID: m.fileID,
+          type: isVideo ? 'video' : 'image',
+          duration: m.duration || 0,
+          size: m.size || 0,
+          thumb: cloudThumb, // 已保存视频的云端封面（重新保存不丢）
+          thumbSize: cloudThumb ? (m.thumbSize || 0) : 0
+        }
+      })
   },
 
   // 给日记补充展示字段：日期、心情、位置、媒体拆分为图片/视频
@@ -566,22 +572,40 @@ Page({
           filePath: uploadPath
         })
         const fsize = await mediaGuard.getFileSize(uploadPath)
-        added.push({
+        const item = {
           fileID: uploadRes.fileID,
           type: isVideo ? 'video' : 'image',
           duration: isVideo ? Math.round(f.duration || 0) : 0,
-          size: fsize // 记录实际上传字节：删除日记清理云端媒体时同步扣减本地用量估算
-        })
+          size: fsize, // 记录实际上传字节：删除日记清理云端媒体时同步扣减本地用量估算
+          // 会话内预览图：图片用本地压缩路径；视频用首帧封面（优先云端，失败退回本地临时图）
+          thumb: isVideo ? (f.thumbTempFilePath || f.tempFilePath) : uploadPath
+        }
         uploadedBytes += fsize
+        // 视频封面：把微信生成的视频首帧小图一并传云端（首页列表展示封面用）；失败不影响视频本身
+        if (isVideo && f.thumbTempFilePath) {
+          try {
+            const thumbSize = await mediaGuard.getFileSize(f.thumbTempFilePath)
+            const thumbRes = await wx.cloud.uploadFile({
+              cloudPath: 'media/t_' + Date.now() + '_' + Math.random().toString(36).substr(2, 8) + '.jpg',
+              filePath: f.thumbTempFilePath
+            })
+            if (thumbRes && thumbRes.fileID) {
+              item.thumb = thumbRes.fileID
+              item.thumbSize = thumbSize
+              uploadedBytes += thumbSize
+            }
+          } catch (e) { /* 封面上传失败忽略：视频照常保存，列表回退占位图 */ }
+        }
+        added.push(item)
       } catch (e) {
         failed++
       }
     }
     wx.hideLoading()
     if (uploadedBytes > 0) mediaGuard.addMediaUsage(uploadedBytes) // 用量估算累计（达阈值提醒）
-    // 记录本次编辑会话新上传的云文件：保存/取消时才据此决定是否清理孤儿
+    // 记录本次编辑会话新上传的云文件（完整项含封面）：保存/取消时才据此决定是否清理孤儿
     const sess = this._sessionUploaded || (this._sessionUploaded = [])
-    added.forEach(a => sess.push({ fileID: a.fileID, type: a.type, size: a.size || 0 }))
+    added.forEach(a => sess.push(a))
     this.setData({
       mediaUploading: false,
       editMedia: this.data.editMedia.concat(added).slice(0, 9)
@@ -740,12 +764,19 @@ Page({
 
   // 编辑媒体序列化为存储格式
   serializeEditMedia() {
-    return (this.data.editMedia || []).map(m => ({
-      fileID: m.fileID,
-      type: m.type,
-      duration: m.duration || 0,
-      size: m.size || 0 // 保留实际上传字节：删除日记清理云端媒体时同步扣减本地用量估算
-    }))
+    return (this.data.editMedia || []).map(m => {
+      const isVideo = m.type === 'video'
+      // 视频封面：仅持久化云端文件（本地临时路径不落盘，重启后无效）
+      const cloudThumb = isVideo && m.thumb && String(m.thumb).indexOf('cloud://') === 0 ? m.thumb : ''
+      return {
+        fileID: m.fileID,
+        type: m.type,
+        duration: m.duration || 0,
+        size: m.size || 0, // 保留实际上传字节：删除日记清理云端媒体时同步扣减本地用量估算
+        thumb: cloudThumb,
+        thumbSize: cloudThumb ? (m.thumbSize || 0) : 0
+      }
+    })
   },
 
   // 保存编辑

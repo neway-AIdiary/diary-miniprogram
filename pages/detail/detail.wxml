@@ -44,6 +44,7 @@
           wx:for="{{diary.videos}}"
           wx:key="fileID"
           src="{{item.fileID}}"
+          poster="{{item.thumb || ''}}"
           object-fit="cover"
           controls="{{true}}"
         />
@@ -150,6 +151,7 @@
               <video
                 class="edit-media-video-inner"
                 src="{{item.fileID}}"
+                poster="{{item.thumb || ''}}"
                 object-fit="cover"
                 controls="{{false}}"
                 show-center-play-btn="{{false}}"

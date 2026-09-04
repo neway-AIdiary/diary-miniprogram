@@ -164,6 +164,27 @@ assert('无增删差集为空', mg.computeRemovedFiles(originMedia, sessionUploa
 assert('无会话上传只清被移除旧媒体', mg.computeRemovedFiles(originMedia, [], finalMedia.slice(0, 1)).length, 2)
 assert('缺省入参不抛错', mg.computeRemovedFiles(null, null, null).length, 0)
 
+// ===== 5.5 视频封面（thumb）随主文件收集/统计/差集清理 =====
+const vKeep = { fileID: 'cloud://env.a/b/v_keep.mp4', type: 'video', size: 5 * 1024 * 1024, thumb: 'cloud://env.a/b/t_keep.jpg', thumbSize: 30 * 1024 }
+const vGone = { fileID: 'cloud://env.a/b/v_gone.mp4', type: 'video', size: 6 * 1024 * 1024, thumb: 'cloud://env.a/b/t_gone.jpg', thumbSize: 40 * 1024 }
+const dCover = { id: 'c1', media: [vKeep, vGone] }
+const coverCollected = mg.collectFileIDs(dCover)
+assert('收集含视频主文件与封面', coverCollected.length, 4)
+assert('封面 fileID 入收集', coverCollected.indexOf('cloud://env.a/b/t_keep.jpg') !== -1 && coverCollected.indexOf('cloud://env.a/b/t_gone.jpg') !== -1, true)
+assert('媒体字节汇总含封面', mg.sumMediaBytes(dCover.media), 5 * 1024 * 1024 + 30 * 1024 + 6 * 1024 * 1024 + 40 * 1024)
+assert('无封面视频不重复收集', mg.collectFileIDs([{ media: [{ fileID: 'cloud://env.a/b/v.mp4', type: 'video', size: 1, thumb: '/tmp/local.jpg' }] }]).length, 1)
+assert('本地 thumb 不入汇总', mg.sumMediaBytes([{ fileID: 'cloud://env.a/b/v.mp4', type: 'video', size: 100, thumb: '/tmp/local.jpg', thumbSize: 999 }]), 100)
+
+// 编辑差集：保留视频 → 封面不清理
+const removedCoverKeep = mg.computeRemovedFiles([vKeep, vGone], [], [vKeep])
+assert('移除视频封面一并入清理', removedCoverKeep.length, 2)
+assert('保留视频封面不清理', removedCoverKeep.some(m => m.fileID === 'cloud://env.a/b/t_keep.jpg'), false)
+const removedCoverBoth = mg.computeRemovedFiles([vKeep, vGone], [], [])
+assert('两视频及封面全清理', removedCoverBoth.length, 4)
+// 会话上传含封面的新视频被移除 → 主文件+封面都清理
+const removedSessionCover = mg.computeRemovedFiles([], [{ fileID: 'cloud://env.a/b/new.mp4', type: 'video', size: 1, thumb: 'cloud://env.a/b/new_t.jpg', thumbSize: 2 }], [])
+assert('会话新传视频移除封面一并清', removedSessionCover.length, 2)
+
 // ===== 6. 批量云删除 / deleteMediaItems =====
 reset()
 mg.deleteCloudFiles([]).then((res) => {
@@ -207,6 +228,15 @@ mg.deleteCloudFiles([]).then((res) => {
   return mg.deleteMediaItems([{ fileID: 'https://x/only.png', size: 100 }])
 }).then((res) => {
   assert('deleteMediaItems 全非云不入队', JSON.stringify(res), JSON.stringify({ deleted: 0, failed: 0, total: 0 }))
+  // 视频封面随主文件一并删除并扣减用量
+  reset()
+  mg.addMediaUsage(6 * 1024 * 1024 + 40 * 1024)
+  return mg.deleteMediaItems([
+    { fileID: 'cloud://env.a/v_cover.mp4', type: 'video', size: 6 * 1024 * 1024, thumb: 'cloud://env.a/t_cover.jpg', thumbSize: 40 * 1024 }
+  ])
+}).then((res) => {
+  assert('deleteMediaItems 封面随主文件删除', res.deleted, 2)
+  assert('封面删除同步扣减用量', mg.getMediaUsage(), 0)
   reset()
   global.wx.cloud = null
   return mg.deleteCloudFiles(['cloud://env.a/x.jpg'])
