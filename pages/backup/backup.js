@@ -8,6 +8,7 @@ Page({
     // 云端备份状态
     backupEnabled: false,
     backupHint: '',
+    syncErrorText: '',
     // 备份密码弹框
     backupModalShow: false,
     backupMode: 'enable',   // 'enable' | 'restore'
@@ -37,9 +38,19 @@ Page({
       backupHint = '默认只存在本机，不上传任何数据；开启后仅上传 AES 加密密文'
     }
 
+    // 自动同步失败留痕：红字提示用户手动重试（成功同步后自动消失）
+    let syncErrorText = ''
+    if (backup.isEnabled()) {
+      const err = backup.getLastSyncError()
+      if (err && err.at) {
+        syncErrorText = '上次同步失败（' + (util.formatDate(err.at) || '') + (err.message ? '：' + err.message : '') + '），云端备份可能不是最新，请点「立即备份到云端」重试'
+      }
+    }
+
     this.setData({
       backupEnabled: backup.isEnabled(),
-      backupHint: backupHint
+      backupHint: backupHint,
+      syncErrorText: syncErrorText
     })
   },
 
@@ -182,6 +193,7 @@ Page({
       wx.showToast({ title: '已备份 ' + (r ? r.itemCount : 0) + ' 篇到云端', icon: 'success', duration: 2000 })
     }).catch((e) => {
       wx.hideLoading()
+      this.loadData() // 手动备份失败也留痕，页面显示红字提示
       wx.showModal({
         title: '备份失败',
         content: (e && e.message) || '网络异常，请稍后重试',

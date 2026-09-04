@@ -75,7 +75,21 @@ async function run() {
   assert('复用原 key', resumed.key, before.key)
   assert('重新开启 isEnabled', backup.isEnabled(), true)
 
-  // 5. 无本地密钥时 reenable 拒绝
+  // 5. 同步失败留痕 → 成功同步后自动清除（备份页红字提示依据）
+  const apiMock = require.cache[apiAbs].exports
+  const origRequest = apiMock.request
+  apiMock.request = function () { return Promise.reject(new Error('网络超时')) }
+  let failMsg = ''
+  try { await backup.sync() } catch (e) { failMsg = e.message }
+  assert('同步失败向外抛出', failMsg, '网络超时')
+  const errRecord = backup.getLastSyncError()
+  assert('失败已留痕（含时间与原因）', !!(errRecord && errRecord.message === '网络超时' && errRecord.at), true)
+  apiMock.request = origRequest
+  await backup.sync()
+  assert('成功同步后清除失败记录', backup.getLastSyncError(), null)
+  assert('成功同步后仍开启', backup.isEnabled(), true)
+
+  // 6. 无本地密钥时 reenable 拒绝
   mem['cloud_backup_state'] = { enabled: false }
   try { await backup.reenable('test-password-123'); assert('无密钥应拒绝', false, true) }
   catch (e) { assert('无密钥拒绝', !!e.message, true) }

@@ -36,6 +36,7 @@
       </block>
     </view>
     <view class="backup-hint">{{backupHint}}</view>
+    <view class="sync-error" wx:if="{{syncErrorText}}">{{syncErrorText}}</view>
   </view>
 
   <!-- 隐私说明 -->

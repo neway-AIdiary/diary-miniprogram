@@ -128,10 +128,32 @@ function sync() {
   }, { silent: true }).then(() => {
     saveState(Object.assign({}, state, {
       lastSyncAt: new Date().toISOString(),
-      lastCount: enc.itemCount
+      lastCount: enc.itemCount,
+      lastSyncError: null // 同步成功：清除失败提示
     }))
     return enc
+  }).catch((e) => {
+    markAutoSyncFailed(e) // 记录失败（自动同步在 storage 层被静默吞掉，这里兜底留痕供备份页提示）
+    throw e
   })
+}
+
+// ===== 同步失败留痕（备份页红字提示）=====
+
+/** 记录最近一次同步失败（自动/手动共用；下一次同步成功自动清除） */
+function markAutoSyncFailed(err) {
+  const state = getState()
+  if (!state || !state.enabled) return
+  const msg = (err && err.message) || '网络异常，请稍后重试'
+  saveState(Object.assign({}, state, {
+    lastSyncError: { at: new Date().toISOString(), message: String(msg).slice(0, 60) }
+  }))
+}
+
+/** 最近一次同步失败信息（无失败记录返回 null）：{ at: ISO时间, message: 原因 } */
+function getLastSyncError() {
+  const s = getState()
+  return (s && s.lastSyncError) || null
 }
 
 // ===== 从云端恢复（换设备 / 误删找回）=====
@@ -238,6 +260,7 @@ module.exports = {
   enable: enable,
   reenable: reenable,
   sync: sync,
+  getLastSyncError: getLastSyncError,
   restore: restore,
   cloudStatus: cloudStatus,
   clearCloud: clearCloud,
