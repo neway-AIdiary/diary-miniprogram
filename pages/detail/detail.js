@@ -97,10 +97,21 @@ Page({
         liveScrollTop: ((s.liveText || '').length) * 2
       })
     })
-    if (options.id) {
-      this.setData({ id: options.id })
+    // 扫小程序码进入：scene 形如 "id=d_1693xxxx_ab"，支持 URL 编码
+    let entryId = options.id
+    if (!entryId && options.scene) {
+      try {
+        const sceneStr = decodeURIComponent(options.scene)
+        const m = /(?:^|&)id=([^&]+)/.exec(sceneStr)
+        if (m) entryId = m[1]
+      } catch (e) {
+        // scene 解码失败则忽略，按无参数处理
+      }
+    }
+    if (entryId) {
+      this.setData({ id: entryId })
       this._fromShare = options.share === '1'
-      this.loadDetail(options.id)
+      this.loadDetail(entryId)
       // 从主页月历绿点进入：直接进入编辑模式（等节点渲染后再算媒体布局）
       if (options.edit === '1') {
         setTimeout(() => this.startEdit(), 120)
@@ -939,8 +950,11 @@ Page({
     }
     wx.showLoading({ title: '生成海报中…', mask: true })
     try {
-      const urls = await this.loadPosterImages(model.images)
-      await this.drawPoster(model, urls)
+      const [urls, codeUrl] = await Promise.all([
+        this.loadPosterImages(model.images),
+        this.loadWxacode()
+      ])
+      await this.drawPoster(model, urls, codeUrl)
       const tmp = await this.exportPosterTempFile()
       wx.hideLoading()
       this.closeSharePanel()
@@ -951,6 +965,30 @@ Page({
       if (msg.indexOf('cancel') !== -1) return // 用户主动取消（如取消相册授权弹窗），不提示
       console.error('saveSharePoster fail', e)
       wx.showToast({ title: '海报生成失败，请重试', icon: 'none' })
+    }
+  },
+
+  // 取小程序码临时链接（云函数生成太阳码 → 云存储临时 URL）
+  // 任一环节失败都返回 null：海报按「无码」布局自适应，不阻塞生成
+  async loadWxacode() {
+    try {
+      const d = this.data.diary
+      if (!d || !d.id) return null
+      const res = await wx.cloud.callFunction({
+        name: 'getWxacode',
+        data: { scene: 'id=' + d.id }
+      })
+      const r = (res && res.result) || {}
+      if (!r.fileID) {
+        console.warn('getWxacode fail', r.errMsg || r.error)
+        return null
+      }
+      const t = await wx.cloud.getTempFileURL({ fileList: [r.fileID] })
+      const f = (t && t.fileList && t.fileList[0]) || {}
+      return f.tempFileURL || null
+    } catch (e) {
+      console.warn('loadWxacode fail', e)
+      return null
     }
   },
 
@@ -971,8 +1009,8 @@ Page({
     return Promise.all(jobs).then(groups => [].concat.apply([], groups))
   },
 
-  // 海报画布：离屏 <canvas type="2d"> 绘制
-  drawPoster(model, imageUrls) {
+  // 海报画布：离屏 <canvas type="2d"> 绘制（codeUrl 小程序码可选，失败自动退回无码布局）
+  drawPoster(model, imageUrls, codeUrl) {
     return new Promise((resolve, reject) => {
       wx.createSelectorQuery().in(this).select('#sharePosterCanvas').fields({ node: true }).exec((res) => {
         if (!res || !res[0] || !res[0].node) {
@@ -1035,7 +1073,19 @@ Page({
           img.src = u
           setTimeout(fin, 6000)
         })
-        Promise.all((imageUrls || []).map(loadTask)).then(() => {
+        // 小程序码单独加载：加载成功才进布局，失败按无码排版
+        let codeImg = null
+        const loadCode = (u) => new Promise((ok) => {
+          if (!u) { ok(); return }
+          const img = canvas.createImage()
+          let done = false
+          const fin = (okFlag) => { if (!done) { done = true; if (okFlag) codeImg = img; ok() } }
+          img.onload = () => fin(true)
+          img.onerror = () => fin(false)
+          img.src = u
+          setTimeout(() => fin(!!codeImg), 6000)
+        })
+        Promise.all((imageUrls || []).map(loadTask).concat([loadCode(codeUrl)])).then(() => {
           // 第一遍：纯测量，得到各块纵向位置与总高（canvas 高度必须先定）
           const layout = []
           let y = PAD + 6
@@ -1089,8 +1139,10 @@ Page({
           }
           y += 26
           const footY = y
-          const H = y + 96
-          layout.push({ kind: 'footer', y: footY })
+          const CODE_SIZE = 112
+          const hasCode = !!codeImg
+          const H = y + (hasCode ? CODE_SIZE + 44 : 96)
+          layout.push({ kind: 'footer', y: footY, hasCode: hasCode, codeSize: CODE_SIZE })
 
           // 设定画布尺寸（会重置画笔，随后统一重绘）
           canvas.width = W * dpr
@@ -1152,14 +1204,34 @@ Page({
               })
             } else if (b.kind === 'footer') {
               // 品牌 + AI 合规注脚（不带昵称/头像水印）
-              ctx.fillStyle = '#0B7A45'
-              ctx.font = '500 26px sans-serif'
-              const brand = '来自 AI 日记 · 记录每一天'
-              ctx.fillText(brand, (W - ctx.measureText(brand).width) / 2, b.y + 22)
-              ctx.fillStyle = '#B0B8B4'
-              ctx.font = '400 20px sans-serif'
-              const note = '内容摘要已脱敏 · 部分内容可能由 AI 生成'
-              ctx.fillText(note, (W - ctx.measureText(note).width) / 2, b.y + 58)
+              if (b.hasCode) {
+                // 有小程序码：码靠右下，文案左侧两行左对齐
+                const cs = b.codeSize
+                const cx = W - PAD - cs
+                const cy = b.y - 8
+                ctx.fillStyle = '#FFFFFF'
+                rrectPath(cx - 6, cy - 6, cs + 12, cs + 12, 12)
+                ctx.fill()
+                ctx.drawImage(codeImg, cx, cy, cs, cs)
+                ctx.fillStyle = '#0B7A45'
+                ctx.font = '500 26px sans-serif'
+                ctx.fillText('来自 AI 日记 · 记录每一天', PAD, b.y + 26)
+                ctx.fillStyle = '#B0B8B4'
+                ctx.font = '400 20px sans-serif'
+                ctx.fillText('内容摘要已脱敏 · 部分内容可能由 AI 生成', PAD, b.y + 64)
+                ctx.fillStyle = '#9AA39E'
+                ctx.font = '400 18px sans-serif'
+                ctx.fillText('微信扫码 · 打开这篇日记', PAD, b.y + 94)
+              } else {
+                ctx.fillStyle = '#0B7A45'
+                ctx.font = '500 26px sans-serif'
+                const brand = '来自 AI 日记 · 记录每一天'
+                ctx.fillText(brand, (W - ctx.measureText(brand).width) / 2, b.y + 22)
+                ctx.fillStyle = '#B0B8B4'
+                ctx.font = '400 20px sans-serif'
+                const note = '内容摘要已脱敏 · 部分内容可能由 AI 生成'
+                ctx.fillText(note, (W - ctx.measureText(note).width) / 2, b.y + 58)
+              }
             }
           })
           resolve()

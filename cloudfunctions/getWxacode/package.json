@@ -1,0 +1,9 @@
+{
+  "name": "getWxacode",
+  "version": "1.0.0",
+  "description": "生成小程序太阳码（wxacode.getUnlimited），转存云存储返回 fileID，用于分享海报右下角",
+  "main": "index.js",
+  "dependencies": {
+    "wx-server-sdk": "~2.6.3"
+  }
+}
