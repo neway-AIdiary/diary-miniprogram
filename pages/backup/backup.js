@@ -16,7 +16,7 @@ Page({
     pwd2: '',
     // 清空云端备份确认弹层
     confirmClearShow: false,
-    // 关闭自动备份确认弹层
+    // 关闭云端备份确认弹层
     confirmDisableShow: false
   },
 
@@ -31,7 +31,7 @@ Page({
       const last = state.lastSyncAt ? util.formatDate(state.lastSyncAt) : ''
       backupHint = '已开启 · 上次备份 ' + (state.lastCount || 0) + ' 篇' + (last ? '（' + last + '）' : '') + ' · 日记改动后自动同步\n明文永不上传，服务器只存加密密文'
     } else if (backup.hasSavedKey()) {
-      // 已关闭自动备份但本地密钥还在，云端仍有历史备份：重新开启可续用
+      // 已关闭云端备份但本地密钥还在，云端仍有历史备份：重新开启可续用
       backupHint = '自动备份已关闭；云端仍有历史备份，重新开启后继续同步\n明文永不上传，服务器只存加密密文'
     } else {
       backupHint = '默认只存在本机，不上传任何数据；开启后仅上传 AES 加密密文'
@@ -219,7 +219,7 @@ Page({
     })
   },
 
-  // 关闭自动备份：先弹页面内确认层，确认后仅停止自动同步（云端备份与本地密钥保留）
+  // 关闭云端备份：先弹页面内确认层，确认后仅停止自动同步（云端备份与本地密钥保留）
   disableBackup() {
     this.setData({ confirmDisableShow: true })
   },
@@ -228,12 +228,12 @@ Page({
     this.setData({ confirmDisableShow: false })
   },
 
-  // 用户确认后执行关闭自动备份
+  // 用户确认后执行关闭云端备份
   doDisableBackup() {
     this.setData({ confirmDisableShow: false })
     backup.disable()
     this.loadData()
-    wx.showToast({ title: '已关闭自动备份', icon: 'success' })
+    wx.showToast({ title: '已关闭云端备份', icon: 'success' })
   },
 
   onShareAppMessage() {

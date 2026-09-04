@@ -30,7 +30,7 @@
           <view class="menu-arrow">›</view>
         </view>
         <view class="menu-item" bindtap="disableBackup">
-          <view class="menu-text">关闭自动备份</view>
+          <view class="menu-text">关闭云端备份</view>
           <view class="menu-arrow">›</view>
         </view>
       </block>
@@ -41,7 +41,7 @@
   <!-- 隐私说明 -->
   <view class="privacy-section">
     <view class="privacy-title">隐私说明</view>
-    <view class="privacy-text">1. 默认不开启：日记 100% 只存在本机，后端不接收任何日记数据；\n2. 开启后：日记先在本机用 AES-256 加密再上传，服务器只存密文，没有你的备份密码任何人（包括我们）都无法读取原文；\n3. 换新手机：登录同一微信后进入本页，点「从云端恢复」并输入备份密码即可恢复；\n4. 备份密码忘记将无法恢复云端备份，请牢记；\n5. 「关闭自动备份」只是停止自动同步，云端已有备份会保留，重新开启后继续同步；\n6. 「清空云端备份」物理删除云端全部备份数据（日记 + 档案），删除后不可恢复。</view>
+    <view class="privacy-text">1. 默认不开启：日记 100% 只存在本机，后端不接收任何日记数据；\n2. 开启后：日记先在本机用 AES-256 加密再上传，服务器只存密文，没有你的备份密码任何人（包括我们）都无法读取原文；\n3. 换新手机：登录同一微信后进入本页，点「从云端恢复」并输入备份密码即可恢复；\n4. 备份密码忘记将无法恢复云端备份，请牢记；\n5. 「关闭云端备份」只是停止自动同步，云端已有备份会保留，重新开启后继续同步；\n6. 「清空云端备份」物理删除云端全部备份数据（日记 + 档案），删除后不可恢复。</view>
   </view>
 </view>
 
@@ -66,7 +66,7 @@
   <view class="backup-mask" bindtap="closeConfirmClear"></view>
   <view class="backup-card">
     <view class="backup-title">清空云端备份</view>
-    <view class="backup-desc">将物理删除云端全部加密备份数据（日记 + 档案），删除后不可恢复。\n\n备份仍处于开启状态，日记再有改动后会重新上传加密备份；若只想停止自动同步、保留云端数据，请用「关闭自动备份」。</view>
+    <view class="backup-desc">将物理删除云端全部加密备份数据（日记 + 档案），删除后不可恢复。\n\n备份仍处于开启状态，日记再有改动后会重新上传加密备份；若只想停止自动同步、保留云端数据，请用「关闭云端备份」。</view>
     <view class="backup-actions">
       <view class="backup-btn cancel" bindtap="closeConfirmClear">取消</view>
       <view class="backup-btn danger" bindtap="doClearCloud">删除云数据</view>
@@ -74,15 +74,15 @@
   </view>
 </view>
 
-<!-- 关闭自动备份确认弹层（页面内自绘：点击必弹，确认后才执行） -->
+<!-- 关闭云端备份确认弹层（页面内自绘：点击必弹，确认后才执行） -->
 <view class="backup-modal" wx:if="{{confirmDisableShow}}">
   <view class="backup-mask" bindtap="closeConfirmDisable"></view>
   <view class="backup-card">
-    <view class="backup-title">关闭自动备份</view>
+    <view class="backup-title">关闭云端备份</view>
     <view class="backup-desc">将停止日记改动后的自动加密同步（本机日记不受影响）。\n\n云端已有备份会保留，可随时「从云端恢复」查看；重新开启后继续同步，无需删除任何数据。</view>
     <view class="backup-actions">
       <view class="backup-btn cancel" bindtap="closeConfirmDisable">取消</view>
-      <view class="backup-btn ok" bindtap="doDisableBackup">关闭自动备份</view>
+      <view class="backup-btn ok" bindtap="doDisableBackup">关闭云端备份</view>
     </view>
   </view>
 </view>

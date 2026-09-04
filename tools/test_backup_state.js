@@ -1,5 +1,5 @@
 /**
- * tools/test_backup_state.js — 云端备份「关闭自动备份/重新开启」状态机回归
+ * tools/test_backup_state.js — 云端备份「关闭云端备份/重新开启」状态机回归
  *
  * 覆盖：
  *   1. enable 后 isEnabled/hasSavedKey
@@ -50,7 +50,7 @@ async function run() {
   assert('开启后 hasSavedKey', backup.hasSavedKey(), true)
   const before = backup.getState()
 
-  // 2. 关闭自动备份：仅置 disabled，密钥与状态保留
+  // 2. 关闭云端备份：仅置 disabled，密钥与状态保留
   backup.disable()
   assert('关闭后 isEnabled', backup.isEnabled(), false)
   assert('关闭后 hasSavedKey', backup.hasSavedKey(), true)

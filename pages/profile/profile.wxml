@@ -91,7 +91,7 @@
           <view class="menu-arrow">›</view>
         </view>
         <view class="menu-item" bindtap="disableBackup">
-          <view class="menu-text">关闭自动备份</view>
+          <view class="menu-text">关闭云端备份</view>
           <view class="menu-arrow">›</view>
         </view>
       </block>

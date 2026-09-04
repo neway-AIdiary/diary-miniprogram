@@ -273,7 +273,7 @@ Page({
   clearCloudBackup() {
     wx.showModal({
       title: '清空云端备份',
-      content: '将物理删除云端全部加密备份数据。\n\n注意：备份仍处于开启状态，日记再有改动后会重新上传加密备份。若只想停止自动同步、保留云端数据，请用「关闭自动备份」。',
+      content: '将物理删除云端全部加密备份数据。\n\n注意：备份仍处于开启状态，日记再有改动后会重新上传加密备份。若只想停止自动同步、保留云端数据，请用「关闭云端备份」。',
       confirmColor: '#FA5151',
       confirmText: '删除云数据',
       success: (res) => {
@@ -296,17 +296,17 @@ Page({
     })
   },
 
-  // 关闭自动备份（仅停止自动同步，云端备份与本地密钥保留）
+  // 关闭云端备份（仅停止自动同步，云端备份与本地密钥保留）
   disableBackup() {
     wx.showModal({
-      title: '关闭自动备份',
+      title: '关闭云端备份',
       content: '将停止日记改动后的自动加密同步（本机日记不受影响）。\n\n云端已有备份会保留，可随时从云端恢复；重新开启后继续同步。',
-      confirmText: '关闭自动备份',
+      confirmText: '关闭云端备份',
       success: (res) => {
         if (!res.confirm) return
         backup.disable()
         this.loadData()
-        wx.showToast({ title: '已关闭自动备份', icon: 'success' })
+        wx.showToast({ title: '已关闭云端备份', icon: 'success' })
       }
     })
   },
