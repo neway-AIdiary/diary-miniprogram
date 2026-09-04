@@ -157,13 +157,13 @@
 }
 
 .privacy-title {
-  font-size: 24rpx;
+  font-size: 28rpx;
   color: #999999;
   padding-bottom: 16rpx;
 }
 
 .privacy-text {
-  font-size: 28rpx;
+  font-size: 24rpx;
   color: #888888;
   line-height: 1.8;
   margin-bottom: 6rpx;
