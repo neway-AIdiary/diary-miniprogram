@@ -1,0 +1,138 @@
+<!-- 档案页面：主页同款底栏录入（表情/按住说话/+），点击词条可编辑 -->
+<view class="page">
+
+  <!-- 提示栏 -->
+  <view class="hint-bar">
+    <text class="hint-text">底部输入人物/机构备注，如「张三：好朋友，经常一起玩游戏」
+已有档案可直接说「王磊，公司负责人」追加说明；点击词条可直接编辑名称和说明</text>
+  </view>
+
+  <!-- 档案列表（滚动区） -->
+  <scroll-view class="archive-scroll" scroll-y enhanced show-scrollbar="{{false}}">
+    <view class="archive-section" wx:if="{{archives.length > 0}}">
+      <view class="archive-title">我的档案（{{archives.length}}）</view>
+      <view class="archive-list">
+        <view class="archive-card" wx:for="{{archives}}" wx:key="id" bindtap="onEditArchive" data-id="{{item.id}}">
+          <view class="archive-card-header">
+            <view class="archive-name">{{item.name}}</view>
+            <view class="archive-delete" catchtap="onDeleteArchive" data-id="{{item.id}}">删除</view>
+          </view>
+          <view class="archive-desc" wx:if="{{item.description}}">{{item.description}}</view>
+          <view class="archive-desc placeholder" wx:else>暂无描述</view>
+        </view>
+      </view>
+    </view>
+
+    <!-- 空状态 -->
+    <view class="empty-state" wx:else>
+      <view class="empty-icon">📋</view>
+      <view class="empty-text">还没有档案</view>
+      <view class="empty-hint">在底部输入或语音添加人物、机构等备注信息</view>
+    </view>
+
+    <view class="content-bottom-space"></view>
+  </scroll-view>
+
+  <!-- ===== 底部输入栏（主页同款三件套：表情 / 按住说话 / +）===== -->
+  <view class="input-bar" style="padding-bottom: calc(22rpx + {{safeAreaBottom}}px);">
+    <!-- 表情/颜文字（飞书同款笑脸） -->
+    <view class="input-btn input-emoji {{showEmojiPanel ? 'active' : ''}}" bindtap="toggleEmojiPanel">
+      <view class="icon-bar icon-smiley"></view>
+    </view>
+
+    <!-- 中间区：按住说话 / 输入框（点表情后切到键盘输入） -->
+    <view class="input-middle">
+      <view
+        wx:if="{{voiceMode}}"
+        class="hold-talk {{recording ? 'recording' : ''}} {{voiceCanceling ? 'canceling' : ''}}"
+        bindtouchstart="onHoldStart"
+        bindtouchend="onHoldEnd"
+        bindtouchcancel="onHoldEnd"
+        bindtouchmove="onVoiceTouchMove"
+      >{{voiceCanceling ? '松开取消' : (recording ? '松开 结束' : (connecting ? '连接中…' : '按住 说话'))}}</view>
+      <textarea
+        wx:else
+        class="input-text"
+        placeholder="如：张三：好朋友 ｜ 王磊，公司负责人"
+        value="{{quickText}}"
+        bindinput="onQuickInput"
+        maxlength="-1"
+        auto-height
+        show-confirm-bar="{{false}}"
+        adjust-position="{{true}}"
+        cursor-spacing="20"
+      />
+    </view>
+
+    <!-- 添加(+)：输入框有内容→直接发送；为空→弹出添加档案编辑框 -->
+    <view class="input-add {{quickText ? 'send' : ''}}" bindtap="onPlusTap">
+      <view class="icon-bar icon-plus"></view>
+    </view>
+  </view>
+
+  <!-- ===== 表情/颜文字面板（与主页一致）===== -->
+  <view class="panel panel-emoji" wx:if="{{showEmojiPanel}}" style="padding-bottom: {{safeAreaBottom}}px;">
+    <view class="panel-tabs">
+      <view class="panel-tab {{emojiTab === 'emoji' ? 'active' : ''}}" bindtap="switchEmojiTab" data-tab="emoji">表情</view>
+      <view class="panel-tab {{emojiTab === 'kaomoji' ? 'active' : ''}}" bindtap="switchEmojiTab" data-tab="kaomoji">颜文字</view>
+    </view>
+    <scroll-view class="emoji-scroll" scroll-y>
+      <view class="emoji-grid">
+        <view class="emoji-item {{emojiTab === 'kaomoji' ? 'k-item' : ''}}" wx:for="{{emojiList}}" wx:key="*this" bindtap="insertEmoji" data-emoji="{{item}}">{{item}}</view>
+      </view>
+    </scroll-view>
+  </view>
+
+  <!-- 全屏语音输入面板（与主页一致：飞书风格 + 小程序绿色主题 + 上滑取消） -->
+  <view class="voice-modal" wx:if="{{recording || transcribing}}">
+    <view class="voice-modal-mask"></view>
+    <view class="voice-modal-body">
+      <!-- 识别文字卡片 -->
+      <view class="voice-card {{recording ? '' : 'voice-card-processing'}}">
+        <view class="voice-card-header">
+          <view class="voice-card-dot {{recording ? 'pulse' : ''}}"></view>
+          <text class="voice-card-title">{{transcribing ? '语音识别中' : '正在聆听'}}</text>
+        </view>
+        <scroll-view class="voice-card-scroll" scroll-y scroll-top="{{liveScrollTop}}" enhanced show-scrollbar="{{false}}">
+          <text class="voice-card-text">{{liveText || (recording ? '请说话…' : '识别中…')}}</text>
+        </scroll-view>
+        <view class="voice-card-badge" wx:if="{{liveRemoved > 0}}">已过滤 {{liveRemoved}} 处语气词</view>
+      </view>
+
+      <!-- 音频波形（仅在录音中显示） -->
+      <view class="voice-waves" wx:if="{{recording}}">
+        <view class="voice-wave voice-wave-1"></view>
+        <view class="voice-wave voice-wave-2"></view>
+        <view class="voice-wave voice-wave-3"></view>
+        <view class="voice-wave voice-wave-4"></view>
+        <view class="voice-wave voice-wave-5"></view>
+        <view class="voice-wave voice-wave-6"></view>
+        <view class="voice-wave voice-wave-7"></view>
+      </view>
+    </view>
+
+    <view class="voice-modal-footer">
+      <text class="voice-modal-tip" wx:if="{{voiceCanceling || transcribing}}">{{voiceCanceling ? '松开取消发送' : '处理中…'}}</text>
+    </view>
+  </view>
+
+  <!-- 词条编辑弹框（点击词条编辑 / 点 + 新增） -->
+  <view class="edit-modal" wx:if="{{editShow}}">
+    <view class="edit-mask" bindtap="closeEditModal"></view>
+    <view class="edit-card">
+      <view class="edit-title">{{editTitle}}</view>
+      <input class="edit-input" placeholder="名称（如：张三）" value="{{editName}}" bindinput="onEditNameInput" maxlength="20" />
+      <textarea class="edit-textarea" placeholder="说明（如：好朋友，经常一起玩游戏）" value="{{editDesc}}" bindinput="onEditDescInput" maxlength="-1" auto-height show-confirm-bar="{{false}}" adjust-position="{{true}}" cursor-spacing="20" />
+      <view class="edit-actions">
+        <view class="edit-btn cancel" bindtap="closeEditModal">取消</view>
+        <view class="edit-btn save" bindtap="onSaveEdit">保存</view>
+      </view>
+    </view>
+  </view>
+
+  <!-- AI 整理中（新增档案） -->
+  <view class="organize-loading" wx:if="{{organizing}}">
+    <view class="organize-text">AI 正在整理档案...</view>
+  </view>
+
+</view>

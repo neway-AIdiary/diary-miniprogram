@@ -1,0 +1,424 @@
+<!-- 写日记页面：微信聊天风格 -->
+<view class="page">
+
+  <!-- 自定义导航栏：左上双横杠打开侧边栏 -->
+  <view class="nav-bar" style="padding-top: {{statusBarHeight}}px;">
+    <view class="nav-inner">
+      <view class="nav-left" bindtap="openSidebar" hover-class="nav-btn-hover">
+        <view class="nav-lines">
+          <view class="nav-line"></view>
+          <view class="nav-line"></view>
+        </view>
+      </view>
+      <view class="nav-title">AI日记</view>
+      <view class="nav-right"></view>
+    </view>
+  </view>
+
+  <!-- 主内容区 -->
+  <scroll-view class="content-scroll" scroll-y enhanced show-scrollbar="{{false}}">
+    <view class="content-inner">
+      <!-- 日期（可选择）+ 心情（可选择）+ 定位城市天气（纯展示） -->
+      <view class="date-wrap">
+        <view class="date-pill" hover-class="pill-hover" bindtap="toggleDatePicker">📅 {{dateLabel}}</view>
+        <view class="mood-pill" style="color:{{moodColor || '#999999'}};background:{{moodBg || 'rgba(0,0,0,0.06)'}};" bindtap="toggleMoodPicker">
+          <text>{{moodLabel ? moodLabel : '心情'}}</text>
+        </view>
+        <view class="weather-chip" wx:if="{{weatherInfo}}">
+          <text class="weather-icon">{{weatherInfo.icon}}</text>
+          <text class="weather-city" wx:if="{{weatherInfo.city}}">{{weatherInfo.city}}</text>
+          <text class="weather-temp">{{weatherInfo.temp}}°</text>
+        </view>
+      </view>
+
+      <!-- 日记正文：展示 + 编辑框 -->
+      <view class="diary-card">
+        <!-- 修改指令执行结果：高亮展示增删改的部分 -->
+        <block wx:if="{{highlight.active}}">
+          <view class="hl-header">
+            <view class="hl-badge">{{highlight.title}}</view>
+            <view class="hl-close" bindtap="dismissHighlight">✕</view>
+          </view>
+          <rich-text class="hl-content" nodes="{{highlight.nodes}}" bindtap="dismissHighlight"></rich-text>
+          <view class="hl-footer">{{highlight.count ? highlight.count + ' 处修改已高亮 · ' : ''}}点击返回编辑</view>
+        </block>
+        <!-- 正常编辑态 -->
+        <block wx:else>
+          <view class="diary-editor">
+            <!-- 自定义占位层（textarea 原生 placeholder 不支持换行，多行文案逐行渲染） -->
+            <view wx:if="{{!content}}" class="diary-placeholder">
+              <view class="dp-line">{{placeholderLine1}}</view>
+              <view class="dp-line">{{placeholderLine2}}</view>
+            </view>
+            <textarea
+              class="diary-textarea"
+              value="{{content}}"
+              bindinput="onContentInput"
+              maxlength="-1"
+              auto-height
+              show-confirm-bar="{{false}}"
+              adjust-position="{{true}}"
+              cursor-spacing="20"
+            />
+          </view>
+          <view class="char-count">{{content.length}} 字</view>
+        </block>
+      </view>
+
+      <!-- 位置卡片 -->
+      <view class="loc-card" wx:if="{{location}}">
+        <view class="loc-icon">
+          <view class="pin-ball"></view>
+          <view class="pin-hole"></view>
+          <view class="pin-tip"></view>
+        </view>
+        <view class="loc-info">
+          <text class="loc-name">{{location.name}}</text>
+          <text class="loc-addr" wx:if="{{location.address}}">{{location.address}}</text>
+        </view>
+        <view class="loc-clear" catchtap="clearLocation">✕</view>
+      </view>
+
+      <!-- 图片/视频缩略图 -->
+      <view class="media-grid" wx:if="{{media.length > 0}}">
+        <view class="media-item" wx:for="{{media}}" wx:key="fileID">
+          <image class="media-img" src="{{item.thumb}}" mode="aspectFill" bindtap="previewMedia" data-index="{{index}}" />
+          <view wx:if="{{item.type === 'video'}}" class="media-video-badge">▶ {{item.duration}}s</view>
+          <view class="media-remove" catchtap="removeMedia" data-index="{{index}}">✕</view>
+        </view>
+      </view>
+
+      <!-- 工具行：AI 优化（最小范围）+ 保存 -->
+      <view class="tool-row">
+        <view class="tool-btn optimize-btn {{content.length < 20 ? 'disabled' : ''}}" bindtap="onOptimize">AI 优化</view>
+        <button class="save-btn" bindtap="onSave" disabled="{{saving || !content}}" loading="{{saving}}">{{saving ? '保存中...' : '保存日记'}}</button>
+      </view>
+
+    </view>
+  </scroll-view>
+
+  <!-- 心情选择浮层（点击日期行心情胶囊弹出，fixed 定位在视口层，不随滚动） -->
+  <!-- ===== 日期选择弹层（月视图日历） ===== -->
+  <view class="date-picker-mask" wx:if="{{showDatePicker}}" bindtap="closeDatePicker"></view>
+  <view class="date-picker" wx:if="{{showDatePicker}}">
+    <view class="cal-header">
+      <view class="cal-nav" bindtap="prevMonth">‹</view>
+      <view class="cal-title">{{calTitle}}</view>
+      <view class="cal-nav" bindtap="nextMonth">›</view>
+    </view>
+    <view class="cal-week-row">
+      <view class="cal-week">日</view>
+      <view class="cal-week">一</view>
+      <view class="cal-week">二</view>
+      <view class="cal-week">三</view>
+      <view class="cal-week">四</view>
+      <view class="cal-week">五</view>
+      <view class="cal-week">六</view>
+    </view>
+    <view class="cal-grid">
+      <view
+        wx:for="{{calDays}}"
+        wx:key="key"
+        class="cal-cell {{item.blank ? 'blank' : ''}} {{item.isFuture ? 'future' : ''}} {{item.isSelected ? 'selected' : ''}}"
+        bindtap="onCalDayTap"
+        data-index="{{index}}"
+      >
+        <view class="cal-day {{item.isToday ? 'today' : ''}}">{{item.blank ? '' : item.day}}</view>
+        <view class="cal-dot {{item.hasDiary ? 'on' : ''}}"></view>
+      </view>
+    </view>
+    <view class="cal-foot">
+      <view class="cal-dot on"></view>
+      <text>已有日记的日期，点击直接进入编辑</text>
+    </view>
+  </view>
+
+  <!-- 心情选择浮层 -->
+  <view class="mood-picker-mask" wx:if="{{showMoodPicker}}" bindtap="closeMoodPicker"></view>
+  <view class="mood-picker" wx:if="{{showMoodPicker}}" style="top: {{statusBarHeight + 108}}px;">
+    <view class="mood-picker-title">选择心情</view>
+    <view class="mood-picker-options">
+      <view class="mood-picker-option {{mood === '' ? 'active' : ''}}" data-key="none" bindtap="selectMood">不选</view>
+      <view
+        class="mood-picker-option {{mood === item.key ? 'active' : ''}}"
+        wx:for="{{moodOptions}}" wx:key="key"
+        data-key="{{item.key}}" bindtap="selectMood">{{item.label}}</view>
+    </view>
+  </view>
+
+  <!-- ===== 底部输入栏（微信同款）===== -->
+  <view class="input-bar" style="padding-bottom: calc(22rpx + {{safeAreaBottom}}px);">
+    <!-- 表情/颜文字（飞书同款笑脸） -->
+    <view class="input-btn input-emoji {{showEmojiPanel ? 'active' : ''}}" bindtap="toggleEmojiPanel">
+      <view class="icon-bar icon-smiley"></view>
+    </view>
+
+    <!-- 中间区：按住说话（默认语音输入；如需打字，点击上方正文输入区调起系统键盘） -->
+    <view class="input-middle">
+      <view
+        class="hold-talk {{recording ? 'recording' : ''}} {{voiceCanceling ? 'canceling' : ''}}"
+        bindtouchstart="onHoldStart"
+        bindtouchend="onHoldEnd"
+        bindtouchcancel="onHoldEnd"
+        bindtouchmove="onVoiceTouchMove"
+      >{{voiceCanceling ? '松开取消' : (recording ? '松开 结束' : (connecting ? '连接中…' : '按住 说话'))}}</view>
+    </view>
+
+    <!-- 添加(+)：图片 / 视频 / 位置 -->
+    <view
+      class="input-add {{showAddPanel ? 'active' : ''}}"
+      bindtap="onAddOrSend"
+    >
+      <view class="icon-bar icon-plus"></view>
+    </view>
+  </view>
+
+  <!-- ===== 表情/颜文字面板 ===== -->
+  <view class="panel panel-emoji" wx:if="{{showEmojiPanel}}" style="padding-bottom: {{safeAreaBottom}}px;">
+    <view class="panel-tabs">
+      <view class="panel-tab {{emojiTab === 'emoji' ? 'active' : ''}}" bindtap="switchEmojiTab" data-tab="emoji">表情</view>
+      <view class="panel-tab {{emojiTab === 'kaomoji' ? 'active' : ''}}" bindtap="switchEmojiTab" data-tab="kaomoji">颜文字</view>
+    </view>
+    <scroll-view class="emoji-scroll" scroll-y>
+      <view class="emoji-grid">
+        <view class="emoji-item {{emojiTab === 'kaomoji' ? 'k-item' : ''}}" wx:for="{{emojiList}}" wx:key="*this" bindtap="insertEmoji" data-emoji="{{item}}">{{item}}</view>
+      </view>
+    </scroll-view>
+  </view>
+
+  <!-- ===== 添加面板（图片/视频/位置）===== -->
+  <view class="panel panel-add" wx:if="{{showAddPanel}}" style="padding-bottom: {{safeAreaBottom}}px;">
+    <view class="add-grid">
+      <view class="add-item" bindtap="chooseImage">
+        <view class="add-icon add-icon-photo"></view>
+        <text class="add-text">图片</text>
+      </view>
+      <view class="add-item" bindtap="chooseVideo">
+        <view class="add-icon add-icon-video"></view>
+        <text class="add-text">视频</text>
+      </view>
+      <view class="add-item" bindtap="chooseLocation">
+        <view class="add-icon add-icon-location"></view>
+        <text class="add-text">位置</text>
+      </view>
+    </view>
+  </view>
+
+  <!-- ===== 侧边栏：日记本 / 我的 ===== -->
+  <view class="sidebar-mask" wx:if="{{showSidebar}}" bindtap="closeSidebar"></view>
+  <view class="sidebar {{showSidebar ? 'open' : ''}}" style="padding-top: {{statusBarHeight}}px;">
+    <view class="sidebar-header">
+      <view class="sidebar-close" bindtap="closeSidebar">✕</view>
+      <view class="sidebar-title">AI日记</view>
+    </view>
+
+    <!-- 用户登录：侧栏最上方 -->
+    <view class="sidebar-user-top" bindtap="getUserProfile" hover-class="sidebar-user-top-hover">
+      <image wx:if="{{hasUserInfo}}" class="s-avatar" src="{{userInfo.avatarUrl}}" mode="aspectFill" />
+      <view wx:else class="s-avatar-default">👤</view>
+      <view class="s-user-info">
+        <view class="s-user-name">{{hasUserInfo ? userInfo.nickName : '点击登录'}}</view>
+        <view class="s-user-desc">{{hasUserInfo ? '一灯照隅' : '授权后展示头像昵称'}}</view>
+      </view>
+      <text class="s-arrow">›</text>
+    </view>
+
+    <scroll-view class="sidebar-scroll" scroll-y>
+      <!-- 日记本模块 -->
+      <view class="sidebar-section">
+        <view class="sidebar-section-title">日记本</view>
+        <view class="sidebar-stats">
+          <view class="s-stat">
+            <view class="s-num">{{stats.total}}</view>
+            <view class="s-label">总日记</view>
+          </view>
+          <view class="s-stat">
+            <view class="s-num">{{stats.monthCount}}</view>
+            <view class="s-label">本月</view>
+          </view>
+          <view class="s-stat">
+            <view class="s-num">{{stats.streak}}</view>
+            <view class="s-label">连续天数</view>
+          </view>
+        </view>
+        <view class="sidebar-search">
+          <input
+            class="s-search-input"
+            placeholder="搜索日记"
+            value="{{sidebarKeyword}}"
+            bindinput="onSidebarSearch"
+            confirm-type="search"
+          />
+          <text wx:if="{{sidebarKeyword}}" class="s-search-clear" bindtap="clearSidebarSearch">✕</text>
+        </view>
+        <view class="sidebar-diary-list" wx:if="{{sidebarDiaries.length > 0}}">
+          <view class="s-diary" wx:for="{{sidebarDiaries}}" wx:key="id" bindtap="openDiary" data-id="{{item.id}}">
+            <view class="s-diary-title">{{item.title}}</view>
+            <text wx:if="{{item.keyword}}" class="s-diary-keyword">{{item.keyword}}</text>
+            <view class="s-diary-date">{{item.dateText}}</view>
+          </view>
+        </view>
+        <view class="sidebar-empty" wx:else>暂无日记，写下第一篇吧</view>
+        <view class="sidebar-more" bindtap="goToIndex">查看全部 ›</view>
+      </view>
+
+      <!-- 我的模块 -->
+      <view class="sidebar-section">
+        <view class="sidebar-section-title">我的</view>
+        <view class="s-menu">
+          <view class="s-menu-item" bindtap="goToArchive">
+            <view class="s-menu-icon icon-archive"></view>
+            <text class="s-menu-text">档案</text>
+            <text class="s-arrow">›</text>
+          </view>
+          <view class="s-menu-item" bindtap="exportDiaries">
+            <view class="s-menu-icon icon-export">
+              <view class="i-arrow-up"></view>
+              <view class="i-tray"></view>
+            </view>
+            <text class="s-menu-text">导出日记</text>
+            <text class="s-arrow">›</text>
+          </view>
+          <view class="s-menu-item" bindtap="importDiaries">
+            <view class="s-menu-icon icon-import">
+              <view class="i-arrow-down"></view>
+              <view class="i-tray"></view>
+            </view>
+            <text class="s-menu-text">导入日记</text>
+            <text class="s-arrow">›</text>
+          </view>
+          <view class="s-menu-item" bindtap="goBackup">
+            <view class="s-menu-icon icon-backup"><view class="i-arrow-up"></view></view>
+            <text class="s-menu-text">云端备份</text>
+            <text class="s-arrow">›</text>
+          </view>
+          <view class="s-menu-item" bindtap="showAbout">
+            <view class="s-menu-icon icon-about"></view>
+            <text class="s-menu-text">关于</text>
+            <text class="s-arrow">›</text>
+          </view>
+          <view class="s-menu-item danger" bindtap="clearAllDiaries">
+            <view class="s-menu-icon icon-clear"></view>
+            <text class="s-menu-text">清除所有日记</text>
+            <text class="s-arrow">›</text>
+          </view>
+        </view>
+      </view>
+    </scroll-view>
+  </view>
+
+  <!-- 全屏语音输入面板（飞书风格 + 小程序绿色主题） -->
+  <view class="voice-modal" wx:if="{{recording || transcribing}}">
+    <view class="voice-modal-mask"></view>
+    <view class="voice-modal-body">
+      <!-- 识别文字卡片 -->
+      <view class="voice-card {{recording ? '' : 'voice-card-processing'}}">
+        <view class="voice-card-header">
+          <view class="voice-card-dot {{recording ? 'pulse' : ''}}"></view>
+          <text class="voice-card-title">{{transcribing ? '语音识别中' : '正在聆听'}}</text>
+        </view>
+        <scroll-view class="voice-card-scroll" scroll-y scroll-top="{{liveScrollTop}}" enhanced show-scrollbar="{{false}}">
+          <text class="voice-card-text">{{liveText || (recording ? '请说话…' : '识别中…')}}</text>
+        </scroll-view>
+        <view class="voice-card-badge" wx:if="{{liveRemoved > 0}}">已过滤 {{liveRemoved}} 处语气词</view>
+      </view>
+
+      <!-- 音频波形（仅在录音中显示） -->
+      <view class="voice-waves" wx:if="{{recording}}">
+        <view class="voice-wave voice-wave-1"></view>
+        <view class="voice-wave voice-wave-2"></view>
+        <view class="voice-wave voice-wave-3"></view>
+        <view class="voice-wave voice-wave-4"></view>
+        <view class="voice-wave voice-wave-5"></view>
+        <view class="voice-wave voice-wave-6"></view>
+        <view class="voice-wave voice-wave-7"></view>
+      </view>
+    </view>
+
+    <view class="voice-modal-footer">
+      <text class="voice-modal-tip" wx:if="{{voiceCanceling || transcribing}}">{{voiceCanceling ? '松开取消发送' : '处理中…'}}</text>
+    </view>
+  </view>
+
+  <!-- AI优化中 -->
+  <view class="optimize-loading" wx:if="{{optimizing}}">
+    <view class="opt-loading-text">{{aiLoadingText}}</view>
+    <view class="opt-loading-subtext">{{aiLoadingSub}}</view>
+    <view class="gen-dots">
+      <view class="dot dot1"></view>
+      <view class="dot dot2"></view>
+      <view class="dot dot3"></view>
+    </view>
+  </view>
+
+  <!-- AI优化结果（全屏覆盖，顶部避开状态栏/刘海/灵动岛） -->
+  <view
+    class="optimize-result"
+    wx:if="{{showOptimizeResult}}"
+    style="padding-top: {{safeAreaTop + 8}}px;"
+  >
+    <view class="opt-result-header">
+      <view class="opt-result-badge">AI 优化建议</view>
+      <text class="opt-action-btn" bindtap="reOptimize">重新优化</text>
+    </view>
+
+    <view class="opt-points" wx:if="{{optimizeChanges.length > 0}}">
+      <view class="opt-points-title">优化要点</view>
+      <view class="opt-point" wx:for="{{optimizeChanges}}" wx:key="*this">• {{item}}</view>
+    </view>
+
+    <view class="opt-original-toggle" bindtap="toggleOriginal">
+      查看原文 {{showOriginal ? '▲' : '▼'}}
+    </view>
+    <view class="opt-original-content" wx:if="{{showOriginal}}">{{originalContent}}</view>
+
+    <view class="opt-label">优化稿（可直接修改）</view>
+    <view class="section">
+      <textarea
+        class="textarea-field opt-textarea"
+        value="{{optimizedContent}}"
+        bindinput="onOptimizedInput"
+        maxlength="-1"
+        auto-height
+        show-confirm-bar="{{false}}"
+      />
+    </view>
+
+    <view class="opt-btns">
+      <button class="btn-secondary" bindtap="discardOptimize">放弃</button>
+      <button class="btn-primary" bindtap="applyOptimize">使用优化稿</button>
+    </view>
+  </view>
+
+  <!-- 实体备案弹窗 -->
+  <view class="entity-mask" wx:if="{{showEntityPrompt}}" catchtouchmove="true">
+    <view class="entity-modal">
+      <view class="entity-title">发现名词解释</view>
+      <view class="entity-desc">你在日记中解释了以下名词，是否备案到档案？备案后日记中只保留名词，解释部分自动移除。</view>
+      <view class="entity-list">
+        <view
+          class="entity-item {{item.checked ? 'checked' : ''}}"
+          wx:for="{{newEntities}}"
+          wx:key="name"
+          data-index="{{index}}"
+          bindtap="toggleEntity"
+        >
+          <view class="entity-checkbox">{{item.checked ? '✓' : ''}}</view>
+          <view class="entity-info">
+            <view class="entity-name-row">
+              <text class="entity-name">{{item.name}}</text>
+              <text class="entity-type">{{item.type === 'person' ? '人名' : item.type === 'place' ? '地名' : item.type === 'org' ? '机构' : '其他'}}</text>
+              <text wx:if="{{item.exists}}" class="entity-exist diff">将更新档案</text>
+            </view>
+            <text class="entity-desc-text">{{item.description}}</text>
+          </view>
+        </view>
+      </view>
+      <view class="entity-btns">
+        <button class="btn-secondary" bindtap="skipEntities">跳过</button>
+        <button class="btn-primary" bindtap="confirmAddEntities">备案</button>
+      </view>
+    </view>
+  </view>
+
+</view>

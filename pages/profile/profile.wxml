@@ -1,0 +1,138 @@
+<!-- 我的页面 -->
+<view class="page">
+  <!-- 用户信息卡片 -->
+  <view class="user-card">
+    <block wx:if="{{hasUserInfo}}">
+      <image class="user-avatar" src="{{userInfo.avatarUrl}}" mode="aspectFill"></image>
+      <view class="user-info">
+        <view class="user-name">{{userInfo.nickName}}</view>
+        <view class="user-desc">记录生活的每一天</view>
+      </view>
+    </block>
+    <view class="user-login" wx:else bindtap="getUserProfile">
+      <view class="user-avatar-default">👤</view>
+      <view class="user-login-text">点击登录 / 授权</view>
+    </view>
+  </view>
+
+  <!-- 统计卡片 -->
+  <view class="stats-section" wx:if="{{stats}}">
+    <view class="stats-card">
+      <view class="stats-row">
+        <view class="stat-block">
+          <view class="stat-num">{{stats.total}}</view>
+          <view class="stat-label">总日记</view>
+        </view>
+        <view class="stat-block">
+          <view class="stat-num">{{stats.manualCount}}</view>
+          <view class="stat-label">手动</view>
+        </view>
+        <view class="stat-block">
+          <view class="stat-num">{{stats.aiCount}}</view>
+          <view class="stat-label">AI优化</view>
+        </view>
+        <view class="stat-block">
+          <view class="stat-num">{{stats.monthCount}}</view>
+          <view class="stat-label">本月</view>
+        </view>
+      </view>
+      <view class="stats-row" wx:if="{{stats.streak > 0}}">
+        <view class="streak-badge">已连续记录 {{stats.streak}} 天</view>
+      </view>
+    </view>
+  </view>
+
+  <!-- 功能菜单 -->
+  <view class="menu-section">
+    <view class="menu-title">功能</view>
+    <view class="menu-card">
+      <view class="menu-item" bindtap="goToIndex">
+        <view class="menu-text">我的日记</view>
+        <view class="menu-arrow">›</view>
+      </view>
+      <view class="menu-item" bindtap="goToWrite">
+        <view class="menu-text">写日记</view>
+        <view class="menu-arrow">›</view>
+      </view>
+      <view class="menu-item" bindtap="goToArchive">
+        <view class="menu-text">档案</view>
+        <view class="menu-arrow">›</view>
+      </view>
+      <view class="menu-item" bindtap="exportDiaries">
+        <view class="menu-text">导出日记</view>
+        <view class="menu-arrow">›</view>
+      </view>
+      <view class="menu-item" bindtap="importDiaries">
+        <view class="menu-text">导入日记</view>
+        <view class="menu-arrow">›</view>
+      </view>
+    </view>
+  </view>
+
+  <!-- 云端备份（可选，默认关闭；AES 加密，明文不上传） -->
+  <view class="menu-section">
+    <view class="menu-title">云端备份</view>
+    <view class="menu-card">
+      <view class="menu-item" wx:if="{{!backupEnabled}}" bindtap="openEnableBackup">
+        <view class="menu-text">开启云端备份（加密）</view>
+        <view class="menu-arrow">›</view>
+      </view>
+      <block wx:else>
+        <view class="menu-item" bindtap="backupNow">
+          <view class="menu-text">立即备份到云端</view>
+          <view class="menu-arrow">›</view>
+        </view>
+        <view class="menu-item" bindtap="restoreFromCloud">
+          <view class="menu-text">从云端恢复</view>
+          <view class="menu-arrow">›</view>
+        </view>
+        <view class="menu-item" bindtap="clearCloudBackup">
+          <view class="menu-text">清空云端备份</view>
+          <view class="menu-arrow">›</view>
+        </view>
+        <view class="menu-item" bindtap="disableBackup">
+          <view class="menu-text">关闭自动备份</view>
+          <view class="menu-arrow">›</view>
+        </view>
+      </block>
+    </view>
+    <view class="backup-hint">{{backupHint}}</view>
+  </view>
+
+  <!-- 设置菜单 -->
+  <view class="menu-section">
+    <view class="menu-title">设置</view>
+    <view class="menu-card">
+      <view class="menu-item" bindtap="showAbout">
+        <view class="menu-text">关于</view>
+        <view class="menu-arrow">›</view>
+      </view>
+      <view class="menu-item" bindtap="clearAllDiaries">
+        <view class="menu-text danger">清除所有日记</view>
+        <view class="menu-arrow">›</view>
+      </view>
+    </view>
+  </view>
+
+  <!-- 底部信息 -->
+  <view class="footer">
+    <view class="footer-text">AI日记 v1.0</view>
+    <view class="footer-sub">数据默认只存本机；开启备份后仅上传 AES 加密密文</view>
+  </view>
+</view>
+
+<!-- 备份密码弹框（开启备份 / 从云端恢复） -->
+<view class="backup-modal" wx:if="{{backupModalShow}}">
+  <view class="backup-mask" bindtap="closeBackupModal"></view>
+  <view class="backup-card">
+    <view class="backup-title">{{backupMode === 'enable' ? '开启云端备份' : '从云端恢复'}}</view>
+    <view class="backup-desc" wx:if="{{backupMode === 'enable'}}">开启后，日记先在本机用 AES-256 加密再上传，服务器只存密文、无法看到任何内容。备份密码用于换手机时解密恢复，请牢记（忘记将无法恢复云端备份）。</view>
+    <view class="backup-desc" wx:else>输入备份密码，从云端拉取加密备份并在本机解密恢复。密码不会上传。</view>
+    <input class="backup-input" password type="text" placeholder="备份密码（至少 6 位）" value="{{pwd1}}" bindinput="onPwd1Input" />
+    <input class="backup-input" password type="text" wx:if="{{backupMode === 'enable'}}" placeholder="再次输入备份密码" value="{{pwd2}}" bindinput="onPwd2Input" />
+    <view class="backup-actions">
+      <view class="backup-btn cancel" bindtap="closeBackupModal">取消</view>
+      <view class="backup-btn ok" bindtap="confirmBackupModal">{{backupMode === 'enable' ? '开启并备份' : '开始恢复'}}</view>
+    </view>
+  </view>
+</view>

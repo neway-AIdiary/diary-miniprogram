@@ -1,0 +1,92 @@
+<!-- 首页 - 日记列表 -->
+<view class="page">
+  <!-- 顶部统计栏 -->
+  <view class="stats-bar" wx:if="{{stats && stats.total > 0}}">
+    <view class="stat-item">
+      <view class="stat-num">{{stats.total}}</view>
+      <view class="stat-label">总日记</view>
+    </view>
+    <view class="stat-divider"></view>
+    <view class="stat-item">
+      <view class="stat-num">{{stats.monthCount}}</view>
+      <view class="stat-label">本月</view>
+    </view>
+    <view class="stat-divider"></view>
+    <view class="stat-item">
+      <view class="stat-num">{{stats.streak}}</view>
+      <view class="stat-label">连续天数</view>
+    </view>
+  </view>
+
+  <!-- 搜索栏 -->
+  <view class="search-bar">
+    <view class="search-box">
+      <input
+        class="search-input"
+        placeholder="搜索标题、内容、位置或天气"
+        value="{{searchKeyword}}"
+        bindinput="onSearchInput"
+        confirm-type="search"
+      />
+      <text wx:if="{{searchKeyword}}" class="search-clear" bindtap="clearSearch">✕</text>
+    </view>
+  </view>
+
+  <!-- 搜索提示 -->
+  <view class="search-tip" wx:if="{{isSearching}}">
+    找到 {{searchCount}} 篇相关日记
+    <text class="search-tip-reset" bindtap="clearSearch">取消搜索</text>
+  </view>
+
+  <!-- 日记列表 -->
+  <view class="diary-list" wx:if="{{diaries.length > 0}}">
+    <view
+      class="diary-item"
+      wx:for="{{diaries}}"
+      wx:key="id"
+      bindtap="goToDetail"
+      data-id="{{item.id}}"
+    >
+      <view class="diary-card">
+        <view class="diary-card-header">
+          <view class="diary-title">{{item.title || '无题'}}</view>
+          <view wx:if="{{item.source === 'ai'}}" class="tag-ai">AI 优化</view>
+        </view>
+        <view class="diary-content">{{item.contentPreview}}</view>
+        <view class="diary-media" wx:if="{{item.mediaPreview.length > 0}}">
+          <view class="diary-media-item" wx:for="{{item.mediaPreview}}" wx:for-item="m" wx:key="fileID">
+            <image class="diary-media-img" src="{{m.fileID}}" mode="aspectFill" wx:if="{{m.type === 'image'}}" />
+            <view class="diary-media-img diary-media-video" wx:else>
+              <text class="diary-media-video-icon">▶</text>
+            </view>
+          </view>
+        </view>
+        <view class="diary-location" wx:if="{{item.locationText || item.weatherText}}">
+          <text wx:if="{{item.locationText}}">📍 {{item.locationText}}</text>
+          <text wx:if="{{item.weatherText}}" class="diary-weather">{{item.weatherIcon}} {{item.weatherText}}</text>
+        </view>
+        <view class="diary-card-footer">
+          <view class="footer-left">
+            <text wx:if="{{item.moodText}}" class="tag-mood" style="color:{{item.moodColor}};background:{{item.moodBg}}">{{item.moodText}}</text>
+            <view class="tag-list" wx:if="{{item.tags.length > 0}}">
+              <text class="tag-item" wx:for="{{item.tags}}" wx:for-item="tag" wx:key="*this">#{{tag}}</text>
+            </view>
+          </view>
+          <text class="diary-date">{{item.dateText}}</text>
+        </view>
+      </view>
+    </view>
+  </view>
+
+  <!-- 搜索无结果 -->
+  <view class="empty-state" wx:if="{{isSearching && searchCount === 0}}">
+    <view class="empty-text">没有找到相关日记</view>
+    <view class="empty-sub" bindtap="clearSearch">清除搜索</view>
+  </view>
+
+  <!-- 空状态 -->
+  <view class="empty-state" wx:if="{{isEmpty && !loading}}">
+    <view class="empty-text">还没有日记，写下第一篇吧</view>
+    <view class="btn-primary empty-btn" bindtap="goToWrite">写日记</view>
+  </view>
+</view>

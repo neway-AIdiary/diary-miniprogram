@@ -1,0 +1,244 @@
+/* ===== 日记本：微信小程序标准列表风格 · 浅青绿底 ===== */
+.page {
+  min-height: 100vh;
+  background: #F0F6F2;
+}
+
+/* 统计栏：白色圆角卡片 */
+.stats-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-around;
+  background: #FFFFFF;
+  border-radius: 16rpx;
+  padding: 36rpx 24rpx;
+  margin: 24rpx 24rpx 0;
+}
+
+.stat-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex: 1;
+}
+
+.stat-num {
+  font-size: 48rpx;
+  font-weight: 600;
+  color: #1A1A1A;
+  line-height: 1.1;
+}
+
+.stat-label {
+  font-size: 22rpx;
+  color: #999999;
+  margin-top: 10rpx;
+}
+
+.stat-divider {
+  width: 1rpx;
+  height: 48rpx;
+  background: #EBEBEB;
+}
+
+/* 搜索栏：微信标准灰底圆角搜索框 */
+.search-bar {
+  padding: 24rpx 24rpx 8rpx;
+}
+
+.search-box {
+  display: flex;
+  align-items: center;
+  background: #EAF3EE;
+  border-radius: 12rpx;
+  padding: 18rpx 28rpx;
+}
+
+.search-input {
+  flex: 1;
+  font-size: 28rpx;
+  color: #1A1A1A;
+}
+
+.search-clear {
+  font-size: 28rpx;
+  color: #BBBBBB;
+  padding: 0 8rpx;
+}
+
+.search-tip {
+  font-size: 24rpx;
+  color: #999999;
+  padding: 16rpx 32rpx;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.search-tip-reset {
+  color: #07C160;
+}
+
+.empty-sub {
+  font-size: 26rpx;
+  color: #07C160;
+  margin-top: 16rpx;
+  padding-bottom: 4rpx;
+}
+
+/* 日记列表 */
+.diary-list {
+  padding: 16rpx 24rpx;
+}
+
+.diary-item {
+  margin-bottom: 20rpx;
+}
+
+.diary-card {
+  background: #FFFFFF;
+  border-radius: 16rpx;
+  padding: 32rpx;
+  transition: background 0.15s;
+}
+
+.diary-card:active {
+  background: #F4FAF6;
+}
+
+.diary-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 14rpx;
+}
+
+.diary-title {
+  font-size: 32rpx;
+  font-weight: 500;
+  color: #1A1A1A;
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* AI 优化标签：琥珀金（与 AI 按钮同色系，突出 AI 能力） */
+.tag-ai {
+  font-size: 20rpx;
+  color: #FF9500;
+  background: rgba(255, 149, 0, 0.12);
+  padding: 6rpx 16rpx;
+  border-radius: 8rpx;
+  flex-shrink: 0;
+  margin-left: 16rpx;
+}
+
+.diary-content {
+  font-size: 27rpx;
+  color: #666666;
+  line-height: 1.7;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+}
+
+/* 卡片媒体缩略图：图片直接显示，视频用占位 */
+.diary-media {
+  display: flex;
+  gap: 12rpx;
+  margin-top: 20rpx;
+}
+
+.diary-media-item {
+  width: 200rpx;
+  height: 200rpx;
+  border-radius: 12rpx;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.diary-media-img {
+  width: 100%;
+  height: 100%;
+  display: block;
+  background: #F0F6F2;
+}
+
+.diary-media-video {
+  background: #1A1A1A;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.diary-media-video-icon {
+  font-size: 48rpx;
+  color: #FFFFFF;
+}
+
+/* 卡片位置 & 天气 */
+.diary-location {
+  font-size: 24rpx;
+  color: #999999;
+  margin-top: 16rpx;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.diary-location .diary-weather {
+  margin-left: 24rpx;
+}
+
+.diary-card-footer {
+  margin-top: 18rpx;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.tag-mood {
+  font-size: 22rpx;
+  padding: 4rpx 16rpx;
+  border-radius: 8rpx;
+}
+
+/* footer 左侧：心情 + 标签 */
+.footer-left {
+  display: flex;
+  align-items: center;
+  flex: 1;
+  min-width: 0;
+}
+
+/* 标签列表：与心情间隔两个空格宽度 */
+.tag-list {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  margin-left: 24rpx; /* 两个空格的间隔 */
+}
+
+.tag-item {
+  font-size: 22rpx;
+  color: #52A874;
+  margin-right: 12rpx;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.diary-date {
+  font-size: 24rpx;
+  color: #999999;
+}
+
+/* 空状态按钮 */
+.empty-btn {
+  margin-top: 48rpx;
+  padding: 20rpx 72rpx;
+  display: inline-block;
+}

@@ -1,0 +1,31 @@
+{
+  "pages": [
+    "pages/write/write",
+    "pages/index/index",
+    "pages/profile/profile",
+    "pages/detail/detail",
+    "pages/archive/archive",
+    "pages/backup/backup"
+  ],
+  "window": {
+    "navigationBarBackgroundColor": "#F0F6F2",
+    "navigationBarTextStyle": "black",
+    "navigationBarTitleText": "AI日记",
+    "backgroundColor": "#F0F6F2",
+    "backgroundTextStyle": "dark"
+  },
+  "style": "v2",
+  "sitemapLocation": "sitemap.json",
+  "permission": {
+    "scope.record": {
+      "desc": "语音输入需要使用麦克风"
+    },
+    "scope.userLocation": {
+      "desc": "记录日记所在的位置并展示当地天气"
+    }
+  },
+  "requiredPrivateInfos": [
+    "getLocation",
+    "chooseLocation"
+  ]
+}

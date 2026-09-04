@@ -1,0 +1,7 @@
+{
+  "name": "optimizeDiary",
+  "version": "1.0.0",
+  "description": "调用 DeepSeek 大模型优化/续写日记（零依赖，仅用 Node 内置模块）",
+  "main": "index.js",
+  "dependencies": {}
+}

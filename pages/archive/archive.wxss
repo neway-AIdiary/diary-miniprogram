@@ -1,0 +1,583 @@
+/* ===== 档案页面：主页同款底栏 ===== */
+.page {
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: #F0F6F2;
+  overflow: hidden;
+}
+
+/* 提示栏 */
+.hint-bar {
+  flex-shrink: 0;
+  padding: 20rpx 32rpx;
+}
+
+.hint-text {
+  font-size: 24rpx;
+  color: #999999;
+  line-height: 1.7;
+  white-space: pre-line;
+}
+
+/* 档案列表滚动区 */
+.archive-scroll {
+  flex: 1;
+  min-height: 0;
+}
+
+.archive-section {
+  padding: 0 24rpx;
+  margin-top: 20rpx;
+}
+
+.archive-title {
+  font-size: 28rpx;
+  font-weight: 600;
+  color: #1A1A1A;
+  padding: 0 8rpx 16rpx;
+}
+
+.archive-list {
+  display: flex;
+  flex-direction: column;
+  gap: 20rpx;
+}
+
+.archive-card {
+  background: #FFFFFF;
+  border-radius: 16rpx;
+  padding: 28rpx 32rpx;
+}
+
+.archive-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.archive-name {
+  font-size: 32rpx;
+  font-weight: 600;
+  color: #1A1A1A;
+  flex: 1;
+}
+
+.archive-delete {
+  font-size: 24rpx;
+  color: #FA5151;
+  padding: 8rpx 16rpx;
+}
+
+.archive-delete:active {
+  opacity: 0.5;
+}
+
+.archive-desc {
+  font-size: 28rpx;
+  color: #666666;
+  line-height: 1.7;
+  margin-top: 12rpx;
+}
+
+.archive-desc.placeholder {
+  color: #CCCCCC;
+}
+
+/* 空状态 */
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 100rpx 0 80rpx;
+}
+
+.empty-icon {
+  font-size: 80rpx;
+  margin-bottom: 24rpx;
+}
+
+.empty-text {
+  font-size: 32rpx;
+  color: #999999;
+  font-weight: 500;
+}
+
+.empty-hint {
+  font-size: 24rpx;
+  color: #BBBBBB;
+  margin-top: 12rpx;
+}
+
+.content-bottom-space {
+  height: 24rpx;
+}
+
+/* ===== 底部输入栏（与主页一致）===== */
+.input-bar {
+  flex-shrink: 0;
+  display: flex;
+  align-items: flex-end;
+  background: #FFFFFF;
+  border-top: 1rpx solid #E8E8E8;
+  padding: 12rpx 16rpx 22rpx;
+  z-index: 20;
+}
+
+.input-btn {
+  width: 80rpx;
+  height: 80rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 40rpx;
+  flex-shrink: 0;
+}
+
+.input-btn.active {
+  background: #F0F0F0;
+  border-radius: 16rpx;
+}
+
+.input-middle {
+  flex: 1;
+  min-width: 0;
+  margin: 0 12rpx;
+}
+
+.hold-talk {
+  height: 80rpx;
+  background: #F2F3F5;
+  border-radius: 40rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 28rpx;
+  color: #333333;
+}
+
+.hold-talk:active,
+.hold-talk.recording {
+  background: #E5E5E5;
+  color: #07C160;
+}
+
+/* 上滑取消状态（与主页一致：红底红字提示松开取消） */
+.hold-talk.canceling {
+  background: #FFEBEB;
+  color: #FF6B6B;
+}
+
+.input-text {
+  width: 100%;
+  box-sizing: border-box;
+  background: #F2F3F5;
+  border-radius: 40rpx;
+  padding: 16rpx 24rpx;
+  font-size: 28rpx;
+  color: #1A1A1A;
+  line-height: 48rpx;
+  min-height: 80rpx;
+  max-height: 160rpx;
+}
+
+/* 添加(+)按钮（主页同款） */
+.input-add {
+  width: 80rpx;
+  height: 80rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.input-add.active {
+  background: #F0F0F0;
+  border-radius: 16rpx;
+}
+
+/* 输入框有内容：浅绿底提示可直接发送 */
+.input-add.send {
+  background: rgba(7, 193, 96, 0.12);
+  border-radius: 16rpx;
+}
+
+/* ===== 底栏图标：豆包同款（麦克风/键盘） ===== */
+.icon-bar {
+  width: 52rpx;
+  height: 52rpx;
+  background-size: contain;
+  background-repeat: no-repeat;
+  background-position: center;
+}
+
+.icon-mic {
+  background-image: url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCI+PHBhdGggZmlsbD0iIzJCMkIyQiIgZD0iTTEyIDE1YTMuMiAzLjIgMCAwIDAgMy4yLTMuMlY2LjJhMy4yIDMuMiAwIDAgMC02LjQgMHY1LjZBMy4yIDMuMiAwIDAgMCAxMiAxNXoiLz48cGF0aCBmaWxsPSIjMkIyQjJCIiBkPSJNMTcuOSAxMS40YTUuOSA1LjkgMCAwIDEtMTEuOCAwSDQuNGE3LjQgNy40IDAgMCAwIDYuOCA3LjRWMjFoMS42di0yLjJhNy40IDcuNCAwIDAgMCA2LjgtNy40aC0xLjd6Ii8+PC9zdmc+");
+}
+
+.icon-keyboard {
+  background-image: url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCI+PHBhdGggZmlsbD0iIzJCMkIyQiIgZD0iTTIwIDVINGEyIDIgMCAwIDAtMiAydjEwYTIgMiAwIDAgMCAyIDJoMTZhMiAyIDAgMCAwIDItMlY3YTIgMiAwIDAgMC0yLTJ6bS05IDRoMnYyaC0yVjl6TTcgOWgydjJIN1Y5em0xMCA4SDd2LTJoMTB2MnptMC02aC0yVjloMnYyem0tNCA0di0yaDJ2MmgtMnptLTYgMHYtMmgydjJIN3oiLz48L3N2Zz4=");
+}
+
+.icon-plus {
+  background-image: url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCI+PHBhdGggZmlsbD0iIzJCMkIyQiIgZD0iTTExIDRoMnY3aDd2MmgtN3Y3aC0ydi03SDR2LTJoN1Y0eiIvPjwvc3ZnPg==");
+}
+
+.icon-smiley {
+  background-image: url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCI+PGNpcmNsZSBjeD0iMTIiIGN5PSIxMiIgcj0iOSIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjMkIyQjJCIiBzdHJva2Utd2lkdGg9IjEuNyIvPjxjaXJjbGUgY3g9IjguOCIgY3k9IjEwIiByPSIxLjEiIGZpbGw9IiMyQjJCMkIiLz48Y2lyY2xlIGN4PSIxNS4yIiBjeT0iMTAiIHI9IjEuMSIgZmlsbD0iIzJCMkIyQiIvPjxwYXRoIGQ9Ik04IDEzLjdjMS4yIDEuNyA2LjggMS43IDggMCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjMkIyQjJCIiBzdHJva2Utd2lkdGg9IjEuNiIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIi8+PC9zdmc+");
+}
+
+/* ===== 表情面板（与主页一致）===== */
+.panel {
+  flex-shrink: 0;
+  background: #FFFFFF;
+  border-top: 1rpx solid #E8E8E8;
+  z-index: 19;
+}
+
+.panel-tabs {
+  display: flex;
+  border-bottom: 1rpx solid #F0F0F0;
+}
+
+.panel-tab {
+  padding: 20rpx 40rpx;
+  font-size: 28rpx;
+  color: #666666;
+  position: relative;
+}
+
+.panel-tab.active {
+  color: #07C160;
+  font-weight: 500;
+}
+
+.panel-tab.active::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  bottom: 0;
+  transform: translateX(-50%);
+  width: 40rpx;
+  height: 4rpx;
+  border-radius: 2rpx;
+  background: #07C160;
+}
+
+/* 表情网格 */
+.emoji-scroll {
+  height: 420rpx;
+}
+
+.emoji-grid {
+  display: flex;
+  flex-wrap: wrap;
+  padding: 16rpx 8rpx;
+}
+
+.emoji-item {
+  width: 96rpx;
+  height: 96rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 44rpx;
+}
+
+/* 颜文字：长字符串，改为自适应宽度 + 小字号，避免溢出重叠 */
+.emoji-item.k-item {
+  width: auto;
+  min-width: 110rpx;
+  padding: 0 18rpx;
+  font-size: 30rpx;
+}
+
+.emoji-item:active {
+  background: #F0F0F0;
+  border-radius: 16rpx;
+}
+
+/* ===== 词条编辑弹框（点击词条编辑 / 点 + 新增）===== */
+.edit-modal {
+  position: fixed;
+  left: 0;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  z-index: 1100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.edit-mask {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.45);
+}
+
+.edit-card {
+  position: relative;
+  z-index: 1;
+  width: 620rpx;
+  background: #FFFFFF;
+  border-radius: 24rpx;
+  padding: 40rpx 36rpx 32rpx;
+  box-sizing: border-box;
+}
+
+.edit-title {
+  font-size: 32rpx;
+  font-weight: 600;
+  color: #1A1A1A;
+  text-align: center;
+  margin-bottom: 28rpx;
+}
+
+.edit-input {
+  width: 100%;
+  box-sizing: border-box;
+  height: 80rpx;
+  background: #F2F3F5;
+  border-radius: 16rpx;
+  padding: 0 24rpx;
+  font-size: 28rpx;
+  color: #1A1A1A;
+  margin-bottom: 20rpx;
+}
+
+.edit-textarea {
+  width: 100%;
+  box-sizing: border-box;
+  min-height: 160rpx;
+  max-height: 320rpx;
+  background: #F2F3F5;
+  border-radius: 16rpx;
+  padding: 20rpx 24rpx;
+  font-size: 28rpx;
+  color: #1A1A1A;
+  line-height: 1.6;
+}
+
+.edit-actions {
+  display: flex;
+  gap: 20rpx;
+  margin-top: 32rpx;
+}
+
+.edit-btn {
+  flex: 1;
+  height: 80rpx;
+  border-radius: 40rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 30rpx;
+}
+
+.edit-btn.cancel {
+  background: #F2F3F5;
+  color: #666666;
+}
+
+.edit-btn.cancel:active {
+  opacity: 0.7;
+}
+
+.edit-btn.save {
+  background: #07C160;
+  color: #FFFFFF;
+  font-weight: 500;
+}
+
+.edit-btn.save:active {
+  background: #06AD56;
+}
+
+/* ===== 全屏语音输入面板（与主页一致：无背景，浮层内容 + 上方遮罩） ===== */
+.voice-modal {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 25%;
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 28rpx 48rpx calc(28rpx + constant(safe-area-inset-bottom));
+  padding: 28rpx 48rpx calc(28rpx + env(safe-area-inset-bottom));
+  box-sizing: border-box;
+  animation: voiceSheetIn 0.25s ease-out;
+}
+
+.voice-modal-mask {
+  position: absolute;
+  top: -300%;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.4);
+}
+
+@keyframes voiceSheetIn {
+  from { transform: translateY(100%); }
+  to { transform: translateY(0); }
+}
+
+.voice-modal-body {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+/* 识别文字卡片：淡绿背景呼应小程序主题 */
+.voice-card {
+  width: 100%;
+  max-width: 620rpx;
+  background: #E8F8EF;
+  border-radius: 24rpx;
+  padding: 20rpx 28rpx 16rpx;
+  box-sizing: border-box;
+}
+
+.voice-card-processing {
+  background: rgba(7, 193, 96, 0.08);
+  border: 2rpx solid rgba(7, 193, 96, 0.2);
+}
+
+.voice-card-header {
+  display: flex;
+  align-items: center;
+  margin-bottom: 12rpx;
+}
+
+.voice-card-dot {
+  width: 16rpx;
+  height: 16rpx;
+  border-radius: 50%;
+  background: #07C160;
+  margin-right: 12rpx;
+  flex-shrink: 0;
+  box-shadow: 0 0 0 5rpx rgba(7, 193, 96, 0.25);
+}
+
+.voice-card-dot.pulse {
+  animation: voicePulse 1.2s ease-in-out infinite;
+}
+
+.voice-card-title {
+  font-size: 26rpx;
+  font-weight: 600;
+  color: #07C160;
+}
+
+.voice-card-processing .voice-card-title {
+  color: #1A1A1A;
+}
+
+.voice-card-scroll {
+  max-height: 100rpx;
+  width: 100%;
+}
+
+.voice-card-text {
+  display: block;
+  font-size: 30rpx;
+  line-height: 1.6;
+  color: #1A1A1A;
+  word-break: break-all;
+  white-space: pre-wrap;
+}
+
+.voice-card-badge {
+  display: inline-block;
+  margin-top: 10rpx;
+  font-size: 20rpx;
+  color: #07C160;
+  background: rgba(7, 193, 96, 0.12);
+  border-radius: 18rpx;
+  padding: 4rpx 14rpx;
+}
+
+/* 音频波形 */
+.voice-waves {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8rpx;
+  margin-top: 20rpx;
+  height: 44rpx;
+}
+
+.voice-wave {
+  width: 6rpx;
+  border-radius: 3rpx;
+  background: rgba(7, 193, 96, 0.55);
+  animation: voiceWave 1s ease-in-out infinite;
+}
+
+.voice-wave-1 { height: 18rpx; animation-delay: 0s; }
+.voice-wave-2 { height: 30rpx; animation-delay: 0.1s; }
+.voice-wave-3 { height: 44rpx; animation-delay: 0.2s; }
+.voice-wave-4 { height: 34rpx; animation-delay: 0.3s; }
+.voice-wave-5 { height: 44rpx; animation-delay: 0.4s; }
+.voice-wave-6 { height: 30rpx; animation-delay: 0.5s; }
+.voice-wave-7 { height: 18rpx; animation-delay: 0.6s; }
+
+@keyframes voiceWave {
+  0%, 100% { transform: scaleY(0.55); opacity: 0.7; }
+  50% { transform: scaleY(1); opacity: 1; }
+}
+
+/* 底部提示 */
+.voice-modal-footer {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.voice-modal-tip {
+  margin-top: 16rpx;
+  font-size: 24rpx;
+  color: #07C160;
+  letter-spacing: 2rpx;
+}
+
+@keyframes voicePulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.35; transform: scale(0.75); }
+}
+
+/* ===== AI 整理中 ===== */
+.organize-loading {
+  position: fixed;
+  left: 0;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.35);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 900;
+}
+
+.organize-text {
+  background: #FFFFFF;
+  border-radius: 20rpx;
+  padding: 28rpx 48rpx;
+  font-size: 30rpx;
+  color: #1A1A1A;
+  font-weight: 500;
+  box-shadow: 0 8rpx 32rpx rgba(0, 0, 0, 0.15);
+}

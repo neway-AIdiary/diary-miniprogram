@@ -1,0 +1,266 @@
+.page {
+  min-height: 100vh;
+  background: #F0F6F2;
+  padding-top: 24rpx;
+  box-sizing: border-box;
+}
+
+/* 状态卡 */
+.status-card {
+  margin: 0 24rpx;
+  background: #FFFFFF;
+  border-radius: 16rpx;
+  padding: 36rpx 32rpx;
+  display: flex;
+  align-items: center;
+}
+
+.status-icon {
+  width: 72rpx;
+  height: 72rpx;
+  border-radius: 50%;
+  background: #F2F3F5;
+  position: relative;
+  flex-shrink: 0;
+  margin-right: 24rpx;
+}
+
+/* 关闭状态：云朵轮廓（灰） */
+.status-icon::before {
+  content: '';
+  position: absolute;
+  left: 14rpx;
+  top: 24rpx;
+  width: 40rpx;
+  height: 20rpx;
+  border: 4rpx solid #B0B0B0;
+  border-radius: 12rpx;
+}
+
+.status-icon::after {
+  content: '';
+  position: absolute;
+  left: 22rpx;
+  top: 14rpx;
+  width: 20rpx;
+  height: 20rpx;
+  border: 4rpx solid #B0B0B0;
+  border-bottom: none;
+  border-radius: 12rpx 12rpx 0 0;
+}
+
+/* 开启状态：绿色实心云 + 白色对勾 */
+.status-icon.on {
+  background: #07C160;
+}
+
+.status-icon.on::before {
+  border-color: #FFFFFF;
+  left: 16rpx;
+  top: 28rpx;
+  width: 36rpx;
+  height: 16rpx;
+}
+
+.status-icon.on::after {
+  border: none;
+  left: 24rpx;
+  top: 26rpx;
+  width: 20rpx;
+  height: 12rpx;
+  border-left: 4rpx solid #FFFFFF;
+  border-bottom: 4rpx solid #FFFFFF;
+  border-radius: 0;
+  transform: rotate(-45deg);
+}
+
+.status-info {
+  flex: 1;
+}
+
+.status-title {
+  font-size: 32rpx;
+  font-weight: 600;
+  color: #1A1A1A;
+}
+
+.status-sub {
+  font-size: 24rpx;
+  color: #999999;
+  margin-top: 8rpx;
+}
+
+/* 菜单：微信标准 cell 分组列表 */
+.menu-section {
+  padding: 0 24rpx;
+  margin-top: 32rpx;
+}
+
+.menu-card {
+  background: #FFFFFF;
+  border-radius: 16rpx;
+  overflow: hidden;
+}
+
+.menu-item {
+  display: flex;
+  align-items: center;
+  padding: 32rpx;
+  border-bottom: 1rpx solid #EBEBEB;
+}
+
+.menu-item:last-child {
+  border-bottom: none;
+}
+
+.menu-item:active {
+  background: #F5FAF7;
+}
+
+.menu-text {
+  flex: 1;
+  font-size: 30rpx;
+  color: #1A1A1A;
+}
+
+.menu-text.danger {
+  color: #FA5151;
+}
+
+.menu-arrow {
+  font-size: 36rpx;
+  color: #C0C0C0;
+  line-height: 1;
+}
+
+/* 状态提示 */
+.backup-hint {
+  padding: 16rpx 32rpx 0;
+  font-size: 22rpx;
+  color: #999999;
+  line-height: 1.7;
+  white-space: pre-line;
+}
+
+/* 隐私说明 */
+.privacy-section {
+  margin: 40rpx 24rpx 0;
+  padding: 0 8rpx;
+}
+
+.privacy-title {
+  font-size: 24rpx;
+  color: #999999;
+  padding-bottom: 16rpx;
+}
+
+.privacy-text {
+  font-size: 24rpx;
+  color: #888888;
+  line-height: 1.9;
+}
+
+/* 备份密码弹框 */
+.backup-modal {
+  position: fixed;
+  left: 0;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  z-index: 1100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.backup-mask {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.45);
+}
+
+.backup-card {
+  position: relative;
+  z-index: 1;
+  width: 640rpx;
+  background: #FFFFFF;
+  border-radius: 24rpx;
+  padding: 40rpx 36rpx 32rpx;
+  box-sizing: border-box;
+}
+
+.backup-title {
+  font-size: 32rpx;
+  font-weight: 600;
+  color: #1A1A1A;
+  text-align: center;
+  margin-bottom: 20rpx;
+}
+
+.backup-desc {
+  font-size: 24rpx;
+  color: #888888;
+  line-height: 1.7;
+  margin-bottom: 24rpx;
+}
+
+.backup-input {
+  width: 100%;
+  box-sizing: border-box;
+  height: 80rpx;
+  background: #F2F3F5;
+  border-radius: 16rpx;
+  padding: 0 24rpx;
+  font-size: 28rpx;
+  color: #1A1A1A;
+  margin-bottom: 20rpx;
+}
+
+.backup-actions {
+  display: flex;
+  gap: 20rpx;
+  margin-top: 28rpx;
+}
+
+.backup-btn {
+  flex: 1;
+  height: 80rpx;
+  border-radius: 40rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 30rpx;
+}
+
+.backup-btn.cancel {
+  background: #F2F3F5;
+  color: #666666;
+}
+
+.backup-btn.cancel:active {
+  opacity: 0.7;
+}
+
+.backup-btn.ok {
+  background: #07C160;
+  color: #FFFFFF;
+  font-weight: 500;
+}
+
+.backup-btn.ok:active {
+  background: #06AD56;
+}
+
+/* 危险操作按钮（清空云端备份确认） */
+.backup-btn.danger {
+  background: #FA5151;
+  color: #FFFFFF;
+  font-weight: 500;
+}
+
+.backup-btn.danger:active {
+  background: #E04343;
+}

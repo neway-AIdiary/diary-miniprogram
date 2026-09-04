@@ -1,0 +1,7 @@
+{
+  "name": "getAsrConfig",
+  "version": "1.0.0",
+  "description": "下发火山实时语音识别鉴权配置（无云开发 API 依赖）",
+  "main": "index.js",
+  "dependencies": {}
+}

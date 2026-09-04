@@ -1,0 +1,88 @@
+<!-- 云端备份页：可选加密备份，明文永不上传 -->
+<view class="page">
+  <!-- 状态卡 -->
+  <view class="status-card">
+    <view class="status-icon {{backupEnabled ? 'on' : ''}}"></view>
+    <view class="status-info">
+      <view class="status-title">{{backupEnabled ? '云端备份已开启' : '云端备份未开启'}}</view>
+      <view class="status-sub">{{backupEnabled ? '日记改动后自动加密同步' : '日记只存在本机，不上传任何数据'}}</view>
+    </view>
+  </view>
+
+  <!-- 操作菜单 -->
+  <view class="menu-section">
+    <view class="menu-card">
+      <view class="menu-item" wx:if="{{!backupEnabled}}" bindtap="openEnableBackup">
+        <view class="menu-text">开启云端备份（加密）</view>
+        <view class="menu-arrow">›</view>
+      </view>
+      <block wx:else>
+        <view class="menu-item" bindtap="backupNow">
+          <view class="menu-text">立即备份到云端</view>
+          <view class="menu-arrow">›</view>
+        </view>
+        <view class="menu-item" bindtap="restoreFromCloud">
+          <view class="menu-text">从云端恢复</view>
+          <view class="menu-arrow">›</view>
+        </view>
+        <view class="menu-item" bindtap="clearCloudBackup">
+          <view class="menu-text danger">清空云端备份</view>
+          <view class="menu-arrow">›</view>
+        </view>
+        <view class="menu-item" bindtap="disableBackup">
+          <view class="menu-text">关闭自动备份</view>
+          <view class="menu-arrow">›</view>
+        </view>
+      </block>
+    </view>
+    <view class="backup-hint">{{backupHint}}</view>
+  </view>
+
+  <!-- 隐私说明 -->
+  <view class="privacy-section">
+    <view class="privacy-title">隐私说明</view>
+    <view class="privacy-text">1. 默认不开启：日记 100% 只存在本机，后端不接收任何日记数据；\n2. 开启后：日记先在本机用 AES-256 加密再上传，服务器只存密文，没有你的备份密码任何人（包括我们）都无法读取原文；\n3. 换新手机：登录同一微信后进入本页，点「从云端恢复」并输入备份密码即可恢复；\n4. 备份密码忘记将无法恢复云端备份，请牢记；\n5. 「关闭自动备份」只是停止自动同步，云端已有备份会保留，重新开启后继续同步；\n6. 「清空云端备份」物理删除云端全部备份数据（日记 + 档案），删除后不可恢复。</view>
+  </view>
+</view>
+
+<!-- 备份密码弹框（开启备份 / 从云端恢复） -->
+<view class="backup-modal" wx:if="{{backupModalShow}}">
+  <view class="backup-mask" bindtap="closeBackupModal"></view>
+  <view class="backup-card">
+    <view class="backup-title">{{backupMode === 'enable' ? '开启云端备份' : '从云端恢复'}}</view>
+    <view class="backup-desc" wx:if="{{backupMode === 'enable'}}">开启后，日记先在本机用 AES-256 加密再上传，服务器只存密文、无法看到任何内容。备份密码用于换手机时解密恢复，请牢记（忘记将无法恢复云端备份）。</view>
+    <view class="backup-desc" wx:else>输入备份密码，从云端拉取加密备份并在本机解密恢复。密码不会上传。</view>
+    <input class="backup-input" password type="text" placeholder="备份密码（至少 6 位）" value="{{pwd1}}" bindinput="onPwd1Input" />
+    <input class="backup-input" password type="text" wx:if="{{backupMode === 'enable'}}" placeholder="再次输入备份密码" value="{{pwd2}}" bindinput="onPwd2Input" />
+    <view class="backup-actions">
+      <view class="backup-btn cancel" bindtap="closeBackupModal">取消</view>
+      <view class="backup-btn ok" bindtap="confirmBackupModal">{{backupMode === 'enable' ? '开启并备份' : '开始恢复'}}</view>
+    </view>
+  </view>
+</view>
+
+<!-- 清空云端备份确认弹层（页面内自绘：点击必弹，确认后才执行） -->
+<view class="backup-modal" wx:if="{{confirmClearShow}}">
+  <view class="backup-mask" bindtap="closeConfirmClear"></view>
+  <view class="backup-card">
+    <view class="backup-title">清空云端备份</view>
+    <view class="backup-desc">将物理删除云端全部加密备份数据（日记 + 档案），删除后不可恢复。\n\n备份仍处于开启状态，日记再有改动后会重新上传加密备份；若只想停止自动同步、保留云端数据，请用「关闭自动备份」。</view>
+    <view class="backup-actions">
+      <view class="backup-btn cancel" bindtap="closeConfirmClear">取消</view>
+      <view class="backup-btn danger" bindtap="doClearCloud">删除云数据</view>
+    </view>
+  </view>
+</view>
+
+<!-- 关闭自动备份确认弹层（页面内自绘：点击必弹，确认后才执行） -->
+<view class="backup-modal" wx:if="{{confirmDisableShow}}">
+  <view class="backup-mask" bindtap="closeConfirmDisable"></view>
+  <view class="backup-card">
+    <view class="backup-title">关闭自动备份</view>
+    <view class="backup-desc">将停止日记改动后的自动加密同步（本机日记不受影响）。\n\n云端已有备份会保留，可随时「从云端恢复」查看；重新开启后继续同步，无需删除任何数据。</view>
+    <view class="backup-actions">
+      <view class="backup-btn cancel" bindtap="closeConfirmDisable">取消</view>
+      <view class="backup-btn ok" bindtap="doDisableBackup">关闭自动备份</view>
+    </view>
+  </view>
+</view>

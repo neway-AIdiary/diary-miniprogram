@@ -1,0 +1,13 @@
+# 依赖
+node_modules/
+miniprogram_npm/
+
+# 微信开发者工具本地配置（含个人 appid 等）
+project.private.config.json
+
+# 临时与日志
+*.log
+.DS_Store
+
+# 测试产物
+tools/docxtest/output/
