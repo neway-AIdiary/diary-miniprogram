@@ -128,8 +128,8 @@
     <view class="backup-title">{{backupMode === 'enable' ? '开启云端备份' : '从云端恢复'}}</view>
     <view class="backup-desc" wx:if="{{backupMode === 'enable'}}">开启后，日记先在本机用 AES-256 加密再上传，服务器只存密文、无法看到任何内容。备份密码用于换手机时解密恢复，请牢记（忘记将无法恢复云端备份）。</view>
     <view class="backup-desc" wx:else>输入备份密码，从云端拉取加密备份并在本机解密恢复。密码不会上传。</view>
-    <input class="backup-input" password type="text" placeholder="备份密码（至少 6 位）" value="{{pwd1}}" bindinput="onPwd1Input" />
-    <input class="backup-input" password type="text" wx:if="{{backupMode === 'enable'}}" placeholder="再次输入备份密码" value="{{pwd2}}" bindinput="onPwd2Input" />
+    <input class="backup-input" password type="text" placeholder="{{backupMode === 'restore' ? '输入备份密码' : (reenableMode ? '输入原备份密码以重新开启' : '备份密码（至少 6 位）')}}" value="{{pwd1}}" bindinput="onPwd1Input" />
+    <input class="backup-input" password type="text" wx:if="{{backupMode === 'enable' && !reenableMode}}" placeholder="再次输入备份密码" value="{{pwd2}}" bindinput="onPwd2Input" />
     <view class="backup-actions">
       <view class="backup-btn cancel" bindtap="closeBackupModal">取消</view>
       <view class="backup-btn ok" bindtap="confirmBackupModal">{{backupMode === 'enable' ? '开启并备份' : '开始恢复'}}</view>

@@ -11,6 +11,7 @@ Page({
     // 备份密码弹框
     backupModalShow: false,
     backupMode: 'enable',   // 'enable' | 'restore'
+    reenableMode: false,    // 重新开启（本地密钥还在，校验原密码续用）：只输一次密码
     pwd1: '',
     pwd2: '',
     // 清空云端备份确认弹层
@@ -44,9 +45,15 @@ Page({
 
   // ===== 云端备份 =====
 
-  // 开启备份：弹出密码设置弹框
+  // 开启备份：弹出密码设置弹框（首次设置输两次；重新开启校验原密码只输一次）
   openEnableBackup() {
-    this.setData({ backupModalShow: true, backupMode: 'enable', pwd1: '', pwd2: '' })
+    this.setData({
+      backupModalShow: true,
+      backupMode: 'enable',
+      reenableMode: backup.hasSavedKey(),
+      pwd1: '',
+      pwd2: ''
+    })
   },
 
   // 从云端恢复：弹出密码输入弹框
@@ -73,7 +80,8 @@ Page({
         wx.showToast({ title: '备份密码至少 6 位', icon: 'none' })
         return
       }
-      if (pwd !== this.data.pwd2) {
+      // 重新开启（校验原密码续用）只输一次；首次设置才要求二次确认
+      if (!this.data.reenableMode && pwd !== this.data.pwd2) {
         wx.showToast({ title: '两次输入的密码不一致', icon: 'none' })
         return
       }
