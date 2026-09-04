@@ -163,9 +163,10 @@
 }
 
 .privacy-text {
-  font-size: 24rpx;
+  font-size: 28rpx;
   color: #888888;
-  line-height: 1.9;
+  line-height: 1.8;
+  margin-bottom: 6rpx;
 }
 
 /* 备份密码弹框 */
