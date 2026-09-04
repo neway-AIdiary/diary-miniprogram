@@ -292,7 +292,7 @@
       <button class="share-row share-row-plain" open-type="share">
         <view class="share-row-icon share-row-icon-chat">💬</view>
         <view class="share-row-main">
-          <text class="share-row-name">发送给微信好友 / 微信群</text>
+          <text class="share-row-name">发送给微信好友/微信群</text>
           <text class="share-row-desc">以小程序卡片形式发送</text>
         </view>
         <text class="share-row-arrow">›</text>
