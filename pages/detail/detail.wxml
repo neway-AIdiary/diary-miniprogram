@@ -53,10 +53,21 @@
 
     <!-- 操作按钮 -->
     <view class="detail-actions">
+      <button class="btn-secondary" bindtap="openSharePanel">分享</button>
       <button class="btn-secondary" bindtap="startEdit">编辑</button>
       <button class="btn-danger" bindtap="deleteDiary">删除</button>
     </view>
   </block>
+
+  <!-- 跨设备分享占位（好友点卡片但本机无数据 / 云端通道未开通时展示） -->
+  <view class="share-missing" wx:if="{{shareMissing}}">
+    <view class="share-missing-card">
+      <view class="share-missing-icon">🔒</view>
+      <view class="share-missing-title">日记内容暂不可见</view>
+      <view class="share-missing-desc">跨设备查看分享日记的功能即将上线，敬请期待</view>
+      <button class="btn-secondary" bindtap="goBackHome">返回</button>
+    </view>
+  </view>
 
   <!-- 编辑模式 -->
   <block wx:if="{{diary && editing}}">
@@ -264,4 +275,82 @@
       </view>
     </view>
   </block>
+
+  <!-- ===== 分享弹窗（半屏面板） ===== -->
+  <view class="share-mask" wx:if="{{showSharePanel}}" bindtap="closeSharePanel" catchtouchmove="preventTouchMove"></view>
+  <view class="share-sheet" wx:if="{{showSharePanel}}">
+    <view class="share-grab"></view>
+    <scroll-view scroll-y class="share-scroll" show-scrollbar="{{false}}">
+      <view class="share-title">分享我的日记</view>
+      <view class="share-tip">私密内容已自动保护，可自主选择展示项</view>
+
+      <!-- 私密分享 -->
+      <view class="share-sec-head">
+        <text class="share-sec-title">🔒 私密分享</text>
+        <text class="share-sec-sub">仅微信好友可见完整内容</text>
+      </view>
+      <button class="share-row share-row-plain" open-type="share">
+        <view class="share-row-icon share-row-icon-chat">💬</view>
+        <view class="share-row-main">
+          <text class="share-row-name">发送给微信好友 / 微信群</text>
+          <text class="share-row-desc">以小程序卡片形式发送</text>
+        </view>
+        <text class="share-row-arrow">›</text>
+      </button>
+
+      <!-- 公开分享 -->
+      <view class="share-sec-head share-sec-head-gap">
+        <text class="share-sec-title">🌐 公开分享</text>
+        <text class="share-sec-sub">生成海报，可发朋友圈/小红书/微博等</text>
+      </view>
+      <view class="share-row {{shareAction === 'poster' ? 'active' : ''}}" bindtap="selectShareAction" data-action="poster">
+        <view class="share-row-icon share-row-icon-poster">🖼️</view>
+        <view class="share-row-main">
+          <text class="share-row-name">保存分享海报</text>
+          <text class="share-row-desc">图文卡片，保存到相册</text>
+        </view>
+        <text class="share-row-check">{{shareAction === 'poster' ? '✓' : ''}}</text>
+      </view>
+      <view class="share-row {{shareAction === 'text' ? 'active' : ''}}" bindtap="selectShareAction" data-action="text">
+        <view class="share-row-icon share-row-icon-text">📝</view>
+        <view class="share-row-main">
+          <text class="share-row-name">复制精简文字</text>
+          <text class="share-row-desc">已脱敏，适配各平台粘贴</text>
+        </view>
+        <text class="share-row-check">{{shareAction === 'text' ? '✓' : ''}}</text>
+      </view>
+
+      <!-- 自定义展示开关（公开海报专属） -->
+      <view class="share-sec-head share-sec-head-gap">
+        <text class="share-sec-title">自定义展示开关</text>
+        <text class="share-sec-sub">公开海报专属 · 默认智能脱敏开启最优配置</text>
+      </view>
+      <view class="share-switch-row">
+        <text class="share-switch-name">显示当日天气</text>
+        <switch checked="{{shareSw.weather}}" color="#07C160" data-key="weather" bindchange="toggleShareSwitch" />
+      </view>
+      <view class="share-switch-row">
+        <text class="share-switch-name">显示心情状态</text>
+        <switch checked="{{shareSw.mood}}" color="#07C160" data-key="mood" bindchange="toggleShareSwitch" />
+      </view>
+      <view class="share-switch-row">
+        <text class="share-switch-name">显示日记标签</text>
+        <switch checked="{{shareSw.tags}}" color="#07C160" data-key="tags" bindchange="toggleShareSwitch" />
+      </view>
+      <view class="share-switch-row">
+        <text class="share-switch-name">展示精选配图（多图自动缩略，视频不展示原图）</text>
+        <switch checked="{{shareSw.images}}" color="#07C160" data-key="images" bindchange="toggleShareSwitch" />
+      </view>
+
+      <view class="share-disclaimer">公开海报仅展示内容摘要，隐私细节已隐藏，对外分享请自行确认内容哦</view>
+    </scroll-view>
+
+    <view class="share-btns" style="padding-bottom: {{safeAreaBottom + 8}}px;">
+      <button class="share-btn-cancel" bindtap="closeSharePanel">取消</button>
+      <button class="share-btn-ok" bindtap="confirmShare">确认分享</button>
+    </view>
+  </view>
+
+  <!-- 海报画布（离屏，2d） -->
+  <canvas type="2d" id="sharePosterCanvas" class="share-poster-canvas"></canvas>
 </view>

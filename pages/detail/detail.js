@@ -3,6 +3,7 @@ const util = require('../../utils/util.js')
 const voice = require('../../utils/voice.js')
 const aiEdit = require('../../utils/aiEdit.js')
 const mediaGuard = require('../../utils/mediaGuard.js')
+const share = require('../../utils/share.js')
 const app = getApp()
 
 // 编辑模式媒体限额（与写日记页一致）：图片最多 6 张、视频最多 2 个（按日记所属日期统计）
@@ -61,7 +62,12 @@ Page({
     showEmojiPanel: false,
     emojiTab: 'emoji',         // 'emoji' | 'kaomoji'
     emojiList: EMOJIS,
-    showAddPanel: false
+    showAddPanel: false,
+    // ===== 分享 =====
+    showSharePanel: false,
+    shareAction: '',           // '' | 'poster'(保存海报) | 'text'(复制精简文字)
+    shareSw: { weather: true, mood: true, tags: true, images: true },
+    shareMissing: false        // 好友点开分享卡片但本机无数据（云端通道未开通）时的占位
   },
 
   onLoad(options) {
@@ -93,6 +99,7 @@ Page({
     })
     if (options.id) {
       this.setData({ id: options.id })
+      this._fromShare = options.share === '1'
       this.loadDetail(options.id)
       // 从主页月历绿点进入：直接进入编辑模式（等节点渲染后再算媒体布局）
       if (options.edit === '1') {
@@ -159,6 +166,11 @@ Page({
       this.recalcMediaLayout()
     } else {
       this.setData({ loading: false })
+      // 从分享卡片进入但本机没有这篇日记：跨设备数据通道未开通，展示友好占位而非报错返回
+      if (this._fromShare) {
+        this.setData({ shareMissing: true })
+        return
+      }
       wx.showToast({ title: '日记不存在', icon: 'none' })
       setTimeout(() => wx.navigateBack(), 1500)
     }
@@ -865,11 +877,353 @@ Page({
     })
   },
 
-  // 分享
+  // ===================== 分享弹窗 =====================
+  openSharePanel() {
+    if (this.data.editing) return
+    this.setData({ showSharePanel: true })
+  },
+
+  closeSharePanel() {
+    this.setData({ showSharePanel: false, shareAction: '' })
+  },
+
+  preventTouchMove() {},
+
+  selectShareAction(e) {
+    this.setData({ shareAction: e.currentTarget.dataset.action })
+  },
+
+  toggleShareSwitch(e) {
+    const key = e.currentTarget.dataset.key
+    const shareSw = Object.assign({}, this.data.shareSw)
+    shareSw[key] = e.detail.value
+    this.setData({ shareSw: shareSw })
+  },
+
+  confirmShare() {
+    const a = this.data.shareAction
+    if (a === 'poster') { this.saveSharePoster(); return }
+    if (a === 'text') { this.copyShareText(); return }
+    wx.showToast({ title: '请先选择一种分享方式', icon: 'none' })
+  },
+
+  goBackHome() {
+    wx.reLaunch({ url: '/pages/index/index' })
+  },
+
+  // ===== 复制精简文字（脱敏默认配置：日期+天气+心情+标签+摘要） =====
+  copyShareText() {
+    const d = this.data.diary
+    const text = share.buildCopyText(d)
+    if (!text) {
+      wx.showToast({ title: '暂无内容可复制', icon: 'none' })
+      return
+    }
+    wx.setClipboardData({
+      data: text,
+      success: () => {
+        this.closeSharePanel()
+        wx.showToast({ title: '已复制，可粘贴到任意平台', icon: 'none' })
+      }
+    })
+  },
+
+  // ===== 保存分享海报（公开分享 · canvas 2d 脱敏绘制） =====
+  async saveSharePoster() {
+    const d = this.data.diary
+    const model = share.buildPosterModel(d, this.data.shareSw)
+    // 兜底：无任何可公开内容（空日记/仅视频且开关全关）不生成空海报
+    if (!model.summary && !model.mood && !model.weather && !model.tags.length && !model.images.length) {
+      wx.showToast({ title: '暂无内容可生成海报', icon: 'none' })
+      return
+    }
+    wx.showLoading({ title: '生成海报中…', mask: true })
+    try {
+      const urls = await this.loadPosterImages(model.images)
+      await this.drawPoster(model, urls)
+      const tmp = await this.exportPosterTempFile()
+      wx.hideLoading()
+      this.closeSharePanel()
+      await this.saveImageWithAuth(tmp)
+    } catch (e) {
+      wx.hideLoading()
+      const msg = (e && (e.errMsg || e.message)) || ''
+      if (msg.indexOf('cancel') !== -1) return // 用户主动取消（如取消相册授权弹窗），不提示
+      console.error('saveSharePoster fail', e)
+      wx.showToast({ title: '海报生成失败，请重试', icon: 'none' })
+    }
+  },
+
+  // 图片 fileID → 可绘制地址（cloud:// 转临时链接；其余直接用）
+  loadPosterImages(list) {
+    if (!list || !list.length) return Promise.resolve([])
+    const cloudIds = list.filter(u => u.indexOf('cloud://') === 0)
+    const direct = list.filter(u => u.indexOf('cloud://') !== 0)
+    const jobs = []
+    if (cloudIds.length) {
+      jobs.push(wx.cloud.getTempFileURL({ fileList: cloudIds }).then(res => {
+        const map = {}
+        ;(res.fileList || []).forEach(f => { if (f && f.fileID) map[f.fileID] = f.tempFileURL || '' })
+        return cloudIds.map(id => map[id]).filter(Boolean)
+      }))
+    }
+    jobs.push(Promise.resolve(direct))
+    return Promise.all(jobs).then(groups => [].concat.apply([], groups))
+  },
+
+  // 海报画布：离屏 <canvas type="2d"> 绘制
+  drawPoster(model, imageUrls) {
+    return new Promise((resolve, reject) => {
+      wx.createSelectorQuery().in(this).select('#sharePosterCanvas').fields({ node: true }).exec((res) => {
+        if (!res || !res[0] || !res[0].node) {
+          reject(new Error('画布初始化失败'))
+          return
+        }
+        const canvas = res[0].node
+        const ctx = canvas.getContext('2d')
+        const info = wx.getWindowInfo ? wx.getWindowInfo() : wx.getSystemInfoSync()
+        const dpr = Math.max(1, Math.min(info.pixelRatio || 2, 3))
+        const W = 600
+        const PAD = 46
+        const MAXW = W - PAD * 2
+
+        // —— 绘制工具 ——
+        const rrectPath = (x, y, w, h, r) => {
+          ctx.beginPath()
+          ctx.moveTo(x + r, y)
+          ctx.arcTo(x + w, y, x + w, y + h, r)
+          ctx.arcTo(x + w, y + h, x, y + h, r)
+          ctx.arcTo(x, y + h, x, y, r)
+          ctx.arcTo(x, y, x + w, y, r)
+          ctx.closePath()
+        }
+        const wrapLines = (text, maxW) => {
+          const out = []
+          let cur = ''
+          for (const ch of String(text)) {
+            if (ctx.measureText(cur + ch).width > maxW && cur) {
+              out.push(cur)
+              cur = ch
+            } else {
+              cur += ch
+            }
+          }
+          if (cur) out.push(cur)
+          return out
+        }
+        const drawCover = (img, dx, dy, dw, dh, r) => {
+          const s = Math.max(dw / img.width, dh / img.height)
+          const sw = dw / s
+          const sh = dh / s
+          const sx = (img.width - sw) / 2
+          const sy = (img.height - sh) / 2
+          ctx.save()
+          rrectPath(dx, dy, dw, dh, r)
+          ctx.clip()
+          ctx.drawImage(img, sx, sy, sw, sh, dx, dy, dw, dh)
+          ctx.restore()
+        }
+
+        // —— 下载图片素材（失败自动跳过） ——
+        const imgs = []
+        const loadTask = (u) => new Promise((ok) => {
+          const img = canvas.createImage()
+          let done = false
+          const fin = () => { if (!done) { done = true; ok() } }
+          img.onload = () => { imgs.push(img); fin() }
+          img.onerror = fin
+          img.src = u
+          setTimeout(fin, 6000)
+        })
+        Promise.all((imageUrls || []).map(loadTask)).then(() => {
+          // 第一遍：纯测量，得到各块纵向位置与总高（canvas 高度必须先定）
+          const layout = []
+          let y = PAD + 6
+          ctx.textBaseline = 'middle'
+          ctx.font = '500 30px sans-serif'
+          layout.push({ kind: 'date', y: y })
+          y += 56
+          if (model.mood) {
+            ctx.font = '400 27px sans-serif'
+            layout.push({ kind: 'mood', y: y, w: ctx.measureText(model.mood).width + 52 })
+            y += 54
+          }
+          if (model.weather) {
+            ctx.font = '400 27px sans-serif'
+            layout.push({ kind: 'weather', y: y, w: ctx.measureText(model.weather).width })
+            y += 46
+          }
+          if (model.summary) {
+            ctx.font = '400 33px sans-serif'
+            const lines = wrapLines(model.summary, MAXW).slice(0, 12)
+            layout.push({ kind: 'summary', y: y + 12, lines: lines, lineH: 54 })
+            y += 12 + lines.length * 54 + 6
+          }
+          if (model.tags && model.tags.length) {
+            ctx.font = '400 25px sans-serif'
+            const rows = []
+            let row = []
+            let rowW = 0
+            model.tags.slice(0, 8).forEach((t) => {
+              const txt = '#' + t
+              const tw = ctx.measureText(txt).width + 34
+              if (row.length && rowW + tw > MAXW) {
+                rows.push(row)
+                row = []
+                rowW = 0
+              }
+              row.push(txt)
+              rowW += tw + 12
+            })
+            if (row.length) rows.push(row)
+            layout.push({ kind: 'tags', y: y + 6, rows: rows })
+            y += 6 + rows.length * 52 + 4
+          }
+          if (imgs.length) {
+            const n = imgs.length
+            const gap = 16
+            const each = n === 1 ? Math.min(420, MAXW) : n === 2 ? (MAXW - gap) / 2 : (MAXW - gap * 2) / 3
+            const left = (W - n * each - gap * (n - 1)) / 2
+            layout.push({ kind: 'images', y: y + 10, left: left, each: each, gap: gap })
+            y += 10 + each + 8
+          }
+          y += 26
+          const footY = y
+          const H = y + 96
+          layout.push({ kind: 'footer', y: footY })
+
+          // 设定画布尺寸（会重置画笔，随后统一重绘）
+          canvas.width = W * dpr
+          canvas.height = H * dpr
+          ctx.scale(dpr, dpr)
+          ctx.textBaseline = 'middle'
+
+          // 背景渐变
+          const grad = ctx.createLinearGradient(0, 0, 0, H)
+          grad.addColorStop(0, '#F3FAF6')
+          grad.addColorStop(1, '#FFFFFF')
+          ctx.fillStyle = grad
+          ctx.fillRect(0, 0, W, H)
+
+          layout.forEach((b) => {
+            if (b.kind === 'date') {
+              // 左侧绿色主题条 + 日期
+              ctx.fillStyle = '#0ACF6C'
+              rrectPath(PAD, b.y - 16, 6, 32, 3)
+              ctx.fill()
+              ctx.fillStyle = '#2B3631'
+              ctx.font = '500 30px sans-serif'
+              ctx.fillText(model.date || 'AI 日记', PAD + 22, b.y)
+            } else if (b.kind === 'mood') {
+              ctx.fillStyle = model.moodBg || 'rgba(138,143,140,0.12)'
+              rrectPath(PAD, b.y - 25, b.w, 50, 25)
+              ctx.fill()
+              ctx.fillStyle = model.moodColor || '#4A524E'
+              ctx.font = '400 27px sans-serif'
+              ctx.fillText(model.mood, PAD + 26, b.y)
+            } else if (b.kind === 'weather') {
+              ctx.fillStyle = '#6A7570'
+              ctx.font = '400 27px sans-serif'
+              ctx.fillText(model.weather, PAD, b.y)
+            } else if (b.kind === 'summary') {
+              ctx.fillStyle = '#26262A'
+              ctx.font = '400 33px sans-serif'
+              b.lines.forEach((ln, i) => {
+                ctx.fillText(ln, PAD, b.y + i * b.lineH)
+              })
+            } else if (b.kind === 'tags') {
+              ctx.font = '400 25px sans-serif'
+              b.rows.forEach((rowArr, ri) => {
+                let x = PAD
+                const rowY = b.y + ri * 52
+                rowArr.forEach((txt) => {
+                  const w = ctx.measureText(txt).width + 36
+                  ctx.fillStyle = '#EAF6EF'
+                  rrectPath(x, rowY - 22, w, 44, 22)
+                  ctx.fill()
+                  ctx.fillStyle = '#0A7A46'
+                  ctx.fillText(txt, x + 18, rowY)
+                  x += w + 12
+                })
+              })
+            } else if (b.kind === 'images') {
+              imgs.forEach((img, i) => {
+                drawCover(img, b.left + i * (b.each + b.gap), b.y, b.each, b.each, 20)
+              })
+            } else if (b.kind === 'footer') {
+              // 品牌 + AI 合规注脚（不带昵称/头像水印）
+              ctx.fillStyle = '#0B7A45'
+              ctx.font = '500 26px sans-serif'
+              const brand = '来自 AI 日记 · 记录每一天'
+              ctx.fillText(brand, (W - ctx.measureText(brand).width) / 2, b.y + 22)
+              ctx.fillStyle = '#B0B8B4'
+              ctx.font = '400 20px sans-serif'
+              const note = '内容摘要已脱敏 · 部分内容可能由 AI 生成'
+              ctx.fillText(note, (W - ctx.measureText(note).width) / 2, b.y + 58)
+            }
+          })
+          resolve()
+        })
+      })
+    })
+  },
+
+  // canvas 2d → 临时图片文件
+  exportPosterTempFile() {
+    return new Promise((resolve, reject) => {
+      wx.createSelectorQuery().in(this).select('#sharePosterCanvas').fields({ node: true, size: true }).exec((res) => {
+        if (!res || !res[0] || !res[0].node) {
+          reject(new Error('画布获取失败'))
+          return
+        }
+        const canvas = res[0].node
+        wx.canvasToTempFilePath({
+          canvas: canvas,
+          fileType: 'jpg',
+          quality: 0.92,
+          success: (r) => resolve(r.tempFilePath),
+          fail: (e) => reject(new Error('海报导出失败'))
+        })
+      })
+    })
+  },
+
+  // 保存到相册（首次授权，拒绝后引导去设置）
+  saveImageWithAuth(tmp) {
+    return new Promise((resolve, reject) => {
+      wx.saveImageToPhotosAlbum({
+        filePath: tmp,
+        success: () => {
+          wx.showToast({ title: '海报已保存到相册', icon: 'success' })
+          resolve()
+        },
+        fail: (e) => {
+          const msg = (e && e.errMsg) || ''
+          if (msg.indexOf('auth') !== -1 || msg.indexOf('deny') !== -1 || msg.indexOf('authorize') !== -1) {
+            wx.showModal({
+              title: '需要相册权限',
+              content: '保存海报需要访问你的相册，请在设置中开启权限',
+              confirmText: '去设置',
+              success: (r) => {
+                if (r.confirm) wx.openSetting()
+              }
+            })
+          } else if (msg.indexOf('cancel') === -1) {
+            wx.showToast({ title: '保存失败，请重试', icon: 'none' })
+          }
+          reject(e)
+        }
+      })
+    })
+  },
+
+  // 分享（私密卡片：好友/群）
   onShareAppMessage() {
+    const d = this.data.diary
+    const id = this.data.id
     return {
-      title: this.data.diary ? this.data.diary.title : '我的AI日记',
-      path: '/pages/write/write'
+      title: d ? (d.title || '我的日记') : '我的AI日记',
+      path: id ? '/pages/detail/detail?id=' + encodeURIComponent(id) + '&share=1' : '/pages/write/write'
     }
   }
 })
