@@ -49,7 +49,7 @@ function mergeDescription(oldDesc, newDesc) {
  *   有 → 直接拼接（保持原标点）；
  *   无 → 先补一个中文逗号再接新说明。
  * 无论如何绝不覆盖、不拆条重排旧描述。
- * 若新说明整体已存在于旧描述中（按逗号/句号等分隔的条目级比对）→ 返回 null（视为重复，不追加）。
+ * 若新说明整体已存在于旧描述中（先做忽略标点的整段包含比对，再做条目级比对）→ 返回 null（视为重复，不追加）。
  * @param {string} oldDesc 已有描述（可空）
  * @param {string} addDesc 要追加的说明（可空）
  * @returns {string|null} 追加后的描述；无需追加（新说明为空或已存在）返回 null
@@ -59,6 +59,12 @@ function appendArchiveDescription(oldDesc, addDesc) {
   const a = String(addDesc || '').trim()
   if (!a) return null
   if (!o) return a
+  // 归一化：去空白与全部中英文标点后比对，避免「整段含逗号/句号」被切条后漏判
+  const norm = (s) => s.replace(/[\s，,、。.!！?？;；：:…—~～·"'“”‘’（）()【】\[\]《》<>-]/g, '')
+  // 整段级去重：新说明（忽略标点差异）已整体包含于旧描述 → 不重复追加
+  //   覆盖多句整段重复场景（如恢复合并时旧描述已含相同整段，此前条目级比对会漏判导致重复叠加）
+  const na = norm(a)
+  if (na && norm(o).indexOf(na) !== -1) return null
   // 条目级去重：新说明已是旧描述中某个逗号/句号分隔条目 → 不重复追加
   const has = o.split(/[，,、。.!！?？;；\n]/).map(s => s.trim()).filter(Boolean).indexOf(a) !== -1
   if (has) return null

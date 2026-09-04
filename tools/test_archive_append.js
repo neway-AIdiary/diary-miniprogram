@@ -101,5 +101,50 @@ run('嫌疑C：说明本身含添加动作', JSON.parse(JSON.stringify(base)), '
 run('嫌疑D：档案名带尾空格时语音输入仍命中', [{ id: 'a1', name: '王新伟 ', description: '本人' }], '王新伟，30岁',
   (t, list, edit) => (edit ? (list[0].description === '本人，30岁' || 'edit=' + edit.type + ' got=' + list[0].description) : '[null→建档兜底] 档案名未trim导致漏匹配，需修 nameMap'))
 
+// ============ 整段重复去重（恢复合并场景，2026-09-04 用户截图反馈） ============
+const append = archiveEdit.appendArchiveDescription
+
+// 17. 恢复合并：旧描述已是多句整段，再合并相同整段 → 不重复追加
+{
+  const seg = '不用排队的餐厅，然后最近这个餐厅也得排队了。'
+  const r = append(seg, seg)
+  console.log((r === null ? 'PASS' : 'FAIL') + ' | 整段重复：恢复合并相同整段不追加' + (r === null ? '' : ' got=' + r))
+  r === null ? pass++ : fail++
+}
+
+// 18. 已重复两层的旧描述，再合并该整段 → 仍不追加
+{
+  const seg = '不用排队的餐厅，然后最近这个餐厅也得排队了。'
+  const dup = seg + seg
+  const r = append(dup, seg)
+  console.log((r === null ? 'PASS' : 'FAIL') + ' | 整段重复：旧描述已含两遍仍不追加' + (r === null ? '' : ' got=' + r))
+  r === null ? pass++ : fail++
+}
+
+// 19. 标点差异整段（半角逗号/无句号 vs 全角）→ 归一化后识别为重复
+{
+  const oldDesc = '女生，三十几岁，刚生孩子，去了小鹏汽车，很焦虑'
+  const r = append(oldDesc, '女生,三十几岁,刚生孩子,去了小鹏汽车,很焦虑。')
+  console.log((r === null ? 'PASS' : 'FAIL') + ' | 整段重复：半角标点变体不追加' + (r === null ? '' : ' got=' + r))
+  r === null ? pass++ : fail++
+}
+
+// 20. 整段重复去重不能误伤真正的新信息 → 正常追加（旧描述以句号结尾，直接拼接不补逗号）
+{
+  const oldDesc = '不用排队的餐厅，然后最近这个餐厅也得排队了。'
+  const r = append(oldDesc, '周末人多')
+  const expect = oldDesc + '周末人多'
+  console.log((r === expect ? 'PASS' : 'FAIL') + ' | 新信息照常追加' + (r === expect ? '' : ' got=' + r))
+  r === expect ? pass++ : fail++
+}
+
+// 21. 旧描述为重复叠加两遍，新信息是其中单句 → 条目级去重仍生效不追加
+{
+  const seg = '这就是我，那应该是汽车制造厂的一把手。'
+  const r = append(seg + seg, '这就是我')
+  console.log((r === null ? 'PASS' : 'FAIL') + ' | 单句条目在重复旧描述中不追加' + (r === null ? '' : ' got=' + r))
+  r === null ? pass++ : fail++
+}
+
 console.log('\n==== ' + pass + ' pass / ' + fail + ' fail ====')
 process.exit(fail ? 1 : 0)
