@@ -976,17 +976,23 @@
 }
 
 .share-row-icon-chat {
-  background: #E7F6EC;
+  background: transparent;
 }
 
 .share-icon-wechat {
-  width: 60rpx;
-  height: 60rpx;
+  width: 68rpx;
+  height: 68rpx;
+  display: block;
+}
+
+.share-icon-img {
+  width: 68rpx;
+  height: 68rpx;
   display: block;
 }
 
 .share-row-icon-poster {
-  background: #F0EAFE;
+  background: transparent;
 }
 
 .share-row-icon-text {

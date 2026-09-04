@@ -304,7 +304,9 @@
         <text class="share-sec-sub">生成海报，可发朋友圈/小红书/微博等</text>
       </view>
       <view class="share-row {{shareAction === 'poster' ? 'active' : ''}}" bindtap="selectShareAction" data-action="poster">
-        <view class="share-row-icon share-row-icon-poster">🖼️</view>
+        <view class="share-row-icon share-row-icon-poster">
+          <image class="share-icon-img" src="/pages/detail/images/poster.png" mode="aspectFit" />
+        </view>
         <view class="share-row-main">
           <text class="share-row-name">保存分享海报</text>
           <text class="share-row-desc">图文卡片，保存到相册</text>
