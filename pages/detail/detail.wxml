@@ -282,7 +282,6 @@
     <view class="share-grab"></view>
     <scroll-view scroll-y class="share-scroll" show-scrollbar="{{false}}">
       <view class="share-title">分享我的日记</view>
-      <view class="share-tip">私密内容已自动保护，可自主选择展示项</view>
 
       <!-- 私密分享 -->
       <view class="share-sec-head">
@@ -290,12 +289,13 @@
         <text class="share-sec-sub">仅微信好友可见完整内容</text>
       </view>
       <button class="share-row share-row-plain" open-type="share">
-        <view class="share-row-icon share-row-icon-chat">💬</view>
+        <view class="share-row-icon share-row-icon-chat">
+          <image class="share-icon-wechat" src="/pages/detail/images/wechat.png" mode="aspectFit" />
+        </view>
         <view class="share-row-main">
-          <text class="share-row-name">发送给微信好友/微信群</text>
+          <text class="share-row-name">发送给微信好友（群）</text>
           <text class="share-row-desc">以小程序卡片形式发送</text>
         </view>
-        <text class="share-row-arrow">›</text>
       </button>
 
       <!-- 公开分享 -->

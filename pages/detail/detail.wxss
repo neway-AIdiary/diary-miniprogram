@@ -909,14 +909,6 @@
   margin-top: 8rpx;
 }
 
-.share-tip {
-  font-size: 24rpx;
-  color: #999999;
-  text-align: center;
-  margin-top: 10rpx;
-  margin-bottom: 8rpx;
-}
-
 .share-sec-head {
   display: flex;
   align-items: center;
@@ -985,6 +977,12 @@
 
 .share-row-icon-chat {
   background: #E7F6EC;
+}
+
+.share-icon-wechat {
+  width: 60rpx;
+  height: 60rpx;
+  display: block;
 }
 
 .share-row-icon-poster {
