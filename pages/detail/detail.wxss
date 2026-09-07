@@ -154,7 +154,8 @@
 
 /* 编辑模式 */
 .edit-area {
-  padding: 0 30rpx 28rpx;
+  margin: 0 24rpx;
+  padding: 0 28rpx 16rpx;
 }
 
 .section {
@@ -224,14 +225,16 @@
   flex: 1;
 }
 
-/* 编辑态正文：与主页输入框一致，透明无边框、随内容自动增高、超出 60vh 后自滚动 */
+/* 编辑态正文：与主页输入框一致，透明无边框、衬线体、随内容自动增高、超出 60vh 后自滚动 */
 .edit-area .textarea-field {
   background: transparent;
   border: none;
   padding: 0;
+  font-family: var(--font-display);
   min-height: 330rpx;
   max-height: 60vh;
-  line-height: 1.9;
+  line-height: 1.95;
+  letter-spacing: 0.3rpx;
 }
 
 /* 字数统计 */
@@ -245,12 +248,14 @@
 
 /* 编辑模式标题输入框：固定高度，上下居中完整显示
    编辑风增强层会把字号改为 42rpx / 行高 ~57rpx，
-   因此上下内边距之和要 ≤51rpx，内容区才能完整容纳一行文字 */
+   因此上下内边距之和要 ≤51rpx，内容区才能完整容纳一行文字；
+   去边框去底色，与主页输入框风格统一 */
 .edit-title-input {
   height: 108rpx;
   box-sizing: border-box;
-  padding-top: 25rpx;
-  padding-bottom: 25rpx;
+  padding: 25rpx 0;
+  border: none;
+  background: transparent;
   font-weight: 500;
 }
 
@@ -457,8 +462,8 @@
   flex-shrink: 0;
   display: flex;
   align-items: flex-end;
-  background: var(--surface);
-  border-top: 1rpx solid var(--line);
+  background: rgba(248, 244, 238, 0.95);
+  border-top: 1rpx solid var(--line-soft);
   padding: 12rpx 16rpx 22rpx;
   z-index: 20;
 }
