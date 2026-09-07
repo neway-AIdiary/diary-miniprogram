@@ -953,6 +953,9 @@
   background: #F7F9F8;
   margin: 0 0 14rpx;
   padding: 18rpx 20rpx;
+  /* 微信 button UA 默认 padding-left/right 无法被普通类覆盖的机型上仍生效，用 !important 兜底 */
+  padding-left: 20rpx !important;
+  padding-right: 20rpx !important;
   width: 100%;
   box-sizing: border-box;
   border-radius: 20rpx;
