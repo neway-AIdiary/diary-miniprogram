@@ -34,7 +34,18 @@
   </scroll-view>
 
   <!-- ===== 底部输入栏（主页同款三件套：表情 / 按住说话 / +）===== -->
-  <view class="input-bar" style="padding-bottom: calc(22rpx + {{safeAreaBottom}}px);">
+  <view class="input-bar-wrap">
+    <!-- 草稿上下文热词调试提示（按住说话前能看到已锁定的专名） -->
+    <view
+      wx:if="{{hotwordHintText}}"
+      class="hotword-hint {{hotwordHintOn ? 'on' : 'off'}}"
+      bindtap="onHotwordHintTap"
+    >
+      <text class="hotword-hint-label">📎</text>
+      <text class="hotword-hint-text">{{hotwordHintText}}</text>
+      <text class="hotword-hint-toggle">{{hotwordHintOn ? '×' : '✓'}}</text>
+    </view>
+    <view class="input-bar" style="padding-bottom: calc(22rpx + {{safeAreaBottom}}px);">
     <!-- 表情/颜文字（飞书同款笑脸） -->
     <view class="input-btn input-emoji {{showEmojiPanel ? 'active' : ''}}" bindtap="toggleEmojiPanel">
       <view class="icon-bar icon-smiley"></view>
@@ -68,6 +79,7 @@
     <view class="input-add {{quickText ? 'send' : ''}}" bindtap="onPlusTap">
       <view class="icon-bar icon-plus"></view>
     </view>
+  </view>
   </view>
 
   <!-- ===== 表情/颜文字面板（与主页一致）===== -->

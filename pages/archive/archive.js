@@ -2,6 +2,7 @@ const storage = require('../../utils/storage.js')
 const aiCloud = require('../../utils/aiCloud.js')
 const voice = require('../../utils/voice.js')
 const archiveEdit = require('../../utils/archiveEdit.js')
+const hotwords = require('../../utils/hotwords.js')
 const app = getApp()
 
 // 表情与颜文字（表情面板数据，与主页一致）
@@ -18,6 +19,10 @@ Page({
     transcribing: false,       // 语音识别中
     recordSeconds: 0,
     voiceCanceling: false,     // 上滑取消状态（录音中 UI 提示）
+    // 草稿上下文热词调试提示（按住说话前能看到已锁定的专名）
+    hotwordHintList: [],
+    hotwordHintText: '',
+    hotwordHintOn: true,
     // 表情面板（与主页一致）
     showEmojiPanel: false,
     emojiTab: 'emoji',         // 'emoji' | 'kaomoji'
@@ -152,7 +157,39 @@ Page({
   },
 
   onQuickInput(e) {
-    this.setData({ quickText: e.detail.value })
+    const text = e.detail.value
+    this.setData({ quickText: text })
+    this._refreshHotwordHint(text)
+  },
+
+  // ===== 草稿上下文热词调试提示（与主页共用 hotwords.getContextTerms） =====
+  _refreshHotwordHint(text) {
+    if (!this.data.hotwordHintOn) {
+      if (this.data.hotwordHintText) this.setData({ hotwordHintList: [], hotwordHintText: '' })
+      return
+    }
+    const list = hotwords.getContextTerms(text || '')
+    if (!list || !list.length) {
+      if (this.data.hotwordHintText) this.setData({ hotwordHintList: [], hotwordHintText: '' })
+      return
+    }
+    const shown = list.slice(0, 8)
+    const rest = list.length - shown.length
+    const shownText = shown.join(' · ') + (rest > 0 ? ' · …' : '')
+    const text2 = '已锁定专名：' + shownText + '（共 ' + list.length + ' 个）'
+    if (text2 !== this.data.hotwordHintText) {
+      this.setData({ hotwordHintList: list, hotwordHintText: text2 })
+    }
+  },
+
+  onHotwordHintTap() {
+    const newOn = !this.data.hotwordHintOn
+    this.setData({ hotwordHintOn: newOn })
+    if (!newOn) {
+      this.setData({ hotwordHintList: [], hotwordHintText: '' })
+    } else {
+      this._refreshHotwordHint(this.data.quickText)
+    }
   },
 
   // 右侧 +：输入框有内容→直接发送；为空→弹出「添加档案」编辑框

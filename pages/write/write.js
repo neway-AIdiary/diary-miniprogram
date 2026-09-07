@@ -7,6 +7,7 @@ const entityClean = require('../../utils/entityClean.js')
 const transfer = require('../../utils/transfer.js')
 const voice = require('../../utils/voice.js')
 const weather = require('../../utils/weather.js')
+const hotwords = require('../../utils/hotwords.js')
 const mediaGuard = require('../../utils/mediaGuard.js')
 const app = getApp()
 
@@ -41,6 +42,10 @@ Page({
     // 自定义占位文案（textarea 原生 placeholder 不支持换行，改用覆盖层渲染；支持多行）
     placeholderLine1: '您可以直接语音输入也可以手写输入',
     placeholderLine2: '您还可以直接说出或者手写输入改动指令，通过AI会自动优化您的日记',
+    // 草稿上下文调试提示（按住说话前能看到已锁定的专名 → 跟着正文实时变）
+    hotwordHintList: [],           // 热词数组 ['王威', '咖啡馆', ...]
+    hotwordHintText: '',           // 渲染好的字符串
+    hotwordHintOn: true,           // 用户可手动关闭
     diaryDate: '',
     minDate: '',
     maxDate: '',
@@ -312,8 +317,52 @@ Page({
   },
 
   // ===== 正文编辑 =====
+  // 所有写正文的地方都走这里：setData + 刷新 ctx 热词调试提示
+  _setContent(content, extra) {
+    const patch = Object.assign({ content: content }, extra || {})
+    this.setData(patch)
+    this._refreshHotwordHint(content)
+  },
+
   onContentInput(e) {
-    this.setData({ content: e.detail.value })
+    this._setContent(e.detail.value)
+  },
+
+  // ===== 草稿上下文热词调试提示 =====
+  // 输入法命中（小红条/小灰条）：
+  //   「📎 已锁定专名：王威 · 咖啡馆 · 健身房（共 3 个）」
+  //   仅在有 ctx 命中时显示；按住说话时也会随热词下发。
+  _refreshHotwordHint(text) {
+    if (!this.data.hotwordHintOn) {
+      // 用户手动关掉了，下一次不会重开
+      if (this.data.hotwordHintText) this.setData({ hotwordHintList: [], hotwordHintText: '' })
+      return
+    }
+    const list = hotwords.getContextTerms(text || '')
+    if (!list || !list.length) {
+      if (this.data.hotwordHintText) this.setData({ hotwordHintList: [], hotwordHintText: '' })
+      return
+    }
+    // 截断最多 8 个展示（剩下的折叠），避免小条溢出
+    const shown = list.slice(0, 8)
+    const rest = list.length - shown.length
+    const shownText = shown.join(' · ') + (rest > 0 ? ' · …' : '')
+    const text2 = '已锁定专名：' + shownText + '（共 ' + list.length + ' 个）'
+    if (text2 !== this.data.hotwordHintText) {
+      this.setData({ hotwordHintList: list, hotwordHintText: text2 })
+    }
+  },
+
+  // 长按调试条上的关闭按钮
+  onHotwordHintTap() {
+    // 单击：跳到面板里给完整列表（这里只 toggle 关闭；真正开关在设置里再补）
+    const newOn = !this.data.hotwordHintOn
+    this.setData({ hotwordHintOn: newOn })
+    if (!newOn) {
+      this.setData({ hotwordHintList: [], hotwordHintText: '' })
+    } else {
+      this._refreshHotwordHint(this.data.content)
+    }
   },
 
   // ===== 底部输入：语音 =====
@@ -396,7 +445,7 @@ Page({
 
     // 兼容路径：非语音调用按纯内容追加（当前仅语音路径会调用本函数）
     if (!fromVoice) {
-      this.setData({ content: this.appendText(trimmed) })
+      this._setContent(this.appendText(trimmed))
       return
     }
 
@@ -425,13 +474,13 @@ Page({
     if (matchInfo && matchInfo.replaced.length > 0) {
       // 纯叙述且有名词替换：追加后高亮替换结果
       const content = this.appendTextTo(this.data.content, trimmed)
-      this.setData({ content: content })
+      this._setContent(content)
       const words = Array.from(new Set(matchInfo.replaced.map(r => r.to)))
       this.showEditHighlight(this.matchTitle(matchInfo.replaced), content, words)
       return
     }
 
-    this.setData({ content: this.appendText(trimmed) })
+    this._setContent(this.appendText(trimmed))
   },
 
   // 备案名词匹配提示文案
@@ -461,7 +510,7 @@ Page({
     }
 
     if (narrative) content = this.appendTextTo(content, narrative)
-    this.setData({ content: content })
+    this._setContent(content)
 
     // 名词替换词与指令改动词一起高亮
     const matchWords = matchInfo && matchInfo.replaced.length > 0
@@ -608,7 +657,7 @@ Page({
   insertEmoji(e) {
     const emoji = e.currentTarget.dataset.emoji
     // 底栏已无文字输入框：表情直接追加到正文（textarea 支持所见即所得）
-    this.setData({ content: this.data.content + emoji })
+    this._setContent(this.data.content + emoji)
   },
 
   // ===== 添加(+)：图片 / 视频 / 心情 / 位置 =====
@@ -1055,7 +1104,7 @@ Page({
       pending = { title: title, words: words }
 
       if (!content) {
-        this.setData({ content: content })
+        this._setContent(content)
         wx.showToast({ title: '修改指令已执行，正文为空', icon: 'none' })
         return
       }
@@ -1075,7 +1124,7 @@ Page({
     }
 
     if (pending) {
-      this.setData({ content: content })
+      this._setContent(content)
       // AI 优化结果面板会盖住高亮视图，记录下来待面板关闭后重放
       this._pendingEmbedHighlight = pending
       this.showEditHighlight(pending.title, content, pending.words)
