@@ -82,12 +82,17 @@ Page({
       (win.safeArea && win.safeArea.top) || 20,
       20
     )
+    const safeAreaBottom = (win.safeArea && win.screenHeight - win.safeArea.bottom) || 0
+    // 底部输入栏高度：内容区 80rpx + padding-top 12rpx + base padding-bottom 22rpx + 安全区
+    const rpx2px = (win.windowWidth || 375) / 750
+    const inputBarHeight = Math.ceil((80 + 12 + 22) * rpx2px + safeAreaBottom)
     this.setData({
       safeAreaTop: safeAreaTop,
       pageTop: safeAreaTop + 8,
       // detail 页是系统导航栏，内容天然从导航栏下方开始，编辑区只需极小顶部间距
       editTop: 8,
-      safeAreaBottom: (win.safeArea && win.screenHeight - win.safeArea.bottom) || 0
+      safeAreaBottom: safeAreaBottom,
+      inputBarHeight: inputBarHeight
     })
     // 恢复分享展示开关的上次设置（跨会话记忆，未存过则用默认值）
     let savedSw = {}

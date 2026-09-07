@@ -180,8 +180,8 @@
       </view>
       </view>
 
-      <!-- 取消/保存：置于白色卡片下方琥珀背景，紧跟内容（与主页一致） -->
-      <view class="edit-actions">
+      <!-- 取消/保存：置于白色卡片下方琥珀背景，紧跟内容，底部留出输入栏高度避免被压盖 -->
+      <view class="edit-actions" style="padding-bottom: {{inputBarHeight}}px;">
         <button class="btn-secondary" bindtap="cancelEdit">取消</button>
         <button class="btn-primary" bindtap="saveEdit">保存</button>
       </view>
