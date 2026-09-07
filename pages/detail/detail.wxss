@@ -947,23 +947,31 @@
   box-sizing: border-box;
 }
 
-/* button 元素自带默认内边距/外边距/行高，全部归零使其与普通行完全一致 */
+/* button 元素自带默认内边距/宽度/行高，关键布局属性全部 !important 接管，
+   确保图标位置与下方公开分享行严格对齐、文字不换行 */
 .share-row-plain {
   font-size: 28rpx;
   background: #F7F9F8;
-  margin: 0 0 14rpx;
-  padding: 18rpx 20rpx;
-  /* 微信 button UA 默认 padding-left/right 无法被普通类覆盖的机型上仍生效，用 !important 兜底 */
-  padding-left: 20rpx !important;
-  padding-right: 20rpx !important;
-  width: 100%;
+  display: flex !important;
+  align-items: center;
+  width: 100% !important;
+  margin: 0 0 14rpx !important;
+  padding: 18rpx 20rpx !important;
   box-sizing: border-box;
   border-radius: 20rpx;
   line-height: 1.4;
-  display: flex;
-  align-items: center;
   text-align: left;
   font-weight: normal;
+}
+
+.share-row-plain .share-row-main {
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+.share-row-plain .share-row-name {
+  white-space: nowrap;
+  overflow: hidden;
 }
 
 .share-row-plain::after {
