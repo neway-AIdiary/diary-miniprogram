@@ -73,6 +73,7 @@
   <block wx:if="{{diary && editing}}">
     <view class="edit-page">
       <scroll-view class="edit-scroll" scroll-y enhanced show-scrollbar="{{false}}">
+        <view class="edit-scroll-inner">
         <view class="edit-area" style="padding-top: {{editTop}}px;">
       <view class="section section-title">
         <input
@@ -183,6 +184,7 @@
       <view class="edit-actions">
         <button class="btn-secondary" bindtap="cancelEdit">取消</button>
         <button class="btn-primary" bindtap="saveEdit">保存</button>
+      </view>
       </view>
     </scroll-view>
 

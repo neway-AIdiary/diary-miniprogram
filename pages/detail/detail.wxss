@@ -238,8 +238,9 @@
   display: flex;
   align-items: center;
   gap: 20rpx;
-  margin: 24rpx 24rpx 0;
-  padding-bottom: 40rpx;
+  margin: 0 24rpx;
+  margin-top: auto;
+  padding: 24rpx 0 40rpx;
 }
 
 .edit-actions button {
@@ -267,14 +268,14 @@
   padding-right: 8rpx;
 }
 
-/* 编辑模式标题输入框：固定高度，上下居中完整显示
+/* 编辑模式标题输入框：固定高度 81rpx（约原 108 的四分之三），上下居中完整显示
    编辑风增强层会把字号改为 42rpx / 行高 ~57rpx，
-   因此上下内边距之和要 ≤51rpx，内容区才能完整容纳一行文字；
+   上下内边距各 11rpx → 内容区 59rpx，恰好完整容纳一行文字；
    去边框去底色，与主页输入框风格统一 */
 .edit-title-input {
-  height: 108rpx;
+  height: 81rpx;
   box-sizing: border-box;
-  padding: 25rpx 0;
+  padding: 11rpx 0;
   border: none;
   background: transparent;
   font-weight: 500;
@@ -472,6 +473,13 @@
 .edit-scroll {
   flex: 1;
   min-height: 0;
+}
+
+/* 滚动内容容器：最小高度撑满，让取消/保存按钮内容少时沉底、内容多时跟滚到末尾（滚到底仍在底栏上方） */
+.edit-scroll-inner {
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
 }
 
 /* ===== 底部输入栏（复用写日记主页底栏所有元素）===== */
