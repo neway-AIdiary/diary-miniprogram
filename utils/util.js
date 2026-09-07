@@ -67,9 +67,19 @@ function formatRelativeTime(dateStr) {
 }
 
 // 获取默认标题（可指定日期，如 "2026-08-13"，不传则用今天）
+// 注意：去掉"的"字，"X月X日 的日记" → "X月X日 日记"，更紧凑
 function getDefaultTitle(dateStr) {
   const now = dateStr ? new Date(dateStr + 'T12:00:00') : new Date()
-  return (now.getMonth() + 1) + '月' + now.getDate() + '日 的日记'
+  return (now.getMonth() + 1) + '月' + now.getDate() + '日 日记'
+}
+
+// 显示侧栏/详情页时，统一去掉旧数据里夹带的"的"字
+// 旧数据：title = "9月7日 的日记" → "9月7日 日记"
+// 非默认格式（如用户自定义的"周末爬山"）原样保留
+function stripDiaryTitleSuffix(title) {
+  if (!title) return title
+  // 匹配 "X月X日 的日记" → "X月X日 日记"；宽容中间任意空白
+  return String(title).replace(/(\d{1,2})\s*月\s*(\d{1,2})\s*日\s*的\s*日记/g, '$1月$2日 日记')
 }
 
 // 获取当前时间文本
@@ -98,6 +108,7 @@ module.exports = {
   formatFullDate,
   formatRelativeTime,
   getDefaultTitle,
+  stripDiaryTitleSuffix,
   getCurrentTimeText,
   getDateKey
 }

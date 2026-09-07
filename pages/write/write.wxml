@@ -49,6 +49,7 @@
             <view wx:if="{{!content}}" class="diary-placeholder">
               <view class="dp-line">{{placeholderLine1}}</view>
               <view class="dp-line">{{placeholderLine2}}</view>
+              <view class="dp-line">{{placeholderLine3}}</view>
             </view>
             <textarea
               class="diary-textarea"

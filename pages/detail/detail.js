@@ -174,6 +174,8 @@ Page({
 
     if (diary) {
       this.decorateDiary(diary)
+      // 兼容旧数据：去掉默认标题里的"的"字（"X月X日 的日记" → "X月X日 日记"）
+      if (diary.title) diary.title = util.stripDiaryTitleSuffix(diary.title)
       this.setData({
         diary: diary,
         title: diary.title || '',

@@ -40,8 +40,9 @@ Page({
     // 日记正文
     content: '',
     // 自定义占位文案（textarea 原生 placeholder 不支持换行，改用覆盖层渲染；支持多行）
-    placeholderLine1: '您可以直接语音输入也可以手写输入',
-    placeholderLine2: '您还可以直接说出或者手写输入改动指令，通过AI会自动优化您的日记',
+    placeholderLine1: '您可以语音或手动输入内容，自动记录和融合到当天的日记',
+    placeholderLine2: '输入改动指令直接更改内容，如：把王威改成王伟，删除第一句',
+    placeholderLine3: '最终还可以通过点击AI优化按钮，完善您的日记',
     // 草稿上下文调试提示（按住说话前能看到已锁定的专名 → 跟着正文实时变）
     hotwordHintList: [],           // 热词数组 ['王威', '咖啡馆', ...]
     hotwordHintText: '',           // 渲染好的字符串
@@ -927,7 +928,7 @@ Page({
     const stats = storage.getStats()
     const list = storage.getAllDiaries().map(d => ({
       id: d.id,
-      title: d.title || '无题',
+      title: util.stripDiaryTitleSuffix(d.title || '无题'),
       // 仅供搜索匹配用（不展示）
       preview: String(d.content || '').replace(/\n/g, ' ').slice(0, 100),
       // AI 概括的当日日记关键字（最多4字，AI 概括不出为空则不显示）
