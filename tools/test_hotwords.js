@@ -77,9 +77,13 @@ ok(w.length < 30, '档案词超预算即停（收录 ' + w.length + ' 个，未�
 
 // ===== 5. 日缓存 =====
 section('按自然日缓存')
-const first = hotwords.get(false)
-const second = hotwords.get(false)
-ok(first === second, '同日两次 get 返回同一缓存引用（不重建）')
+// 基底词（不含 ctx）按天缓存；ctx 每次按 contextText 重算
+const firstBase = hotwords.get(false, { contextText: '' })
+const secondBase = hotwords.get(false, { contextText: '' })
+ok(JSON.stringify(firstBase) === JSON.stringify(secondBase), '同日两次 get + 空 ctx：结果一致（基底词命中缓存，ctx 为空，组合可重现）')
+const firstWithCtxA = hotwords.get(false, { contextText: '王威在健身房' })
+const firstWithCtxB = hotwords.get(false, { contextText: '王威在健身房' })
+ok(JSON.stringify(firstWithCtxA) === JSON.stringify(firstWithCtxB), '同日 + 同 ctx 两次调用：结果稳定（buf 每次返回的是新拼接数组，但内容一致）')
 
 // ===== 6. 词序：频次高的关键词靠前 =====
 section('关键词按频次排序')
@@ -101,6 +105,71 @@ if (iRead !== -1) {
   console.log('  （「读书」未过阈值或非高频词，跳过排序断言）')
   pass++
 }
+
+// ===== 7. 草稿上下文（编辑框已有内容作为即时热词） =====
+section('草稿上下文（getContextTerms / build({contextText}) / get(_, {contextText})）')
+// 重置干净环境：每天一次强制重建
+store['archives'] = [{ name: '王新伟', description: '本人' }]
+store['diaries'] = []
+
+// 7a. 2 字专名被 ctx 提取（1 次即收、不过频次门槛）
+const ctxA = hotwords.getContextTerms('今天和王威约在咖啡馆碰面')
+ok(ctxA.indexOf('王威') !== -1, 'ctx 优先收「王威」（2 字人名，1 次即收）')
+// 「咖啡馆」是 3 字专名，ctx 模块刻意只收 2 字（3 字短语由档案/历史高频兜底，避免滑窗切碎"王威约/王威在"吞掉 2 字人名）
+ok(ctxA.indexOf('咖啡馆') === -1, 'ctx 不收 3 字词（避免浪费预算；「咖啡馆」由历史高频兜底）')
+// 含虚词的 2 字片段被单字停用过滤
+ok(ctxA.indexOf('和王') === -1, '「和王」（含单字停用「和」）不收')
+ok(ctxA.indexOf('约在') === -1, '「约在」（含单字停用「在」）不收')
+ok(ctxA.indexOf('在咖') === -1, '「在咖」（含单字停用「在」）不收')
+// 「碰面」不在单字停用表中且不在 STOP_WORDS，理应被收
+ok(ctxA.indexOf('碰面') !== -1, '「碰面」是实词 2 字，被 ctx 收')
+ok(ctxA.indexOf('威碰') === -1, '「威碰」（两个无意义实词组合）由产品设计取舍决定（仅按 STOP_WORDS/SINGLE_STOP_CHARS 过滤）')
+
+// 7b. 阈值 = 1 时不再要求 ≥2 次
+const ctxB = hotwords.getContextTerms('王威在这')
+ok(ctxB.indexOf('王威') !== -1, '「王威」只出现 1 次也被收（ctx 不要求高频）')
+ok(ctxB.indexOf('在这') === -1, '「在这」（含单字停用「在」）不收')
+
+// 7c. ctx 仅 2 字；不触发"3 字吸收 2 字"逻辑
+const ctxC = hotwords.getContextTerms('健身房很好')
+ok(ctxC.indexOf('健身') !== -1, '「健身」被 ctx 收录')
+// 「身房」是因为 ctx 仅看 2 字且没有 3 字吸收逻辑——仍单独被收
+ok(ctxC.indexOf('身房') !== -1, '「身房」被 ctx 收录（不依赖 3 字词吸收，由历史高频/档案兜底防重复）')
+
+// 7d. 停用词片段过滤
+const ctxD = hotwords.getContextTerms('我的是了他')
+ok(ctxD.length === 0, '纯单字停用片段 → 返回空数组')
+const ctxE = hotwords.getContextTerms('的在了在')
+ok(ctxE.length === 0, '「的在了在」全含单字停用 → 返回空数组')
+
+// 7e. build({ contextText }) 把 ctx 词放在最前
+const built = hotwords.build({ contextText: '和王威碰面' })
+w = (built && built.words) || []
+ok(w.indexOf('王威') !== -1, 'build({ctx}) 含「王威」')
+ok(w.indexOf('王威') < w.indexOf('王新伟'), '「王威」（ctx）排在「王新伟」（档案）之前')
+ok(w.indexOf('王新伟') !== -1, '档案词「王新伟」仍在')
+
+// 7f. get(_, { contextText }) 流式链路：ctx 优先 + base 去重
+w = hotwords.get(true, { contextText: '在咖啡馆见到了王威' })
+ok(w.indexOf('王威') !== -1, 'get(_, {ctx}) 含「王威」（2 字专名保住了）')
+// 「咖啡馆」3 字在 ctx 中不收；但档案 / 历史高频里也未必有（这里没历史日记）—— 此处不强制断言
+ok(w.indexOf('王新伟') !== -1, '档案词「王新伟」仍在')
+const iCtxWangWei = w.indexOf('王威')
+const iArchiveWang = w.indexOf('王新伟')
+ok(iCtxWangWei < iArchiveWang, 'ctx 词「王威」排在档案「王新伟」之前')
+
+// 7g. 没有 contextText 时行为与旧版一致
+w = hotwords.get(true)
+ok(w[0] === '王新伟', '无 contextText 时档案词排第一（兼容旧行为）')
+
+// 7h. 同一天多次 get + 不同 ctx：基础词缓存命中，ctx 每次新算
+store['diaries'] = [{ id: 'd5', content: '咖啡馆见朋友', created_at: iso(0) }]
+const withCtx1 = hotwords.get(false, { contextText: '王威在这儿' })
+const withCtx2 = hotwords.get(false, { contextText: '李雷' })
+ok(withCtx1.indexOf('王威') !== -1, '不同 ctx 第一次: 「王威」被注入')
+ok(withCtx2.indexOf('李雷') !== -1, '不同 ctx 第二次: 「李雷」被注入（ctx 每次按 contextText 重算）')
+// 基础词（档案 + recent）应当命中缓存
+ok(withCtx1.indexOf('王新伟') !== -1, '基础词（档案）跨多次 get 仍可见')
 
 console.log('\n===== 结果: ' + pass + ' 通过, ' + fail + ' 失败 =====')
 process.exit(fail ? 1 : 0)

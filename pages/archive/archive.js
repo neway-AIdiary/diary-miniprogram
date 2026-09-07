@@ -117,7 +117,9 @@ Page({
     if (this._holdTimer) clearTimeout(this._holdTimer)
     this._holdTimer = setTimeout(() => {
       this._isHolding = true
-      voice.start()
+      // 把当前备注草稿作为"即时上下文"传给语音识别：档案页说话前若已输入了人名/机构名，
+      // 这些词会被作为最高优先级热词下发，提升同名实体的识别准确率
+      voice.start({ contextText: this.data.quickText || this.data.content || '' })
     }, 300)
   },
 

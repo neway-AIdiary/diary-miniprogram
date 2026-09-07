@@ -40,6 +40,9 @@ let cancelRequested = false
 let platformCache = null           // getSystemInfoSync 结果缓存（canStream 每按一次都调 sync 接口，属无效开销）
 let recordAuthed = false           // 本次会话已授予麦克风权限：跳过重复 authorize 桥接，按下即可直接开录
 let pendingFrames = []             // WS 握手期间录音已产生的音频帧，建连成功后按序补发（不丢开头）
+// 当前录音的即时上下文：按住的页面把 textarea 草稿内容传进来，作为最高优先级热词来源。
+// 典型场景：用户在草稿里已经写下"王威"，念"把王威改成王伟"时防止"王威"被听错。
+let currentContextText = ''
 
 // ===== 火山流式实时识别链路状态 =====
 let asrConfigCache = null        // { apiKey | appId+accessToken, resourceId, fetchedAt }，缓存 24h
@@ -152,13 +155,17 @@ function openAsrSocket(cfg) {
 
 function openSocket(cfg) {
   // 热词直传（按自然日缓存，构建为本地存储读取，毫秒级）：
-  // 在 connectSocket 前构建，耗时落在建连等待期，不占录音关键路径
+  // 在 connectSocket 前构建，耗时落在建连等待期，不占录音关键路径。
+  // 包含三段来源（高→低优先级）：
+  //   ① 当前编辑框草稿里的词（currentContextText，按页面 onHoldStart 透传）
+  //   ② 档案名词（按天缓存）
+  //   ③ 近十天日记高频词（按天缓存）
   let hotwordList = []
   try {
-    hotwordList = hotwords.get()
+    hotwordList = hotwords.get(false, { contextText: currentContextText })
     if (hotwordList.length) {
       const c = hotwords.getLastCount()
-      console.log('[voice] 热词已注入:', hotwordList.length, '个（档案', c.archive, '+ 日记高频', c.keyword, '）')
+      console.log('[voice] 热词已注入:', hotwordList.length, '个（档案', c.archive, '+ 日记高频', c.keyword, '+ 草稿', '）')
     }
   } catch (e) { /* 热词构建失败不影响录音 */ }
 
@@ -465,11 +472,11 @@ async function transcribe(filePath, format) {
       data: {
         fileID: uploadRes.fileID,
         format: format || 'wav',
-        // 热词随请求上传：与流式链路同源（档案名词优先+近十天高频词，token 预算 100），
-        // build 内部按自然日缓存，本地毫秒级返回，不增加耗时
+        // 热词随请求上传：与流式链路同源（草稿上下文 + 档案名词优先 + 近十天高频词，token 预算 100），
+        // build 内部按自然日缓存基础词，草稿上下文每次按 currentContextText 重算，本地毫秒级返回
         hotwords: (() => {
           try {
-            const hw = hotwords.build()
+            const hw = hotwords.build({ contextText: currentContextText })
             return (hw && hw.words) || []
           } catch (e) {
             return []
@@ -533,8 +540,14 @@ function deliver(text, removedCount) {
 // ③鉴权参数与录音并行拉取（缓存/在途请求复用），不阻塞开录；
 // ④WS 失败/超时不再重启录音：录音一直进行，松手后用完整 pcm 文件走整段识别；
 // ⑤按下即广播「连接中」准备态，用户有即时反馈。
-function start() {
+//
+// opts.contextText（可选）：按住时编辑框里的草稿文本（textarea 内容）。
+//   用于把草稿里的词放进"已下发热词"，避免语音指令中相同词被错听。
+//   例：先写"王威"，再口述"把王威改成王伟"——把"王威"作为热词传入火山 ASR。
+function start(opts) {
   if (state.recording || state.transcribing) return
+  // 记录本次录音的草稿上下文：每次录音都重置（上一段录音的草稿不污染本次）
+  currentContextText = String((opts && opts.contextText) || '')
   cancelRequested = false
   // 新一轮录音：清空上次的实时识别文本，浮层从空白开始
   state.liveText = ''

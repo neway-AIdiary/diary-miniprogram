@@ -328,7 +328,9 @@ Page({
     if (this._holdTimer) clearTimeout(this._holdTimer)
     this._holdTimer = setTimeout(() => {
       this._isHolding = true
-      voice.start()
+      // 把当前草稿（textarea 内容）作为"即时上下文"传给语音识别
+      // 例如：草稿里已写"王威"，随后口述"把王威改成王伟"——避免"王威"被识别错
+      voice.start({ contextText: this.data.content || '' })
     }, 300)
   },
 
