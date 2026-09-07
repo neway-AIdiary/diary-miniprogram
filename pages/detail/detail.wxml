@@ -177,15 +177,13 @@
         <view class="edit-media-tip" wx:if="{{editMedia.length > 0}}">长按图片或视频可拖动排序</view>
       </view>
 
-      <view class="edit-bottom-space"></view>
-      </view>
-    </scroll-view>
-
-      <!-- 编辑操作：取消/保存 常显在底部输入栏上方 -->
       <view class="edit-actions">
         <button class="btn-secondary" bindtap="cancelEdit">取消</button>
         <button class="btn-primary" bindtap="saveEdit">保存</button>
       </view>
+      <view class="edit-bottom-space"></view>
+      </view>
+    </scroll-view>
 
       <!-- 底部输入栏（复用写日记主页底栏所有元素） -->
       <view class="input-bar" style="padding-bottom: calc(22rpx + {{safeAreaBottom}}px);">
