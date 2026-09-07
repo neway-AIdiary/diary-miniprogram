@@ -310,7 +310,6 @@
           <text class="share-row-name">保存分享海报</text>
           <text class="share-row-desc">图文卡片，保存到相册</text>
         </view>
-        <text class="share-row-check">{{shareAction === 'poster' ? '✓' : ''}}</text>
       </view>
       <view class="share-row {{shareAction === 'text' ? 'active' : ''}}" bindtap="selectShareAction" data-action="text">
         <view class="share-row-icon share-row-icon-text">📝</view>
@@ -318,7 +317,6 @@
           <text class="share-row-name">复制精简文字</text>
           <text class="share-row-desc">已脱敏，适配各平台粘贴</text>
         </view>
-        <text class="share-row-check">{{shareAction === 'text' ? '✓' : ''}}</text>
       </view>
 
       <!-- 自定义展示开关（公开海报专属，横排精简） -->

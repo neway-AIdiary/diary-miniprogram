@@ -947,11 +947,20 @@
   box-sizing: border-box;
 }
 
+/* button 元素自带默认内边距/外边距/行高，全部归零使其与普通行完全一致 */
 .share-row-plain {
   font-size: 28rpx;
   background: #F7F9F8;
-  margin-left: 0;
-  margin-right: 0;
+  margin: 0 0 14rpx;
+  padding: 18rpx 20rpx;
+  width: 100%;
+  box-sizing: border-box;
+  border-radius: 20rpx;
+  line-height: 1.4;
+  display: flex;
+  align-items: center;
+  text-align: left;
+  font-weight: normal;
 }
 
 .share-row-plain::after {
@@ -1029,20 +1038,6 @@
   color: #BBBBBB;
   margin-left: 12rpx;
   flex-shrink: 0;
-}
-
-.share-row-check {
-  width: 40rpx;
-  height: 40rpx;
-  border-radius: 50%;
-  background: #0ACF6C;
-  color: #FFFFFF;
-  font-size: 26rpx;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-  margin-left: 12rpx;
 }
 
 /* 展示开关（横排：天气/心情/标签/图片 各带迷你开关） */
