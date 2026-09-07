@@ -8,10 +8,10 @@
     "pages/backup/backup"
   ],
   "window": {
-    "navigationBarBackgroundColor": "#F0F6F2",
+    "navigationBarBackgroundColor": "#F8F4EE",
     "navigationBarTextStyle": "black",
     "navigationBarTitleText": "AI日记",
-    "backgroundColor": "#F0F6F2",
+    "backgroundColor": "#F8F4EE",
     "backgroundTextStyle": "dark"
   },
   "style": "v2",

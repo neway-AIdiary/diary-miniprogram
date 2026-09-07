@@ -461,7 +461,7 @@ function buildWordHtml(diaries, imgMap, videoMap) {
     '.doc-title{font-size:22px;color:#1a1a1a;text-align:center;margin:8px 0 4px}\n' +
     '.doc-sub{font-size:12px;color:#999;text-align:center;margin:0 0 24px}\n' +
     '.diary{border-top:2px solid #E5E5E5;padding:16px 0;page-break-inside:avoid}\n' +
-    '.diary h2{font-size:17px;color:#07C160;margin:0 0 8px}\n' +
+    '.diary h2{font-size:17px;color:#C0773A;margin:0 0 8px}\n' +
     '.meta{font-size:12px;color:#888;margin:0 0 10px}\n' +
     '.content p{margin:4px 0}\n' +
     '.media{margin:10px 0}\n' +
@@ -641,7 +641,7 @@ function buildDocx(diaries, imgBin, videoMap) {
     const valid = !isNaN(dateObj.getTime())
     // 日期标题（绿色加粗）+ 顶部分隔间距
     paras.push(docxPara(valid ? wordTitleDate(dateObj, withYear) : '未标注日期',
-      { bold: true, size: '34', color: '07C160', before: 360 }))
+      { bold: true, size: '34', color: 'C0773A', before: 360 }))
     // 心情 / 天气 / 标签
     const metaBits = []
     const moodLabel = util.getMoodLabel(d.mood)

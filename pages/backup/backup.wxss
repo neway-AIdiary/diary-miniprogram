@@ -1,6 +1,6 @@
 .page {
   min-height: 100vh;
-  background: #F0F6F2;
+  background: var(--bg);
   padding-top: 24rpx;
   box-sizing: border-box;
 }
@@ -8,7 +8,7 @@
 /* 状态卡 */
 .status-card {
   margin: 0 24rpx;
-  background: #FFFFFF;
+  background: var(--surface);
   border-radius: 16rpx;
   padding: 36rpx 32rpx;
   display: flex;
@@ -19,7 +19,7 @@
   width: 72rpx;
   height: 72rpx;
   border-radius: 50%;
-  background: #F2F3F5;
+  background: var(--line-soft);
   position: relative;
   flex-shrink: 0;
   margin-right: 24rpx;
@@ -33,7 +33,7 @@
   top: 24rpx;
   width: 40rpx;
   height: 20rpx;
-  border: 4rpx solid #B0B0B0;
+  border: 4rpx solid var(--ink-faint);
   border-radius: 12rpx;
 }
 
@@ -44,18 +44,18 @@
   top: 14rpx;
   width: 20rpx;
   height: 20rpx;
-  border: 4rpx solid #B0B0B0;
+  border: 4rpx solid var(--ink-faint);
   border-bottom: none;
   border-radius: 12rpx 12rpx 0 0;
 }
 
 /* 开启状态：绿色实心云 + 白色对勾 */
 .status-icon.on {
-  background: #07C160;
+  background: var(--brand);
 }
 
 .status-icon.on::before {
-  border-color: #FFFFFF;
+  border-color: var(--surface);
   left: 16rpx;
   top: 28rpx;
   width: 36rpx;
@@ -68,8 +68,8 @@
   top: 26rpx;
   width: 20rpx;
   height: 12rpx;
-  border-left: 4rpx solid #FFFFFF;
-  border-bottom: 4rpx solid #FFFFFF;
+  border-left: 4rpx solid var(--surface);
+  border-bottom: 4rpx solid var(--surface);
   border-radius: 0;
   transform: rotate(-45deg);
 }
@@ -81,12 +81,12 @@
 .status-title {
   font-size: 32rpx;
   font-weight: 600;
-  color: #1A1A1A;
+  color: var(--ink);
 }
 
 .status-sub {
   font-size: 24rpx;
-  color: #999999;
+  color: var(--ink-soft);
   margin-top: 8rpx;
 }
 
@@ -97,7 +97,7 @@
 }
 
 .menu-card {
-  background: #FFFFFF;
+  background: var(--surface);
   border-radius: 16rpx;
   overflow: hidden;
 }
@@ -106,7 +106,7 @@
   display: flex;
   align-items: center;
   padding: 32rpx;
-  border-bottom: 1rpx solid #EBEBEB;
+  border-bottom: 1rpx solid var(--line);
 }
 
 .menu-item:last-child {
@@ -114,22 +114,22 @@
 }
 
 .menu-item:active {
-  background: #F5FAF7;
+  background: var(--bg-soft);
 }
 
 .menu-text {
   flex: 1;
   font-size: 30rpx;
-  color: #1A1A1A;
+  color: var(--ink);
 }
 
 .menu-text.danger {
-  color: #FA5151;
+  color: var(--danger);
 }
 
 .menu-arrow {
   font-size: 36rpx;
-  color: #C0C0C0;
+  color: var(--ink-faint);
   line-height: 1;
 }
 
@@ -137,7 +137,7 @@
 .backup-hint {
   padding: 16rpx 32rpx 0;
   font-size: 22rpx;
-  color: #999999;
+  color: var(--ink-soft);
   line-height: 1.7;
   white-space: pre-line;
 }
@@ -146,7 +146,7 @@
 .sync-error {
   padding: 12rpx 32rpx 0;
   font-size: 22rpx;
-  color: #FA5151;
+  color: var(--danger);
   line-height: 1.7;
 }
 
@@ -158,13 +158,13 @@
 
 .privacy-title {
   font-size: 28rpx;
-  color: #999999;
+  color: var(--ink-soft);
   padding-bottom: 16rpx;
 }
 
 .privacy-text {
   font-size: 24rpx;
-  color: #888888;
+  color: var(--ink-soft);
   line-height: 1.8;
   margin-bottom: 6rpx;
 }
@@ -195,7 +195,7 @@
   position: relative;
   z-index: 1;
   width: 640rpx;
-  background: #FFFFFF;
+  background: var(--surface);
   border-radius: 24rpx;
   padding: 40rpx 36rpx 32rpx;
   box-sizing: border-box;
@@ -204,14 +204,14 @@
 .backup-title {
   font-size: 32rpx;
   font-weight: 600;
-  color: #1A1A1A;
+  color: var(--ink);
   text-align: center;
   margin-bottom: 20rpx;
 }
 
 .backup-desc {
   font-size: 24rpx;
-  color: #888888;
+  color: var(--ink-soft);
   line-height: 1.7;
   margin-bottom: 24rpx;
 }
@@ -220,11 +220,11 @@
   width: 100%;
   box-sizing: border-box;
   height: 80rpx;
-  background: #F2F3F5;
+  background: var(--line-soft);
   border-radius: 16rpx;
   padding: 0 24rpx;
   font-size: 28rpx;
-  color: #1A1A1A;
+  color: var(--ink);
   margin-bottom: 20rpx;
 }
 
@@ -245,8 +245,8 @@
 }
 
 .backup-btn.cancel {
-  background: #F2F3F5;
-  color: #666666;
+  background: var(--line-soft);
+  color: var(--ink-mid);
 }
 
 .backup-btn.cancel:active {
@@ -254,22 +254,78 @@
 }
 
 .backup-btn.ok {
-  background: #07C160;
-  color: #FFFFFF;
+  background: var(--brand);
+  color: var(--surface);
   font-weight: 500;
 }
 
 .backup-btn.ok:active {
-  background: #06AD56;
+  background: var(--brand);
 }
 
 /* 危险操作按钮（清空云端备份确认） */
 .backup-btn.danger {
-  background: #FA5151;
-  color: #FFFFFF;
+  background: var(--danger);
+  color: var(--surface);
   font-weight: 500;
 }
 
 .backup-btn.danger:active {
-  background: #E04343;
+  background: var(--danger);
+}
+
+/* ============================================================
+   [编辑风增强层] 备份与同步
+   ============================================================ */
+.status-card,
+.menu-card {
+  background: var(--surface);
+  border: 1rpx solid var(--line-soft);
+  border-radius: var(--r-lg);
+  box-shadow: var(--shadow-sm);
+}
+
+.status-title {
+  font-family: var(--font-display);
+  font-size: 32rpx;
+  font-weight: 600;
+  color: var(--ink);
+  letter-spacing: 0.5rpx;
+}
+
+.status-sub,
+.backup-desc,
+.backup-hint,
+.privacy-text {
+  color: var(--ink-soft);
+  font-size: 24rpx;
+  line-height: 1.7;
+}
+
+.status-icon {
+  filter: none;
+}
+
+.menu-section,
+.privacy-title {
+  font-family: var(--font-display);
+  font-size: 26rpx;
+  color: var(--ink-soft);
+  letter-spacing: 2rpx;
+}
+
+.menu-item {
+  transition: background var(--dur) var(--ease);
+}
+
+.menu-item:active {
+  background: var(--surface-press);
+}
+
+.menu-arrow {
+  color: var(--ink-faint);
+}
+
+.sync-error {
+  color: var(--danger);
 }

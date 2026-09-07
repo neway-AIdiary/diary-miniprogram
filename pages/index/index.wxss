@@ -1,18 +1,23 @@
-/* ===== 日记本：微信小程序标准列表风格 · 浅青绿底 ===== */
+/* ===== 首页 · 日记列表
+   美学：极简克制 · 琥珀暖色 · 编辑杂志风
+   规则：颜色一律走 app.wxss 令牌；标题用衬线展示字；靠发丝线与留白分层
+   —— 结构类名与 wxml 保持一致，仅改视觉 ===================== */
 .page {
   min-height: 100vh;
-  background: #F0F6F2;
+  background: var(--bg);
 }
 
-/* 统计栏：白色圆角卡片 */
+/* ---------- 顶部统计栏：杂志数据条 ---------- */
 .stats-bar {
   display: flex;
-  align-items: center;
+  align-items: stretch;
   justify-content: space-around;
-  background: #FFFFFF;
-  border-radius: 16rpx;
-  padding: 36rpx 24rpx;
+  background: var(--surface);
+  border: 1rpx solid var(--line-soft);
+  border-radius: var(--r-lg);
+  padding: 32rpx 24rpx 28rpx;
   margin: 24rpx 24rpx 0;
+  box-shadow: var(--shadow-sm);
 }
 
 .stat-item {
@@ -22,26 +27,31 @@
   flex: 1;
 }
 
+/* 数字用衬线展示字 + 琥珀色，形成视觉锚点 */
 .stat-num {
-  font-size: 48rpx;
+  font-family: var(--font-display);
+  font-size: 52rpx;
   font-weight: 600;
-  color: #1A1A1A;
-  line-height: 1.1;
+  color: var(--brand);
+  line-height: 1.05;
+  letter-spacing: 1rpx;
 }
 
 .stat-label {
   font-size: 22rpx;
-  color: #999999;
-  margin-top: 10rpx;
+  color: var(--ink-soft);
+  margin-top: 12rpx;
+  letter-spacing: 1rpx;
 }
 
 .stat-divider {
   width: 1rpx;
-  height: 48rpx;
-  background: #EBEBEB;
+  background: var(--line-soft);
+  align-self: center;
+  height: 56rpx;
 }
 
-/* 搜索栏：微信标准灰底圆角搜索框 */
+/* ---------- 搜索栏：暖灰槽 ---------- */
 .search-bar {
   padding: 24rpx 24rpx 8rpx;
 }
@@ -49,26 +59,33 @@
 .search-box {
   display: flex;
   align-items: center;
-  background: #EAF3EE;
-  border-radius: 12rpx;
+  background: var(--bg-soft);
+  border: 1rpx solid transparent;
+  border-radius: var(--r-md);
   padding: 18rpx 28rpx;
+  transition: border-color var(--dur) var(--ease), background var(--dur) var(--ease);
+}
+
+.search-box:focus-within {
+  background: var(--surface);
+  border-color: var(--brand);
 }
 
 .search-input {
   flex: 1;
   font-size: 28rpx;
-  color: #1A1A1A;
+  color: var(--ink);
 }
 
 .search-clear {
   font-size: 28rpx;
-  color: #BBBBBB;
+  color: var(--ink-faint);
   padding: 0 8rpx;
 }
 
 .search-tip {
   font-size: 24rpx;
-  color: #999999;
+  color: var(--ink-soft);
   padding: 16rpx 32rpx;
   display: flex;
   justify-content: space-between;
@@ -76,68 +93,96 @@
 }
 
 .search-tip-reset {
-  color: #07C160;
+  color: var(--brand);
+  letter-spacing: 0.5rpx;
 }
 
 .empty-sub {
   font-size: 26rpx;
-  color: #07C160;
+  color: var(--brand);
   margin-top: 16rpx;
   padding-bottom: 4rpx;
 }
 
-/* 日记列表 */
+/* ---------- 日记列表 ---------- */
 .diary-list {
-  padding: 16rpx 24rpx;
+  padding: 16rpx 24rpx 48rpx;
 }
 
 .diary-item {
   margin-bottom: 20rpx;
 }
 
+/* 卡片：暖白 + 发丝边框 + 左侧琥珀细标（编辑感来源） */
 .diary-card {
-  background: #FFFFFF;
-  border-radius: 16rpx;
-  padding: 32rpx;
-  transition: background 0.15s;
+  position: relative;
+  background: var(--surface);
+  border: 1rpx solid var(--line-soft);
+  border-radius: var(--r-lg);
+  padding: 32rpx 32rpx 28rpx 36rpx;
+  box-shadow: var(--shadow-sm);
+  transition: background var(--dur) var(--ease), border-color var(--dur) var(--ease), transform var(--dur) var(--ease);
+}
+
+.diary-card::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 28rpx;
+  bottom: 28rpx;
+  width: 4rpx;
+  border-radius: 0 4rpx 4rpx 0;
+  background: var(--brand);
+  opacity: 0;
+  transition: opacity var(--dur) var(--ease);
 }
 
 .diary-card:active {
-  background: #F4FAF6;
+  background: var(--surface-press);
+  border-color: var(--line);
+  transform: scale(0.995);
+}
+
+.diary-card:active::before {
+  opacity: 1;
 }
 
 .diary-card-header {
   display: flex;
   justify-content: space-between;
-  align-items: center;
+  align-items: baseline;
   margin-bottom: 14rpx;
 }
 
+/* 标题：衬线展示字，杂志感核心 */
 .diary-title {
-  font-size: 32rpx;
-  font-weight: 500;
-  color: #1A1A1A;
+  font-family: var(--font-display);
+  font-size: 34rpx;
+  font-weight: 600;
+  color: var(--ink);
   flex: 1;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  letter-spacing: 0.5rpx;
 }
 
-/* AI 优化标签：琥珀金（与 AI 按钮同色系，突出 AI 能力） */
+/* AI 优化标签：琥珀描边小签 */
 .tag-ai {
   font-size: 20rpx;
-  color: #FF9500;
-  background: rgba(255, 149, 0, 0.12);
+  color: var(--brand);
+  background: var(--brand-tint-12);
   padding: 6rpx 16rpx;
-  border-radius: 8rpx;
+  border-radius: var(--r-sm);
   flex-shrink: 0;
   margin-left: 16rpx;
+  letter-spacing: 0.5rpx;
 }
 
 .diary-content {
   font-size: 27rpx;
-  color: #666666;
-  line-height: 1.7;
+  color: var(--ink-mid);
+  line-height: 1.75;
   overflow: hidden;
   text-overflow: ellipsis;
   display: -webkit-box;
@@ -145,7 +190,7 @@
   -webkit-box-orient: vertical;
 }
 
-/* 卡片媒体缩略图：图片直接显示，视频用占位 */
+/* ---------- 卡片媒体缩略图 ---------- */
 .diary-media {
   display: flex;
   gap: 12rpx;
@@ -156,7 +201,7 @@
   position: relative;
   width: 200rpx;
   height: 200rpx;
-  border-radius: 12rpx;
+  border-radius: var(--r-md);
   overflow: hidden;
   flex-shrink: 0;
 }
@@ -165,11 +210,11 @@
   width: 100%;
   height: 100%;
   display: block;
-  background: #F0F6F2;
+  background: var(--bg-soft);
 }
 
 .diary-media-video {
-  background: #1A1A1A;
+  background: var(--ink);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -177,10 +222,10 @@
 
 .diary-media-video-icon {
   font-size: 48rpx;
-  color: #FFFFFF;
+  color: var(--ink-invert);
 }
 
-/* 视频封面播放角标（右下角半透明黑底） */
+/* 视频封面播放角标 */
 .diary-media-video-tag {
   position: absolute;
   right: 8rpx;
@@ -190,7 +235,7 @@
   padding: 2rpx 10rpx;
   border-radius: 16rpx;
   background: rgba(0, 0, 0, 0.55);
-  color: #FFFFFF;
+  color: var(--ink-invert);
   font-size: 20rpx;
   line-height: 1.5;
 }
@@ -199,10 +244,10 @@
   margin-left: 4rpx;
 }
 
-/* 卡片位置 & 天气 */
+/* ---------- 卡片位置 & 天气 ---------- */
 .diary-location {
   font-size: 24rpx;
-  color: #999999;
+  color: var(--ink-soft);
   margin-top: 16rpx;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -214,7 +259,9 @@
 }
 
 .diary-card-footer {
-  margin-top: 18rpx;
+  margin-top: 20rpx;
+  padding-top: 18rpx;
+  border-top: 1rpx solid var(--line-soft);
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -223,10 +270,9 @@
 .tag-mood {
   font-size: 22rpx;
   padding: 4rpx 16rpx;
-  border-radius: 8rpx;
+  border-radius: var(--r-sm);
 }
 
-/* footer 左侧：心情 + 标签 */
 .footer-left {
   display: flex;
   align-items: center;
@@ -234,17 +280,17 @@
   min-width: 0;
 }
 
-/* 标签列表：与心情间隔两个空格宽度 */
 .tag-list {
   display: flex;
   align-items: center;
   flex-wrap: wrap;
-  margin-left: 24rpx; /* 两个空格的间隔 */
+  margin-left: 24rpx;
 }
 
+/* #标签：琥珀弱化色 */
 .tag-item {
   font-size: 22rpx;
-  color: #52A874;
+  color: var(--brand-mute);
   margin-right: 12rpx;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -253,12 +299,14 @@
 
 .diary-date {
   font-size: 24rpx;
-  color: #999999;
+  color: var(--ink-faint);
+  flex-shrink: 0;
+  letter-spacing: 0.5rpx;
 }
 
 /* 空状态按钮 */
 .empty-btn {
-  margin-top: 48rpx;
+  margin-top: var(--sp-xl);
   padding: 20rpx 72rpx;
   display: inline-block;
 }

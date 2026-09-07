@@ -327,19 +327,19 @@
       <view class="share-sw-grid">
         <view class="share-sw-item">
           <text class="share-sw-label">天气</text>
-          <switch checked="{{shareSw.weather}}" color="#07C160" data-key="weather" bindchange="toggleShareSwitch" />
+          <switch checked="{{shareSw.weather}}" color="#C0773A" data-key="weather" bindchange="toggleShareSwitch" />
         </view>
         <view class="share-sw-item">
           <text class="share-sw-label">心情</text>
-          <switch checked="{{shareSw.mood}}" color="#07C160" data-key="mood" bindchange="toggleShareSwitch" />
+          <switch checked="{{shareSw.mood}}" color="#C0773A" data-key="mood" bindchange="toggleShareSwitch" />
         </view>
         <view class="share-sw-item">
           <text class="share-sw-label">标签</text>
-          <switch checked="{{shareSw.tags}}" color="#07C160" data-key="tags" bindchange="toggleShareSwitch" />
+          <switch checked="{{shareSw.tags}}" color="#C0773A" data-key="tags" bindchange="toggleShareSwitch" />
         </view>
         <view class="share-sw-item">
           <text class="share-sw-label">图片</text>
-          <switch checked="{{shareSw.images}}" color="#07C160" data-key="images" bindchange="toggleShareSwitch" />
+          <switch checked="{{shareSw.images}}" color="#C0773A" data-key="images" bindchange="toggleShareSwitch" />
         </view>
       </view>
 

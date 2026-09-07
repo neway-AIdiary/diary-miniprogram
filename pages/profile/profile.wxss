@@ -1,14 +1,14 @@
 /* ===== 我的：微信小程序标准 cell 列表风格 · 浅青绿底 ===== */
 .page {
   min-height: 100vh;
-  background: #F0F6F2;
+  background: var(--bg);
   padding-bottom: 60rpx;
   box-sizing: border-box;
 }
 
 /* 用户卡片：白色圆角卡片 */
 .user-card {
-  background: #FFFFFF;
+  background: var(--surface);
   border-radius: 16rpx;
   margin: 24rpx 24rpx 0;
   padding: 40rpx 36rpx;
@@ -21,7 +21,7 @@
   height: 112rpx;
   border-radius: 50%;
   flex-shrink: 0;
-  background: #EAF3EE;
+  background: var(--bg-soft);
 }
 
 .user-info {
@@ -32,12 +32,12 @@
 .user-name {
   font-size: 36rpx;
   font-weight: 600;
-  color: #1A1A1A;
+  color: var(--ink);
 }
 
 .user-desc {
   font-size: 24rpx;
-  color: #999999;
+  color: var(--ink-soft);
   margin-top: 10rpx;
 }
 
@@ -51,18 +51,18 @@
   width: 112rpx;
   height: 112rpx;
   border-radius: 50%;
-  background: #EAF3EE;
+  background: var(--bg-soft);
   display: flex;
   align-items: center;
   justify-content: center;
   font-size: 52rpx;
-  color: #7FB89B;
+  color: var(--brand-mute);
   flex-shrink: 0;
 }
 
 .user-login-text {
   font-size: 32rpx;
-  color: #1A1A1A;
+  color: var(--ink);
   margin-left: 32rpx;
   font-weight: 500;
 }
@@ -74,7 +74,7 @@
 }
 
 .stats-card {
-  background: #FFFFFF;
+  background: var(--surface);
   border-radius: 16rpx;
   padding: 36rpx 24rpx;
 }
@@ -94,13 +94,13 @@
 .stat-block .stat-num {
   font-size: 44rpx;
   font-weight: 600;
-  color: #1A1A1A;
+  color: var(--ink);
   line-height: 1.2;
 }
 
 .stat-block .stat-label {
   font-size: 22rpx;
-  color: #999999;
+  color: var(--ink-soft);
   margin-top: 10rpx;
 }
 
@@ -111,11 +111,11 @@
 
 .streak-badge {
   font-size: 24rpx;
-  color: #FFFFFF;
-  background: linear-gradient(135deg, #FFC04D 0%, #FF9500 100%);
+  color: var(--surface);
+  background: linear-gradient(135deg, var(--brand-bright) 0%, var(--brand) 100%);
   padding: 10rpx 32rpx;
   border-radius: 40rpx;
-  box-shadow: 0 6rpx 16rpx rgba(255, 149, 0, 0.28);
+  box-shadow: 0 6rpx 16rpx var(--brand-shadow-28);
 }
 
 /* 菜单：微信标准 cell 分组列表 */
@@ -126,12 +126,12 @@
 
 .menu-title {
   font-size: 24rpx;
-  color: #999999;
+  color: var(--ink-soft);
   padding: 0 8rpx 16rpx;
 }
 
 .menu-card {
-  background: #FFFFFF;
+  background: var(--surface);
   border-radius: 16rpx;
   overflow: hidden;
 }
@@ -140,7 +140,7 @@
   display: flex;
   align-items: center;
   padding: 32rpx;
-  border-bottom: 1rpx solid #EBEBEB;
+  border-bottom: 1rpx solid var(--line);
 }
 
 .menu-item:last-child {
@@ -148,22 +148,22 @@
 }
 
 .menu-item:active {
-  background: #F5FAF7;
+  background: var(--bg-soft);
 }
 
 .menu-text {
   flex: 1;
   font-size: 30rpx;
-  color: #1A1A1A;
+  color: var(--ink);
 }
 
 .menu-text.danger {
-  color: #FA5151;
+  color: var(--danger);
 }
 
 .menu-arrow {
   font-size: 36rpx;
-  color: #C0C0C0;
+  color: var(--ink-faint);
   line-height: 1;
 }
 
@@ -175,12 +175,12 @@
 
 .footer-text {
   font-size: 24rpx;
-  color: #999999;
+  color: var(--ink-soft);
 }
 
 .footer-sub {
   font-size: 22rpx;
-  color: #BBBBBB;
+  color: var(--ink-faint);
   margin-top: 10rpx;
 }
 
@@ -188,7 +188,7 @@
 .backup-hint {
   padding: 16rpx 32rpx 0;
   font-size: 22rpx;
-  color: #999999;
+  color: var(--ink-soft);
   line-height: 1.7;
   white-space: pre-line;
 }
@@ -219,7 +219,7 @@
   position: relative;
   z-index: 1;
   width: 640rpx;
-  background: #FFFFFF;
+  background: var(--surface);
   border-radius: 24rpx;
   padding: 40rpx 36rpx 32rpx;
   box-sizing: border-box;
@@ -228,14 +228,14 @@
 .backup-title {
   font-size: 32rpx;
   font-weight: 600;
-  color: #1A1A1A;
+  color: var(--ink);
   text-align: center;
   margin-bottom: 20rpx;
 }
 
 .backup-desc {
   font-size: 24rpx;
-  color: #888888;
+  color: var(--ink-soft);
   line-height: 1.7;
   margin-bottom: 24rpx;
 }
@@ -244,11 +244,11 @@
   width: 100%;
   box-sizing: border-box;
   height: 80rpx;
-  background: #F2F3F5;
+  background: var(--line-soft);
   border-radius: 16rpx;
   padding: 0 24rpx;
   font-size: 28rpx;
-  color: #1A1A1A;
+  color: var(--ink);
   margin-bottom: 20rpx;
 }
 
@@ -269,8 +269,8 @@
 }
 
 .backup-btn.cancel {
-  background: #F2F3F5;
-  color: #666666;
+  background: var(--line-soft);
+  color: var(--ink-mid);
 }
 
 .backup-btn.cancel:active {
@@ -278,11 +278,88 @@
 }
 
 .backup-btn.ok {
-  background: #07C160;
-  color: #FFFFFF;
+  background: var(--brand);
+  color: var(--surface);
   font-weight: 500;
 }
 
 .backup-btn.ok:active {
-  background: #06AD56;
+  background: var(--brand);
+}
+
+/* ============================================================
+   [编辑风增强层] 个人中心
+   ============================================================ */
+.user-card {
+  background: var(--surface);
+  border: 1rpx solid var(--line-soft);
+  border-radius: var(--r-lg);
+  box-shadow: var(--shadow-sm);
+}
+
+.user-name {
+  font-family: var(--font-display);
+  font-size: 38rpx;
+  font-weight: 600;
+  color: var(--ink);
+  letter-spacing: 1rpx;
+}
+
+.user-desc,
+.user-login-text {
+  color: var(--ink-soft);
+  font-size: 24rpx;
+}
+
+.user-avatar,
+.user-avatar-default {
+  border: 1rpx solid var(--line);
+  box-shadow: none;
+}
+
+.streak-badge {
+  background: var(--brand-tint-12);
+  color: var(--brand);
+  border: 1rpx solid var(--brand-tint-25);
+}
+
+.stats-card,
+.menu-card,
+.backup-card {
+  background: var(--surface);
+  border: 1rpx solid var(--line-soft);
+  border-radius: var(--r-lg);
+  box-shadow: var(--shadow-sm);
+}
+
+.stat-block {
+  font-family: var(--font-display);
+}
+
+.menu-section,
+.privacy-title,
+.backup-title {
+  font-family: var(--font-display);
+  font-size: 26rpx;
+  color: var(--ink-soft);
+  letter-spacing: 2rpx;
+}
+
+.menu-item {
+  transition: background var(--dur) var(--ease);
+}
+
+.menu-item:active {
+  background: var(--surface-press);
+}
+
+.menu-arrow {
+  color: var(--ink-faint);
+}
+
+.footer-text,
+.footer-sub {
+  color: var(--ink-faint);
+  font-size: 22rpx;
+  letter-spacing: 1rpx;
 }

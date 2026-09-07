@@ -870,7 +870,7 @@ Page({
     wx.showModal({
       title: '确认删除',
       content: '删除后不可恢复（含已上传的云端图片/视频），确定要删除这篇日记吗？',
-      confirmColor: '#e74c3c',
+      confirmColor: '#B8453A',
       success: (res) => {
         if (res.confirm) {
           const target = storage.getDiaryById(this.data.id)
@@ -1168,7 +1168,7 @@ Page({
 
           // 背景渐变
           const grad = ctx.createLinearGradient(0, 0, 0, H)
-          grad.addColorStop(0, '#F3FAF6')
+          grad.addColorStop(0, '#FAF6F1')
           grad.addColorStop(1, '#FFFFFF')
           ctx.fillStyle = grad
           ctx.fillRect(0, 0, W, H)
@@ -1176,25 +1176,25 @@ Page({
           layout.forEach((b) => {
             if (b.kind === 'date') {
               // 左侧绿色主题条 + 日期
-              ctx.fillStyle = '#0ACF6C'
+              ctx.fillStyle = '#C0773A'
               rrectPath(PAD, b.y - 16, 6, 32, 3)
               ctx.fill()
-              ctx.fillStyle = '#2B3631'
+              ctx.fillStyle = '#2A2622'
               ctx.font = '500 30px sans-serif'
               ctx.fillText(model.date || 'AI 日记', PAD + 22, b.y)
             } else if (b.kind === 'mood') {
               ctx.fillStyle = model.moodBg || 'rgba(138,143,140,0.12)'
               rrectPath(PAD, b.y - 25, b.w, 50, 25)
               ctx.fill()
-              ctx.fillStyle = model.moodColor || '#4A524E'
+              ctx.fillStyle = model.moodColor || '#6B5A4A'
               ctx.font = '400 27px sans-serif'
               ctx.fillText(model.mood, PAD + 26, b.y)
             } else if (b.kind === 'weather') {
-              ctx.fillStyle = '#6A7570'
+              ctx.fillStyle = '#6B5A4A'
               ctx.font = '400 27px sans-serif'
               ctx.fillText(model.weather, PAD, b.y)
             } else if (b.kind === 'summary') {
-              ctx.fillStyle = '#26262A'
+              ctx.fillStyle = '#2A2622'
               ctx.font = '400 33px sans-serif'
               b.lines.forEach((ln, i) => {
                 ctx.fillText(ln, PAD, b.y + i * b.lineH)
@@ -1206,10 +1206,10 @@ Page({
                 const rowY = b.y + ri * 52
                 rowArr.forEach((txt) => {
                   const w = ctx.measureText(txt).width + 36
-                  ctx.fillStyle = '#EAF6EF'
+                  ctx.fillStyle = '#F2E3CE'
                   rrectPath(x, rowY - 22, w, 44, 22)
                   ctx.fill()
-                  ctx.fillStyle = '#0A7A46'
+                  ctx.fillStyle = '#A05F27'
                   ctx.fillText(txt, x + 18, rowY)
                   x += w + 12
                 })
@@ -1229,21 +1229,21 @@ Page({
                 rrectPath(cx - 6, cy - 6, cs + 12, cs + 12, 12)
                 ctx.fill()
                 ctx.drawImage(codeImg, cx, cy, cs, cs)
-                ctx.fillStyle = '#0B7A45'
+                ctx.fillStyle = '#A05F27'
                 ctx.font = '500 26px sans-serif'
                 ctx.fillText('来自 AI 日记 · 记录每一天', PAD, b.y + 26)
-                ctx.fillStyle = '#B0B8B4'
+                ctx.fillStyle = '#BCB0A3'
                 ctx.font = '400 20px sans-serif'
                 ctx.fillText('内容摘要已脱敏 · 部分内容可能由 AI 生成', PAD, b.y + 64)
-                ctx.fillStyle = '#9AA39E'
+                ctx.fillStyle = '#9C8D7E'
                 ctx.font = '400 18px sans-serif'
                 ctx.fillText('微信扫码 · 打开这篇日记', PAD, b.y + 94)
               } else {
-                ctx.fillStyle = '#0B7A45'
+                ctx.fillStyle = '#A05F27'
                 ctx.font = '500 26px sans-serif'
                 const brand = '来自 AI 日记 · 记录每一天'
                 ctx.fillText(brand, (W - ctx.measureText(brand).width) / 2, b.y + 22)
-                ctx.fillStyle = '#B0B8B4'
+                ctx.fillStyle = '#BCB0A3'
                 ctx.font = '400 20px sans-serif'
                 const note = '内容摘要已脱敏 · 部分内容可能由 AI 生成'
                 ctx.fillText(note, (W - ctx.measureText(note).width) / 2, b.y + 58)
