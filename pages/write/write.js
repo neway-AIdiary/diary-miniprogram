@@ -1439,9 +1439,8 @@ Page({
             description: e.description,
             explanation: e.explanation || '',
             type: e.type || 'other',
-            // 已备案且解释一样 → 不再重复提示；解释不同 → 确认后更新描述
+            // 已备案的名词不再提醒存档（二次编辑保存也不重复提示），仅静默清理正文解释
             exists: !!old,
-            sameDesc: !!old && String(old.description || '').trim() === String(e.description || '').trim(),
             checked: true
           }
         })
@@ -1451,8 +1450,8 @@ Page({
         return
       }
 
-      // 已备案且解释未变的名词：不弹窗重复提示，仅静默清理正文中的解释部分
-      const promptEntities = all.filter(e => !(e.exists && e.sameDesc))
+      // 已备案的名词：不再弹窗提醒存档（避免重复打扰），仅静默清理正文中的解释部分
+      const promptEntities = all.filter(e => !e.exists)
       this._pendingEntities = all
 
       if (promptEntities.length === 0) {

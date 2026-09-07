@@ -96,19 +96,34 @@ aiCloud.callAIExtractEntities('我今天和王磊，他是我大学同学一起�
   runRest()
 })
 
+/* ===== 3b. 解释内容门槛：≥4 字才提取，不足 4 字视为只是提及 ===== */
+aiCloud.callAIExtractEntities('今天陪小灰玩了一天，小灰是我的猫，特别粘人').then(shortEnt => {
+  const grey = (shortEnt.entities || []).find(e => e.name === '小灰')
+  check('le-4 不足4字不提取', !!grey, false)
+  runRest2()
+}).catch(() => { fail++; console.log('FAIL: le-4 调用异常'); runRest2() })
+
+function runRest2() {
+aiCloud.callAIExtractEntities('今天见到了李老师，李老师是我高中班主任，还挺健朗').then(longEnt => {
+  const t = (longEnt.entities || []).find(e => e.name === '李老师')
+  check('le-5 达标仍提取', !!(t && t.description && t.description.length >= 4), true)
+  runRest()
+}).catch(() => { fail++; console.log('FAIL: le-5 调用异常'); runRest() })
+}
+
 function runRest() {
 
 /* ===== 4. 档案去重：已备案名词无论选否都只保留一条 ===== */
 storage.replaceArchives([])
 storage.saveArchives([{ name: '王磊', description: '我的大学同学' }])
-// 再次保存同名同解释
+// 再次保存同名同解释（描述追加合并：重复条目不追加）
 const r1 = storage.saveArchives([{ name: '王磊', description: '我的大学同学' }])
-check('ar-1 重复备案不新增', r1, { added: 0, updated: 1 })
+check('ar-1 重复备案不新增', r1, { added: 0, updated: 0 })
 check('ar-2 只保留一条', storage.getArchives().filter(a => a.name === '王磊').length, 1)
-// 同名不同解释 → 更新，仍一条
+// 同名不同解释 → 按逗号条目追加合并（不覆盖旧信息），仍一条
 storage.saveArchives([{ name: '王磊', description: '我的高中同学' }])
 check('ar-3 更新后仍一条', storage.getArchives().filter(a => a.name === '王磊').length, 1)
-check('ar-4 描述已更新', storage.getArchives()[0].description, '我的高中同学')
+check('ar-4 描述追加合并', storage.getArchives()[0].description, '我的大学同学，我的高中同学')
 
 /* ===== 5. processInput 流程模拟（语音路径） ===== */
 // 模拟：备案有王维，语音识别"今天和王伟吃饭"（无指令）→ 追加正文为备案写法

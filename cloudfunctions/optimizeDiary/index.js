@@ -201,15 +201,17 @@ function buildExtractEntitiesPrompt(content) {
     '- 日记写"今天去了腾讯公司，这个公司是我们公司的客户" → 提取 name=腾讯公司, description=我们公司的客户, explanation=这个公司是我们公司的客户',
     '- 反例：日记只写"今天和张三吃饭"（只是提到张三，没有解释他是谁）→ 不提取',
     '- 反例：日记只写"今天去了腾讯公司开会"（只是提到腾讯公司，没有解释它是什么）→ 不提取，即使你猜得出也不要提取、不要编造解释',
+    '- 反例：日记写"小灰是我的猫"（解释"我的猫"只有3个字，不足4字）→ 不提取',
     '要求：',
     '1. 只提取日记中带有解释说明的专有名词（人名/地名/机构名等）；单纯提到而没有解释的名词，绝对不要提取，也不得为其编造 description；',
-    '2. description 必须来自日记原文中对名词的实际解释，去掉"是/这是/就是"等引导词，以"我的xx""我xx的xx"等形式概括，不超过30字；',
-    '3. explanation 为该解释在日记原文中的逐字片段（不含名词本身，从原文原样复制，可含"他是/这是/就是我"等引导词，不含名词前后的逗号），用于后续从原文中删除解释部分；不得改写、不得编造，如果原文中没有解释片段则不要提取该名词；',
-    '4. 每个实体包含 name（名称）、description（概括解释）、explanation（原文解释片段）、type（person/place/org/other）；',
-    '5. 不要提取常见动词、形容词、普通名词（如"工作"、"开心"、"日记"）；',
-    '6. 不要提取时间词（如"今天"、"昨天"、"8月14日"）；',
-    '7. 同一名词只出现一次；',
-    '8. 如果日记中没有任何带解释的名词，返回空数组。',
+    '2. 必须明确判断用户有"解释意图"：只有「XX是XXXX」这类定义句式（是/就是/这是/他是/她是/它是等引导）才算解释；解释内容（description）必须不少于4个字，不足4个字的解释（如"是我朋友""是我妈"）视为只是提及，不要提取；',
+    '3. description 必须来自日记原文中对名词的实际解释，去掉"是/这是/就是"等引导词，以"我的xx""我xx的xx"等形式概括，不超过30字；',
+    '4. explanation 为该解释在日记原文中的逐字片段（不含名词本身，从原文原样复制，可含"他是/这是/就是我"等引导词，不含名词前后的逗号），用于后续从原文中删除解释部分；不得改写、不得编造，如果原文中没有解释片段则不要提取该名词；',
+    '5. 每个实体包含 name（名称）、description（概括解释）、explanation（原文解释片段）、type（person/place/org/other）；',
+    '6. 不要提取常见动词、形容词、普通名词（如"工作"、"开心"、"日记"）；',
+    '7. 不要提取时间词（如"今天"、"昨天"、"8月14日"）；',
+    '8. 同一名词只出现一次；',
+    '9. 如果日记中没有任何带解释的名词，返回空数组。',
     '',
     '用户日记：',
     content,
@@ -433,7 +435,7 @@ exports.main = async (event, context) => {
           explanation: String(e.explanation || '').trim().slice(0, 60),
           type: ['person', 'place', 'org', 'other'].includes(e.type) ? e.type : 'other'
         }))
-        .filter(e => e.name && e.description && !seen.has(e.name) && seen.add(e.name))
+        .filter(e => e.name && e.description && e.description.trim().length >= 4 && !seen.has(e.name) && seen.add(e.name))
       return { entities: entities }
     } catch (err) {
       return { error: '调用 AI 失败: ' + (err && err.message || err) }

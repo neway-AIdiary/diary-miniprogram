@@ -276,7 +276,7 @@ function localExtractExplainedEntities(content) {
     }
     desc = cut(desc)
     if (!name || !desc) return
-    if (name.length < 2 || name.length > 12 || desc.length < 2 || desc.length > 30) return
+    if (name.length < 2 || name.length > 12 || desc.length < 4 || desc.length > 30) return
     if (STOP.indexOf(name) !== -1) return
     // 名词不能以指示/人称代词开头（如「这是我的母校」误匹配为名词）
     if (/^[这那他她它们]/.test(name)) return
@@ -371,8 +371,8 @@ function callAIExtractEntities(content) {
         // 云端旧版未返回 description（云函数未重新部署）→ 本地规则兜底补解释
         const hasDesc = r.entities.some(e => e && e.description)
         if (hasDesc) {
-          // 硬校验：只保留"解释真实存在于原文"的名词，AI 编造的 description 全部过滤
-          const valid = r.entities.filter(e => hasRealExplanation(text, e))
+          // 硬校验：只保留"解释真实存在于原文"且解释内容≥4字的名词（AI 编造/过短解释全部过滤）
+          const valid = r.entities.filter(e => e && String(e.description || '').trim().length >= 4 && hasRealExplanation(text, e))
           if (valid.length > 0) {
             console.log('[aiCloud] AI 提取名词解释成功 from=cloud:', r.entities.length, '个，解释校验通过:', valid.length, '个')
             finish({ entities: valid, from: 'cloud' })
