@@ -162,6 +162,13 @@
   margin-bottom: 16rpx;
 }
 
+/* 标题区 / 心情区：底部加详情页同款分隔线，三块（标题/心情/正文）区隔 */
+.section-title,
+.section-mood {
+  border-bottom: 1rpx solid var(--line);
+  padding-bottom: 20rpx;
+}
+
 /* 心情选择：上下留白减半 */
 .mood-bar {
   background: var(--surface);
@@ -187,6 +194,19 @@
 
 .mood-value.placeholder {
   color: var(--ink-soft);
+}
+
+/* 心情行右侧可点击箭头 */
+.mood-arrow {
+  flex-shrink: 0;
+  margin-left: 8rpx;
+  font-size: 36rpx;
+  line-height: 1;
+  color: var(--ink-faint);
+}
+
+.mood-bar-hover {
+  opacity: 0.7;
 }
 
 .mood-options {
@@ -216,9 +236,10 @@
 
 .edit-actions {
   display: flex;
-  gap: 24rpx;
-  margin-top: 32rpx;
-  padding: 0 0 60rpx;
+  align-items: center;
+  gap: 20rpx;
+  margin: 24rpx 24rpx 0;
+  padding-bottom: 40rpx;
 }
 
 .edit-actions button {
@@ -451,10 +472,6 @@
 .edit-scroll {
   flex: 1;
   min-height: 0;
-}
-
-.edit-bottom-space {
-  height: 40rpx;
 }
 
 /* ===== 底部输入栏（复用写日记主页底栏所有元素）===== */

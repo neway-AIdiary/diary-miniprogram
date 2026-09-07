@@ -74,7 +74,7 @@
     <view class="edit-page">
       <scroll-view class="edit-scroll" scroll-y enhanced show-scrollbar="{{false}}">
         <view class="edit-area" style="padding-top: {{editTop}}px;">
-      <view class="section">
+      <view class="section section-title">
         <input
           class="input-field edit-title-input"
           value="{{title}}"
@@ -87,10 +87,11 @@
       </view>
 
       <!-- 心情选择 -->
-      <view class="section">
-        <view class="mood-bar" bindtap="toggleMoodPicker">
+      <view class="section section-mood">
+        <view class="mood-bar" bindtap="toggleMoodPicker" hover-class="mood-bar-hover">
           <text class="mood-label">心情</text>
           <text class="mood-value {{moodLabel ? '' : 'placeholder'}}">{{moodLabel || '可选，点击选择'}}</text>
+          <text class="mood-arrow">›</text>
         </view>
         <view class="mood-options" wx:if="{{showMoodPicker}}">
           <view
@@ -176,12 +177,12 @@
         </view>
         <view class="edit-media-tip" wx:if="{{editMedia.length > 0}}">长按图片或视频可拖动排序</view>
       </view>
+      </view>
 
+      <!-- 取消/保存：置于白色卡片下方琥珀背景，紧跟内容（与主页一致） -->
       <view class="edit-actions">
         <button class="btn-secondary" bindtap="cancelEdit">取消</button>
         <button class="btn-primary" bindtap="saveEdit">保存</button>
-      </view>
-      <view class="edit-bottom-space"></view>
       </view>
     </scroll-view>
 
