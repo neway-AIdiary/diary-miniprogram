@@ -343,7 +343,7 @@
         </view>
       </view>
 
-      <view class="share-disclaimer">公开海报仅展示内容摘要，隐私细节已隐藏，对外分享请自行确认内容哦</view>
+      <view class="share-disclaimer">公开分享的隐私细节已隐藏，但对外分享前还需您再次确认</view>
     </scroll-view>
 
     <view class="share-btns" style="padding-bottom: {{safeAreaBottom + 8}}px;">
