@@ -1,93 +1,179 @@
-/* ===== 全局样式：微信小程序生态标准 UI（WeUI 通用风格）=====
-   布局：浅青绿页面底 + 白色圆角卡片 + 系统级 cell 列表
-   配色：微信生态通用绿 #07C160（原生 button 默认色）+ AI 琥珀金点缀
-   版权：仅借鉴 WeUI 开源设计规范（MIT），不含微信 Logo/品牌图标/官方素材 */
+/* ============================================================
+   AI 日记 · 全局设计令牌（Design Tokens）
+   美学方向：极简克制 · 琥珀暖色 · 编辑杂志风
+   —— 改这里即可全站换肤，页面样式全部通过 var() 引用
+   ============================================================ */
 page {
-  background-color: #F0F6F2;
-  font-family: -apple-system, BlinkMacSystemFont, 'Helvetica Neue', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+  /* ---------- 背景层 ---------- */
+  --bg:            #F8F4EE;   /* 页面底：暖米白 */
+  --bg-soft:       #F1EAE0;   /* 次级底：区块、输入区 */
+  --surface:       #FFFFFF;   /* 卡片/弹层 */
+  --surface-soft:  #FBF8F2;   /* 卡片内浅底 */
+  --surface-press: #F5EFE6;   /* 按压态 */
+
+  /* ---------- 文字层 ---------- */
+  --ink:           #2A2622;   /* 主文字 */
+  --ink-mid:       #6B5A4A;   /* 正文次要 */
+  --ink-soft:      #9C8D7E;   /* 说明/时间 */
+  --ink-faint:     #BCB0A3;   /* 占位/图标 */
+  --ink-invert:    #FFFFFF;   /* 反白文字 */
+
+  /* ---------- 分割线 ---------- */
+  --line:          #E6DED2;   /* 常规线 */
+  --line-soft:     #EFE8DE;   /* 淡线 */
+  --line-strong:   #D6CBBE;   /* 强调线 */
+
+  /* ---------- 品牌色：琥珀 ---------- */
+  --brand:         #C0773A;   /* 主强调 */
+  --brand-bright:  #D4915A;   /* 渐变起点 */
+  --brand-deep:    #A05F27;   /* 渐变终点 / 按压 */
+  --brand-mute:    #A98456;   /* 弱化文字（tag 等） */
+  --brand-soft:    #F2E3CE;   /* 浅底 */
+  --brand-tint-08: rgba(192, 119, 58, 0.08);
+  --brand-tint-12: rgba(192, 119, 58, 0.12);
+  --brand-tint-25: rgba(192, 119, 58, 0.25);
+  --brand-shadow-20: rgba(160, 95, 39, 0.20);
+  --brand-shadow-22: rgba(160, 95, 39, 0.22);
+  --brand-shadow-28: rgba(160, 95, 39, 0.28);
+  --brand-shadow-55: rgba(160, 95, 39, 0.55);
+
+  /* ---------- 语义色 ---------- */
+  --danger:        #B8453A;
+  --danger-deep:   #9C3529;
+  --danger-bright: #D96055;
+  --danger-soft:   #FBEDEB;
+  --danger-shadow: rgba(140, 20, 10, 0.28);
+  --danger-tint-20: rgba(184, 69, 58, 0.20);
+  --danger-tint-25: rgba(184, 69, 58, 0.25);
+
+  /* ---------- 字体 ---------- */
+  /* 展示字：中文宋体系，营造杂志感；正文：系统无衬线保证可读 */
+  --font-display: 'Songti SC', 'STSong', 'Source Han Serif SC', 'Noto Serif CJK SC', 'SimSun', serif;
+  --font-body: -apple-system, BlinkMacSystemFont, 'Helvetica Neue', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+
+  /* ---------- 间距 ---------- */
+  --sp-xs: 8rpx;
+  --sp-sm: 16rpx;
+  --sp-md: 24rpx;
+  --sp-lg: 32rpx;
+  --sp-xl: 48rpx;
+
+  /* ---------- 圆角 ---------- */
+  --r-sm: 8rpx;
+  --r-md: 12rpx;
+  --r-lg: 16rpx;
+  --r-pill: 48rpx;
+
+  /* ---------- 阴影 ---------- */
+  --shadow-sm: 0 4rpx 16rpx rgba(42, 38, 34, 0.05);
+  --shadow-md: 0 10rpx 30rpx rgba(42, 38, 34, 0.07);
+  --shadow-brand: 0 10rpx 24rpx var(--brand-shadow-28);
+
+  /* ---------- 动效 ---------- */
+  --ease: cubic-bezier(0.22, 0.61, 0.36, 1);
+  --dur: 0.22s;
+
+  /* ---------- 全局排版基底 ---------- */
+  background-color: var(--bg);
+  font-family: var(--font-body);
   font-size: 28rpx;
-  color: #1A1A1A;
+  color: var(--ink);
   line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
 }
 
 /* 通用容器 */
 .container {
-  padding: 32rpx;
+  padding: var(--sp-lg);
   box-sizing: border-box;
   min-height: 100vh;
+  background: var(--bg);
 }
 
-/* 卡片：白底 + 圆角，靠背景色差分层（微信标准卡片） */
+/* 卡片：暖白底 + 发丝边框，靠线与留白分层（去掉重投影） */
 .card {
-  background: #FFFFFF;
-  border-radius: 16rpx;
-  padding: 32rpx;
-  margin-bottom: 24rpx;
+  background: var(--surface);
+  border: 1rpx solid var(--line-soft);
+  border-radius: var(--r-lg);
+  padding: var(--sp-lg);
+  margin-bottom: var(--sp-md);
+  box-shadow: var(--shadow-sm);
+  transition: background var(--dur) var(--ease), border-color var(--dur) var(--ease);
 }
 
-/* 主按钮：微信绿渐变 · 全宽胶囊 · 轻投影 */
+/* 主按钮：琥珀实色 · 半胶囊 · 暖投影 */
 .btn-primary {
-  background: linear-gradient(135deg, #0ACF6C 0%, #06B256 55%, #059E4C 100%);
-  color: #FFFFFF;
+  background: linear-gradient(135deg, var(--brand-bright) 0%, var(--brand) 55%, var(--brand-deep) 100%);
+  color: var(--ink-invert);
   border: none;
-  border-radius: 48rpx;
+  border-radius: var(--r-pill);
   padding: 22rpx 48rpx;
   font-size: 32rpx;
   font-weight: 500;
   text-align: center;
   line-height: 1.5;
-  box-shadow: 0 10rpx 24rpx rgba(7, 193, 96, 0.28);
+  box-shadow: var(--shadow-brand);
+  transition: transform var(--dur) var(--ease), box-shadow var(--dur) var(--ease);
 }
 
 .btn-primary:active {
-  background: linear-gradient(135deg, #06B256 0%, #059E4C 100%);
-  box-shadow: 0 6rpx 14rpx rgba(7, 193, 96, 0.22);
+  background: linear-gradient(135deg, var(--brand) 0%, var(--brand-deep) 100%);
+  transform: translateY(2rpx);
+  box-shadow: 0 6rpx 14rpx var(--brand-shadow-22);
 }
 
 .btn-primary[disabled] {
-  background: #BFE4CF;
-  color: #FFFFFF;
+  background: var(--brand-soft);
+  color: var(--ink-invert);
   box-shadow: none;
+  transform: none;
 }
 
-/* 次按钮：浅绿底绿字胶囊 */
+/* 次按钮：琥珀描边 · 透明底 */
 .btn-secondary {
-  background: #EAF6EF;
-  color: #07A056;
-  border: 1rpx solid rgba(7, 193, 96, 0.25);
-  border-radius: 48rpx;
+  background: transparent;
+  color: var(--brand);
+  border: 1rpx solid var(--brand-tint-25);
+  border-radius: var(--r-pill);
   padding: 21rpx 48rpx;
   font-size: 32rpx;
   font-weight: 500;
   text-align: center;
   line-height: 1.5;
+  transition: background var(--dur) var(--ease);
 }
 
 .btn-secondary:active {
-  background: #DFF2E7;
+  background: var(--brand-tint-08);
 }
 
 /* 输入框 */
 .input-field {
-  background: #FFFFFF;
-  border: 1rpx solid #E3EDE7;
-  border-radius: 12rpx;
+  background: var(--surface);
+  border: 1rpx solid var(--line);
+  border-radius: var(--r-md);
   padding: 22rpx 24rpx;
   font-size: 30rpx;
   width: 100%;
   box-sizing: border-box;
+  transition: border-color var(--dur) var(--ease);
+}
+
+.input-field:focus {
+  border-color: var(--brand);
 }
 
 .textarea-field {
-  background: #FFFFFF;
-  border: 1rpx solid #E3EDE7;
-  border-radius: 16rpx;
+  background: var(--surface);
+  border: 1rpx solid var(--line);
+  border-radius: var(--r-md);
   padding: 28rpx;
   font-size: 30rpx;
   width: 100%;
   min-height: 400rpx;
   box-sizing: border-box;
   line-height: 1.8;
+  transition: border-color var(--dur) var(--ease);
 }
 
 /* 空状态 */
@@ -101,19 +187,55 @@ page {
 
 .empty-state .empty-icon {
   font-size: 60rpx;
-  margin-bottom: 24rpx;
+  margin-bottom: var(--sp-md);
   opacity: 0.35;
 }
 
 .empty-state .empty-text {
   font-size: 28rpx;
-  color: #999999;
+  color: var(--ink-soft);
+  font-family: var(--font-display);
 }
 
 /* 加载状态 */
 .loading {
   text-align: center;
   padding: 40rpx;
-  color: #999999;
+  color: var(--ink-soft);
   font-size: 26rpx;
+}
+
+/* ============================================================
+   全站通用原子类（新增，页面可直接引用）
+   ============================================================ */
+
+/* 章节标题：杂志感衬线小标 */
+.section-title {
+  font-family: var(--font-display);
+  font-size: 34rpx;
+  font-weight: 600;
+  color: var(--ink);
+  letter-spacing: 0.5rpx;
+}
+
+/* 章节序号：罗马数字 / 编号 */
+.section-index {
+  font-family: var(--font-display);
+  font-size: 22rpx;
+  color: var(--brand);
+  letter-spacing: 2rpx;
+  margin-right: var(--sp-xs);
+}
+
+/* 发丝分割线 */
+.hairline {
+  height: 1rpx;
+  background: var(--line-soft);
+  width: 100%;
+}
+
+/* 弱化说明文字 */
+.muted {
+  color: var(--ink-soft);
+  font-size: 24rpx;
 }
