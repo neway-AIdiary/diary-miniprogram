@@ -158,14 +158,14 @@
 }
 
 .section {
-  margin-bottom: 24rpx;
+  margin-bottom: 16rpx;
 }
 
-/* 心情选择 */
+/* 心情选择：上下留白减半 */
 .mood-bar {
   background: var(--surface);
   border-radius: 16rpx;
-  padding: 26rpx 28rpx;
+  padding: 14rpx 28rpx;
   display: flex;
   align-items: center;
 }
@@ -192,14 +192,14 @@
   display: flex;
   flex-wrap: wrap;
   gap: 16rpx;
-  margin-top: 16rpx;
-  padding: 20rpx;
+  margin-top: 8rpx;
+  padding: 12rpx;
   background: var(--surface);
   border-radius: 16rpx;
 }
 
 .mood-option {
-  padding: 14rpx 28rpx;
+  padding: 10rpx 22rpx;
   background: var(--bg-soft);
   border-radius: 40rpx;
   font-size: 26rpx;
@@ -214,14 +214,22 @@
 }
 
 .edit-actions {
+  flex-shrink: 0;
   display: flex;
   gap: 24rpx;
-  margin-top: 32rpx;
-  padding: 0 0 60rpx;
+  padding: 16rpx 30rpx;
+  background: var(--bg);
+  border-top: 1rpx solid var(--line-soft);
 }
 
 .edit-actions button {
   flex: 1;
+}
+
+/* 编辑态正文：与主页输入框一致，内容超出后自身可滚动 */
+.edit-area .textarea-field {
+  min-height: 320rpx;
+  max-height: 45vh;
 }
 
 /* 字数统计 */
@@ -233,16 +241,15 @@
   padding-right: 8rpx;
 }
 
-/* 编辑模式标题输入框：高度适中，文字完整显示 */
+/* 编辑模式标题输入框：固定高度，文字下移并完整显示
+   注意：编辑风增强层会把字号改为 42rpx / 行高 1.35，
+   因此上下内边距之和要留出 ≥57rpx 的内容区，否则顶部会被截 */
 .edit-title-input {
-  min-height: 108rpx;
-  padding-top: 34rpx;
-  padding-bottom: 34rpx;
-  font-size: 34rpx;
+  height: 108rpx;
+  box-sizing: border-box;
+  padding-top: 30rpx;
+  padding-bottom: 20rpx;
   font-weight: 500;
-  line-height: 1.4;
-  display: flex;
-  align-items: center;
 }
 
 /* ===== 编辑模式：位置卡片（微信位置消息样式）===== */
