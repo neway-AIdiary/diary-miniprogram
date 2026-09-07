@@ -21,6 +21,10 @@ const KAOMOJIS = ['(◕‿◕)','(￣▽￣)','(≧∇≦)','(´･ω･`)','(�
 const MEDIA_ITEM_RPX = 200
 const MEDIA_GAP_RPX = 16
 
+// 分享弹窗「自定义展示开关」本地记忆键：跨会话保留最后一次设置
+const SHARE_SW_KEY = 'share_display_switches'
+const SHARE_SW_DEFAULT = { weather: true, mood: true, tags: true, images: true }
+
 Page({
   data: {
     id: '',
@@ -84,6 +88,14 @@ Page({
       // detail 页是系统导航栏，内容天然从导航栏下方开始，编辑区只需极小顶部间距
       editTop: 8,
       safeAreaBottom: (win.safeArea && win.screenHeight - win.safeArea.bottom) || 0
+    })
+    // 恢复分享展示开关的上次设置（跨会话记忆，未存过则用默认值）
+    let savedSw = {}
+    try {
+      savedSw = wx.getStorageSync(SHARE_SW_KEY) || {}
+    } catch (e) { savedSw = {} }
+    this.setData({
+      shareSw: Object.assign({}, SHARE_SW_DEFAULT, savedSw)
     })
     // 订阅全局录音状态：底栏「按住说话」浮层（实时净化文本边说边出字）
     this._offVoiceState = voice.onStateChange((s) => {
@@ -909,6 +921,10 @@ Page({
     const shareSw = Object.assign({}, this.data.shareSw)
     shareSw[key] = e.detail.value
     this.setData({ shareSw: shareSw })
+    // 记住本次设置：下次进小程序/打开分享弹窗仍生效
+    try {
+      wx.setStorageSync(SHARE_SW_KEY, shareSw)
+    } catch (err) { /* 存储异常静默：下次退回默认值 */ }
   },
 
   confirmShare() {
