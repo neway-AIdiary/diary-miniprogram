@@ -1879,8 +1879,7 @@
 }
 
 /* 底部工具条：发丝线上浮，琥珀高亮 */
-.input-bar,
-.icon-bar {
+.input-bar {
   background: rgba(248, 244, 238, 0.95);
   border-top: 1rpx solid var(--line-soft);
 }
