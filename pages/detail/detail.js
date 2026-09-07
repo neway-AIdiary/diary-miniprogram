@@ -83,9 +83,9 @@ Page({
       20
     )
     const safeAreaBottom = (win.safeArea && win.screenHeight - win.safeArea.bottom) || 0
-    // 底部输入栏高度：内容区 80rpx + padding-top 12rpx + base padding-bottom 22rpx + 安全区
+    // 底部输入栏高度：内容区 80rpx + padding-top 12rpx + base padding-bottom 22rpx + 安全区 + 16rpx 缓冲
     const rpx2px = (win.windowWidth || 375) / 750
-    const inputBarHeight = Math.ceil((80 + 12 + 22) * rpx2px + safeAreaBottom)
+    const inputBarHeight = Math.ceil((80 + 12 + 22 + 16) * rpx2px + safeAreaBottom)
     this.setData({
       safeAreaTop: safeAreaTop,
       pageTop: safeAreaTop + 8,

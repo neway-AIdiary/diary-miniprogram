@@ -181,10 +181,12 @@
       </view>
 
       <!-- 取消/保存：置于白色卡片下方琥珀背景，紧跟内容，底部留出输入栏高度避免被压盖 -->
-      <view class="edit-actions" style="padding-bottom: {{inputBarHeight}}px;">
+      <view class="edit-actions">
         <button class="btn-secondary" bindtap="cancelEdit">取消</button>
         <button class="btn-primary" bindtap="saveEdit">保存</button>
       </view>
+      <!-- 底部输入栏占位：撑高滚动内容，让按钮沉底/滚到底都完整露出 -->
+      <view class="edit-inputbar-space" style="height: {{inputBarHeight}}px;"></view>
       </view>
     </scroll-view>
 

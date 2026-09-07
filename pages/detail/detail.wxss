@@ -240,11 +240,16 @@
   gap: 20rpx;
   margin: 0 24rpx;
   margin-top: auto;
-  padding: 24rpx 0 0;
+  padding: 24rpx 0 40rpx;
 }
 
 .edit-actions button {
   flex: 1;
+}
+
+/* 底部输入栏占位：撑高滚动内容，避免按钮被固定底栏压住 */
+.edit-inputbar-space {
+  flex-shrink: 0;
 }
 
 /* 编辑态正文：与主页输入框一致，透明无边框、衬线体、随内容自动增高、超出 60vh 后自滚动 */
