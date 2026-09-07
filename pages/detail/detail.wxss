@@ -478,6 +478,8 @@
 .edit-scroll {
   flex: 1;
   min-height: 0;
+  display: flex;
+  flex-direction: column;
 }
 
 /* 滚动内容容器：最小高度撑满，让取消/保存按钮内容少时沉底、内容多时跟滚到末尾（滚到底仍在底栏上方） */

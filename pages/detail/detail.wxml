@@ -187,8 +187,8 @@
       </view>
       <!-- 底部输入栏占位：撑高滚动内容，让按钮沉底/滚到底都完整露出 -->
       <view class="edit-inputbar-space" style="height: {{inputBarHeight}}px;"></view>
-      </view>
-    </scroll-view>
+    </view>
+  </scroll-view>
 
       <!-- 底部输入栏（复用写日记主页底栏所有元素） -->
       <view class="input-bar" style="padding-bottom: calc(22rpx + {{safeAreaBottom}}px);">
