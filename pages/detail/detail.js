@@ -372,7 +372,9 @@ Page({
     if (this._holdTimer) clearTimeout(this._holdTimer)
     this._holdTimer = setTimeout(() => {
       this._isHolding = true
-      voice.start()
+      // 把当前草稿（编辑框内容）作为"即时上下文"传给语音识别，
+      // 与历史日记、档案名词一起作为热词下发给火山引擎（解决「王威→王伟」类修改指令识别）
+      voice.start({ contextText: this.data.content || '' })
     }, 300)
   },
 

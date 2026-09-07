@@ -149,16 +149,6 @@
 
   <!-- ===== 底部输入栏（微信同款）===== -->
   <view class="input-bar-wrap">
-    <!-- 草稿上下文热词调试提示（按住说话前能看到已锁定的专名） -->
-    <view
-      wx:if="{{hotwordHintText}}"
-      class="hotword-hint {{hotwordHintOn ? 'on' : 'off'}}"
-      bindtap="onHotwordHintTap"
-    >
-      <text class="hotword-hint-label">📎</text>
-      <text class="hotword-hint-text">{{hotwordHintText}}</text>
-      <text class="hotword-hint-toggle">{{hotwordHintOn ? '×' : '✓'}}</text>
-    </view>
     <view class="input-bar" style="padding-bottom: calc(22rpx + {{safeAreaBottom}}px);">
     <!-- 表情/颜文字（飞书同款笑脸） -->
     <view class="input-btn input-emoji {{showEmojiPanel ? 'active' : ''}}" bindtap="toggleEmojiPanel">

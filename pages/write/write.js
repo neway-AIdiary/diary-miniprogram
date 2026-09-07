@@ -7,7 +7,6 @@ const entityClean = require('../../utils/entityClean.js')
 const transfer = require('../../utils/transfer.js')
 const voice = require('../../utils/voice.js')
 const weather = require('../../utils/weather.js')
-const hotwords = require('../../utils/hotwords.js')
 const mediaGuard = require('../../utils/mediaGuard.js')
 const app = getApp()
 
@@ -43,10 +42,6 @@ Page({
     placeholderLine1: '您可以语音或手动输入内容，自动记录和融合到当天的日记',
     placeholderLine2: '输入改动指令直接更改内容，如：把王威改成王伟，删除第一句',
     placeholderLine3: '最终还可以通过点击AI优化按钮，完善您的日记',
-    // 草稿上下文调试提示（按住说话前能看到已锁定的专名 → 跟着正文实时变）
-    hotwordHintList: [],           // 热词数组 ['王威', '咖啡馆', ...]
-    hotwordHintText: '',           // 渲染好的字符串
-    hotwordHintOn: true,           // 用户可手动关闭
     diaryDate: '',
     minDate: '',
     maxDate: '',
@@ -318,52 +313,14 @@ Page({
   },
 
   // ===== 正文编辑 =====
-  // 所有写正文的地方都走这里：setData + 刷新 ctx 热词调试提示
+  // 所有写正文的地方都走这里
   _setContent(content, extra) {
     const patch = Object.assign({ content: content }, extra || {})
     this.setData(patch)
-    this._refreshHotwordHint(content)
   },
 
   onContentInput(e) {
     this._setContent(e.detail.value)
-  },
-
-  // ===== 草稿上下文热词调试提示 =====
-  // 输入法命中（小红条/小灰条）：
-  //   「📎 已锁定专名：王威 · 咖啡馆 · 健身房（共 3 个）」
-  //   仅在有 ctx 命中时显示；按住说话时也会随热词下发。
-  _refreshHotwordHint(text) {
-    if (!this.data.hotwordHintOn) {
-      // 用户手动关掉了，下一次不会重开
-      if (this.data.hotwordHintText) this.setData({ hotwordHintList: [], hotwordHintText: '' })
-      return
-    }
-    const list = hotwords.getContextTerms(text || '')
-    if (!list || !list.length) {
-      if (this.data.hotwordHintText) this.setData({ hotwordHintList: [], hotwordHintText: '' })
-      return
-    }
-    // 截断最多 8 个展示（剩下的折叠），避免小条溢出
-    const shown = list.slice(0, 8)
-    const rest = list.length - shown.length
-    const shownText = shown.join(' · ') + (rest > 0 ? ' · …' : '')
-    const text2 = '已锁定专名：' + shownText + '（共 ' + list.length + ' 个）'
-    if (text2 !== this.data.hotwordHintText) {
-      this.setData({ hotwordHintList: list, hotwordHintText: text2 })
-    }
-  },
-
-  // 长按调试条上的关闭按钮
-  onHotwordHintTap() {
-    // 单击：跳到面板里给完整列表（这里只 toggle 关闭；真正开关在设置里再补）
-    const newOn = !this.data.hotwordHintOn
-    this.setData({ hotwordHintOn: newOn })
-    if (!newOn) {
-      this.setData({ hotwordHintList: [], hotwordHintText: '' })
-    } else {
-      this._refreshHotwordHint(this.data.content)
-    }
   },
 
   // ===== 底部输入：语音 =====
