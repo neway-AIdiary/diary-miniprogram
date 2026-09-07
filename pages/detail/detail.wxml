@@ -293,8 +293,7 @@
           <image class="share-icon-wechat" src="/pages/detail/images/wechat.png" mode="aspectFit" />
         </view>
         <view class="share-row-main">
-          <text class="share-row-name">发送给微信好友（群）</text>
-          <text class="share-row-desc">以小程序卡片形式发送</text>
+          <text class="share-row-name">以卡片形式直接发送</text>
         </view>
       </button>
 
@@ -322,26 +321,28 @@
         <text class="share-row-check">{{shareAction === 'text' ? '✓' : ''}}</text>
       </view>
 
-      <!-- 自定义展示开关（公开海报专属） -->
+      <!-- 自定义展示开关（公开海报专属，横排精简） -->
       <view class="share-sec-head share-sec-head-gap">
         <text class="share-sec-title">自定义展示开关</text>
-        <text class="share-sec-sub">公开海报专属 · 默认智能脱敏开启最优配置</text>
+        <text class="share-sec-sub">公开海报专属</text>
       </view>
-      <view class="share-switch-row">
-        <text class="share-switch-name">显示当日天气</text>
-        <switch checked="{{shareSw.weather}}" color="#07C160" data-key="weather" bindchange="toggleShareSwitch" />
-      </view>
-      <view class="share-switch-row">
-        <text class="share-switch-name">显示心情状态</text>
-        <switch checked="{{shareSw.mood}}" color="#07C160" data-key="mood" bindchange="toggleShareSwitch" />
-      </view>
-      <view class="share-switch-row">
-        <text class="share-switch-name">显示日记标签</text>
-        <switch checked="{{shareSw.tags}}" color="#07C160" data-key="tags" bindchange="toggleShareSwitch" />
-      </view>
-      <view class="share-switch-row">
-        <text class="share-switch-name">展示精选配图（多图自动缩略，视频不展示原图）</text>
-        <switch checked="{{shareSw.images}}" color="#07C160" data-key="images" bindchange="toggleShareSwitch" />
+      <view class="share-sw-grid">
+        <view class="share-sw-item">
+          <text class="share-sw-label">天气</text>
+          <switch checked="{{shareSw.weather}}" color="#07C160" data-key="weather" bindchange="toggleShareSwitch" />
+        </view>
+        <view class="share-sw-item">
+          <text class="share-sw-label">心情</text>
+          <switch checked="{{shareSw.mood}}" color="#07C160" data-key="mood" bindchange="toggleShareSwitch" />
+        </view>
+        <view class="share-sw-item">
+          <text class="share-sw-label">标签</text>
+          <switch checked="{{shareSw.tags}}" color="#07C160" data-key="tags" bindchange="toggleShareSwitch" />
+        </view>
+        <view class="share-sw-item">
+          <text class="share-sw-label">图片</text>
+          <switch checked="{{shareSw.images}}" color="#07C160" data-key="images" bindchange="toggleShareSwitch" />
+        </view>
       </view>
 
       <view class="share-disclaimer">公开海报仅展示内容摘要，隐私细节已隐藏，对外分享请自行确认内容哦</view>

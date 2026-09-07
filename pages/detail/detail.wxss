@@ -1045,36 +1045,32 @@
   margin-left: 12rpx;
 }
 
-/* 展示开关 */
-.share-switch-row {
+/* 展示开关（横排：天气/心情/标签/图片 各带迷你开关） */
+.share-sw-grid {
   display: flex;
   align-items: center;
   justify-content: space-between;
   width: 100%;
   box-sizing: border-box;
-  padding: 14rpx 0;
-  border-bottom: 2rpx solid #F5F6F5;
+  padding: 10rpx 4rpx 6rpx;
 }
 
-.share-switch-row:last-of-type {
-  border-bottom: none;
-}
-
-.share-switch-name {
-  flex: 1;
-  min-width: 0;
-  font-size: 27rpx;
-  color: #333333;
-  padding-right: 24rpx;
-  line-height: 1.5;
-  white-space: normal;
-  word-break: break-all;
-}
-
-.share-switch-row switch {
-  transform: scale(0.8);
-  flex: 0 0 auto;
+.share-sw-item {
+  display: flex;
+  align-items: center;
   flex-shrink: 0;
+}
+
+.share-sw-label {
+  font-size: 26rpx;
+  color: #333333;
+  margin-right: 8rpx;
+  flex-shrink: 0;
+}
+
+.share-sw-item switch {
+  transform: scale(0.7);
+  flex: 0 0 auto;
 }
 
 .share-disclaimer {
