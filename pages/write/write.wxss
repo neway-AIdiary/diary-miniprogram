@@ -82,12 +82,19 @@
   padding-bottom: 200rpx;
 }
 
-/* 日期（可选择）+ 心情（可选择）+ 天气（纯展示）：一行两端对齐 */
+/* 日期（可选择）+ 心情（可选择）+ 天气（纯展示）：左侧日期/心情固定相邻，天气靠右 */
 .date-wrap {
   display: flex;
   align-items: center;
   justify-content: space-between;
   padding: 20rpx 0 24rpx;
+}
+
+.date-left {
+  display: flex;
+  align-items: center;
+  gap: 16rpx;
+  flex-shrink: 0;
 }
 
 .date-pill {

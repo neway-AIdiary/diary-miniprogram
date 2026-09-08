@@ -20,9 +20,11 @@
     <view class="content-inner">
       <!-- 日期（可选择）+ 心情（可选择）+ 定位城市天气（纯展示） -->
       <view class="date-wrap">
-        <view class="date-pill" hover-class="pill-hover" bindtap="toggleDatePicker">📅 {{dateLabel}}</view>
-        <view class="mood-pill" style="color:{{moodColor || '#999999'}};background:{{moodBg || 'rgba(0,0,0,0.06)'}};" bindtap="toggleMoodPicker">
-          <text>{{moodLabel ? moodLabel : '心情'}}</text>
+        <view class="date-left">
+          <view class="date-pill" hover-class="pill-hover" bindtap="toggleDatePicker">📅 {{dateLabel}}</view>
+          <view class="mood-pill" style="color:{{moodColor || '#999999'}};background:{{moodBg || 'rgba(0,0,0,0.06)'}};" bindtap="toggleMoodPicker">
+            <text>{{moodLabel ? moodLabel : '心情'}}</text>
+          </view>
         </view>
         <view class="weather-chip" wx:if="{{weatherInfo}}">
           <text class="weather-icon">{{weatherInfo.icon}}</text>
