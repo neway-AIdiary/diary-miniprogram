@@ -22,8 +22,9 @@ const MEDIA_ITEM_RPX = 200
 const MEDIA_GAP_RPX = 16
 
 // 分享弹窗「自定义展示开关」本地记忆键：跨会话保留最后一次设置
-const SHARE_SW_KEY = 'share_display_switches'
-const SHARE_SW_DEFAULT = { weather: true, mood: true, tags: true, images: true }
+// v2：天气/心情默认开，标签/图片默认关——bump 一版让历史全开的用户也回到新默认
+const SHARE_SW_KEY = 'share_display_switches_v2'
+const SHARE_SW_DEFAULT = { weather: true, mood: true, tags: false, images: false }
 
 Page({
   data: {
