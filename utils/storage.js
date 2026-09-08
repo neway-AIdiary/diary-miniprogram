@@ -820,18 +820,17 @@ function parseDocxXml(xml) {
 
   // 3) 回退：解析可视段落（文件可能被 Word/WPS 编辑过）
   const notes = []
-  const reTitle = /((?:\d{4}年)?\d{1,2}月\d{1,2}日(?:\s*周[日一二三四五六])?)/
+  // 标题行：整行就是「X月X日（日记/合并日记/周几）」等短格式，与 parseNumberedDiaries 一致，额外兼容带年份
+  const titleRe = /^\s*(?:(?:\d{4})年)?\d{1,2}月\d{1,2}日(?:\s*[、,，]\s*(?:\d{1,2}月)?\d{1,2}日)*(?:\s*合并)?\s*(?:日记|周[日一二三四五六])?\s*$/
   let cur = null
   const fallback = []
   paras.forEach(pXml => {
     if (pXml.indexOf('<w:vanish') !== -1) return
     const t = paraText(pXml).trim()
     if (!t) return
-    const titleMatch = t.match(reTitle)
-    const isTitle = titleMatch && t.length <= 20 && titleMatch[1].length >= 5
-    if (isTitle) {
+    if (titleRe.test(t)) {
       if (cur) fallback.push(cur)
-      const ts = parseCnDate(titleMatch[1])
+      const ts = parseCnDate(t)
       cur = {
         id: generateId(),
         content: '',
