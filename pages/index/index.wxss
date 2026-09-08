@@ -275,14 +275,14 @@
 
 .footer-left {
   display: flex;
-  align-items: center;
+  align-items: flex-start; /* 标签换行时，心情 pill 保持顶部一行，不被撑成两行 */
   flex: 1;
   min-width: 0;
 }
 
 .tag-list {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   flex-wrap: wrap;
   margin-left: 24rpx;
 }
@@ -295,6 +295,16 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.tag-mood {
+  font-size: 22rpx;
+  padding: 4rpx 16rpx;
+  border-radius: var(--r-sm);
+  white-space: nowrap;
+  flex-shrink: 0;
+  align-self: flex-start;
+  line-height: 1;
 }
 
 .diary-date {

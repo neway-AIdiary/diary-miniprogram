@@ -45,6 +45,10 @@ Page({
     // 格式化显示
     diaries.forEach(d => {
       d.dateText = util.formatRelativeTime(d.created_at)
+      // 标题兜底：无标题时用日期生成默认标题，避免导入/旧数据缺失 title 显示"无题"
+      if (!d.title) {
+        d.title = util.getDefaultTitle(util.getDateKey(new Date(d.created_at)))
+      }
       d.moodText = util.getMoodLabel(d.mood)
       d.moodColor = util.getMoodColor(d.mood)
       d.moodBg = util.getMoodBg(d.mood)

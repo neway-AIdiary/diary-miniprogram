@@ -897,7 +897,13 @@ function parseDocxXml(xml) {
     // 正文
     cur.content = cur.content ? cur.content + '\n' + t : t
   })
-  if (cur) fallback.push(cur)
+  if (cur) {
+    // docx 回退解析生成的日记可能未填 title，用日期兜底生成默认标题
+    if (!cur.title) {
+      cur.title = util.getDefaultTitle(util.getDateKey(new Date(cur.created_at)))
+    }
+    fallback.push(cur)
+  }
   const valid = fallback.filter(d => d.content)
   if (valid.length) {
     notes.push('文档中没有找到完整备份数据（可能被编辑过），已按可见文本还原；图片与视频未能自动还原。')
