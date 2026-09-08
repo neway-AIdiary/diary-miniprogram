@@ -144,6 +144,14 @@
   display: block;
 }
 
+/* 视频：原生组件会按封面/控件比例多撑出几 rpx，用 overflow 裁掉，防止超出卡片 */
+.detail-media-video {
+  display: block;
+  overflow: hidden;
+  box-sizing: border-box;
+  vertical-align: top;
+}
+
 /* 操作按钮 */
 .detail-actions {
   display: flex;
