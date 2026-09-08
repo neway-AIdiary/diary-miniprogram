@@ -100,6 +100,15 @@ function stripQuantifier(w) {
   return s
 }
 
+// 清洗指令字段首尾的标点和空白
+// 语音识别常在指令末尾加句号（「把二十年改成三十年。」），如果不去掉，
+// 这些句号会被当成 from/to 的一部分，替换时就出现了「三十年。太长」这种错位句号。
+// 这里只剥首尾，不动中间——中间标点交给 fuzzyFindAll 处理。
+function cleanEditWord(w) {
+  if (w === null || w === undefined) return w
+  return String(w).trim().replace(/^[，,、。．！!？?；;：:…\s]+|[，,、。．！!？?；;：:…\s]+$/g, '')
+}
+
 /**
  * 识别输入文本是否为修改指令
  * @param {string} text 语音/手写输入的内容
@@ -123,8 +132,8 @@ function detect(text, opts) {
   for (const re of replacePatterns) {
     const m = t.match(re)
     if (!m) continue
-    const from = stripQuantifier(m[1].trim())
-    const to = m[2].trim()
+    const from = cleanEditWord(stripQuantifier(m[1].trim()))
+    const to = cleanEditWord(m[2].trim())
     if (!from || !to || from === to) return null
     return { type: 'replace', from: from, to: to }
   }
@@ -132,9 +141,9 @@ function detect(text, opts) {
   for (const re of INSERT_PATTERNS) {
     const m = t.match(re)
     if (!m) continue
-    const at = m[1].trim()
+    const at = cleanEditWord(m[1].trim())
     const posWord = m[2]
-    const ins = m[3].trim()
+    const ins = cleanEditWord(m[3].trim())
     if (!at || !ins) return null
     return { type: 'insert', at: at, pos: posWord[0] === '前' ? 'before' : 'after', text: ins }
   }
@@ -151,8 +160,7 @@ function detect(text, opts) {
   for (const re of REMOVE_PATTERNS) {
     const m = t.match(re)
     if (!m) continue
-    const from = stripQuantifier((m[1] || m[2] || '').trim())
-      .replace(/[。！!？?…\s]+$/g, '')      // 语音识别常在目标词后带句号，避免把句号吃进目标词导致找不到
+    const from = cleanEditWord(stripQuantifier((m[1] || m[2] || '').trim()))
     if (!from) return null
     return { type: 'remove', from: from }
   }
@@ -282,7 +290,7 @@ function apply(content, edit) {
   }
 
   // replace：同样从后往前
-  const to = edit.to || ''
+  const to = cleanEditWord(edit.to || '')
   for (let i = spans.length - 1; i >= 0; i--) {
     out = out.slice(0, spans[i].start) + to + out.slice(spans[i].end)
   }
