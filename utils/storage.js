@@ -78,9 +78,16 @@ function safeSetStorage(key, value, estimatedBytes, silent) {
 
 /**
  * 获取所有日记（按时间倒序）
+ * 同时为 title 字段缺失的旧数据/导入数据生成默认标题，避免全站出现「无题」
  */
 function getAllDiaries() {
   const list = wx.getStorageSync(STORAGE_KEY) || []
+  // 标题兜底（仅展示层，不写回本地）：缺失 title 的日记按日期生成「X月X日 日记」
+  list.forEach(d => {
+    if (!d.title) {
+      d.title = util.getDefaultTitle(util.getDateKey(new Date(d.created_at)))
+    }
+  })
   return list.sort((a, b) => {
     return new Date(b.created_at) - new Date(a.created_at)
   })
