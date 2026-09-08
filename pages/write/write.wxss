@@ -1886,10 +1886,6 @@
   transition: background var(--dur) var(--ease);
 }
 
-.cal-dot {
-  background: var(--brand);
-}
-
 .date-pill {
   background: var(--bg-soft);
   color: var(--ink);
