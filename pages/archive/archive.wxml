@@ -35,8 +35,8 @@
   <!-- ===== 底部输入栏（主页同款三件套：表情 / 按住说话 / +）===== -->
   <view class="input-bar-wrap">
     <view class="input-bar" style="padding-bottom: calc(22rpx + {{safeAreaBottom}}px);">
-    <!-- 表情/颜文字（飞书同款笑脸） -->
-    <view class="input-btn input-emoji {{showEmojiPanel ? 'active' : ''}}" bindtap="toggleEmojiPanel">
+    <!-- 表情/颜文字（档案页不适用，表情置灰不可用） -->
+    <view class="input-btn input-emoji disabled">
       <view class="icon-bar icon-smiley"></view>
     </view>
 
