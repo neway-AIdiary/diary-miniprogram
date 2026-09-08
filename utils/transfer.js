@@ -424,13 +424,19 @@ function aiParseFlow(raw, mode, opts) {
     .trim()
   aiCloud.callAIParse(cleaned).then((result) => {
     wx.hideLoading()
-    if (result.error || !result.diaries || !result.diaries.length) {
-      const reason = result.error || '未能从文本中识别出日记内容'
-      if (opts.onError) opts.onError('AI 识别失败：' + reason + '。\n\n请确认：\n1. 文件是文字内容而非图片/扫描件；\n2. 云函数已重新部署（optimizeDiary）；\n3. 网络正常。')
+    // 云端明确报错
+    if (result.error) {
+      if (opts.onError) opts.onError('AI 识别失败：' + result.error + '。\n\n请确认：\n1. 云函数已重新部署（optimizeDiary）；\n2. 服务端已配置 DEEPSEEK_API_KEY；\n3. 网络正常。')
       return
     }
+    // AI 返回空数组：兜底把整段原文作为一篇日记导入，不再直接报错
+    let diaries = result.diaries || []
+    if (!diaries.length) {
+      const today = util.getDateKey(new Date())
+      diaries = [{ date: today, mood: '', content: cleaned }]
+    }
     // 转成日记对象
-    const list = result.diaries.map(item => storage.buildDiaryFromAI(item))
+    const list = diaries.map(item => storage.buildDiaryFromAI(item))
     // 预览前 3 篇
     const preview = list.slice(0, 3).map(d => {
       const snippet = d.content.length > 18 ? d.content.slice(0, 18) + '…' : d.content
