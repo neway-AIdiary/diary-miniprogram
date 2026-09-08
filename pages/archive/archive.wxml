@@ -3,7 +3,7 @@
 
   <!-- 提示栏 -->
   <view class="hint-bar">
-    <text class="hint-text">您可以语音或手动添加和补充名词档案，如：杨志伟是我的好朋友</text>
+    <text class="hint-text">您可以语音或手动添加和补充档案，如：杨志伟是我的好朋友</text>
   </view>
 
   <!-- 档案列表（滚动区） -->
