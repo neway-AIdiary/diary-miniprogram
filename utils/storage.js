@@ -1104,6 +1104,63 @@ function parseDiariesFromText(text) {
     diary.title = util.getDefaultTitle(util.getDateKey(new Date(diary.created_at)))
     diaries.push(diary)
   })
+  // 标准【日期】/【内容】格式没解析到 → 尝试「X月X日日记」通用格式
+  if (diaries.length === 0) return parseNumberedDiaries(text)
+  return diaries
+}
+
+/**
+ * 解析「X月X日日记」通用格式的纯文本为日记数组
+ * 格式示例：
+ *   8月11日日记
+ *   今天早上到公司……
+ *
+ *   8月10日日记
+ *   周一早高峰……
+ * 支持标题变体：
+ *   「8月1日、8月2日日记」           → 合并日记，取第一个日期
+ *   「7月15日、16日合并日记」        → 第二个日期可省略月份
+ *   「7月26日、7月27日合并日记」     → 显式「合并日记」
+ * 日期无年份时按今年推断（未来超90天自动回退到去年，与 parseCnDate 一致）
+ */
+function parseNumberedDiaries(text) {
+  if (!text || typeof text !== 'string') return []
+  const lines = text.split('\n')
+  const diaries = []
+  // 标题行：以「X月X日」开头、以「日记」结尾，中间可带「、X月X日/、X日」及「合并」
+  const titleRe = /^\s*\d{1,2}月\d{1,2}日(?:[、,]\s*(?:\d{1,2}月)?\d{1,2}日)?(?:合并)?日记\s*$/
+  const dateRe = /(\d{1,2})月(\d{1,2})日/
+  let current = null // { dateStr, contentLines: [] }
+
+  const flush = () => {
+    if (!current) return
+    const content = current.contentLines.join('\n').trim()
+    if (content) {
+      const diary = { id: generateId(), content: content }
+      const t = parseCnDate(current.dateStr)
+      if (t) {
+        diary.created_at = new Date(t.getFullYear(), t.getMonth(), t.getDate(), 12, 0, 0).toISOString()
+      } else {
+        diary.created_at = new Date().toISOString()
+      }
+      diary.title = util.getDefaultTitle(util.getDateKey(new Date(diary.created_at)))
+      diaries.push(diary)
+    }
+    current = null
+  }
+
+  for (const rawLine of lines) {
+    const line = rawLine.trim()
+    if (titleRe.test(line)) {
+      flush()
+      const m = line.match(dateRe)
+      current = { dateStr: m ? m[0] : '', contentLines: [] }
+    } else if (current) {
+      current.contentLines.push(rawLine)
+    }
+    // 标题行之前（文件头部说明）的行忽略
+  }
+  flush()
   return diaries
 }
 
