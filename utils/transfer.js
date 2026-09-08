@@ -313,10 +313,12 @@ function importFromFile(opts) {
             importDocx(file, mode)
             return
           }
+          wx.showLoading({ title: '读取文件…', mask: true })
           wx.getFileSystemManager().readFile({
             filePath: file.path,
             encoding: 'utf8',
             success: (readRes) => {
+              wx.hideLoading()
               try {
                 let raw = String(readRes.data || '')
                 // 去掉 UTF-8 BOM（部分编辑器保存文件会自动加上）
@@ -380,7 +382,7 @@ function importFromFile(opts) {
                 if (!recognized) {
                   const parsedCount = storage.parseDiariesFromText(raw).length
                   if (parsedCount === 0) {
-                    // 本地解析失败 → 询问是否用 AI 智能识别文本中的日记
+                    // 本地解析失败 → 直接调 AI 智能识别文本中的日记（识别结果确认后再导入）
                     aiParseFlow(raw, mode, opts)
                     return
                   }
@@ -394,64 +396,65 @@ function importFromFile(opts) {
               }
             },
             fail: (err) => {
+              wx.hideLoading()
               error('读取文件失败：' + (err && err.errMsg || '文件无法访问') + '。\n\n请确认文件存在且未损坏后重新选择。')
             }
           })
+        },
+        fail: () => {
+          wx.showToast({ title: '已取消选择文件', icon: 'none' })
         }
       })
+    },
+    fail: () => {
+      wx.showToast({ title: '已取消导入', icon: 'none' })
     }
   })
 }
 
 // AI 智能识别导入（本地解析失败时兜底）
 function aiParseFlow(raw, mode, opts) {
-  wx.showModal({
-    title: '未识别到标准格式',
-    content: '这个文件不是 AI日记 导出的备份格式。\n\n是否用 AI 智能识别其中的日记内容，按日期整理后导入日记本？',
-    confirmText: 'AI 识别导入',
-    cancelText: '取消',
-    success: (res) => {
-      if (!res.confirm) return
-      const aiCloud = require('./aiCloud.js')
-      wx.showLoading({ title: 'AI 识别中...', mask: true })
-      // 轻量清洗：去 HTML 标签 / Markdown 符号 / 连续空白，提升 AI 识别准确率
-      const cleaned = String(raw || '')
-        .replace(/<[^>]+>/g, ' ')
-        .replace(/[#*_>`\-]{2,}/g, ' ')
-        .replace(/[ \t]+/g, ' ')
-        .trim()
-      aiCloud.callAIParse(cleaned).then((result) => {
-        wx.hideLoading()
-        if (result.error || !result.diaries || !result.diaries.length) {
-          const reason = result.error || '未能从文本中识别出日记内容'
-          if (opts.onError) opts.onError('AI 识别失败：' + reason + '。\n\n请确认：\n1. 文件是文字内容而非图片/扫描件；\n2. 云函数已重新部署（optimizeDiary）；\n3. 网络正常。')
+  const aiCloud = require('./aiCloud.js')
+  wx.showLoading({ title: 'AI 识别中…', mask: true })
+  // 轻量清洗：去 HTML 标签 / Markdown 符号 / 连续空白，提升 AI 识别准确率
+  const cleaned = String(raw || '')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/[#*_>`\-]{2,}/g, ' ')
+    .replace(/[ \t]+/g, ' ')
+    .trim()
+  aiCloud.callAIParse(cleaned).then((result) => {
+    wx.hideLoading()
+    if (result.error || !result.diaries || !result.diaries.length) {
+      const reason = result.error || '未能从文本中识别出日记内容'
+      if (opts.onError) opts.onError('AI 识别失败：' + reason + '。\n\n请确认：\n1. 文件是文字内容而非图片/扫描件；\n2. 云函数已重新部署（optimizeDiary）；\n3. 网络正常。')
+      return
+    }
+    // 转成日记对象
+    const list = result.diaries.map(item => storage.buildDiaryFromAI(item))
+    // 预览前 3 篇
+    const preview = list.slice(0, 3).map(d => {
+      const snippet = d.content.length > 18 ? d.content.slice(0, 18) + '…' : d.content
+      return '· ' + util.formatDate(d.created_at) + '  ' + snippet
+    }).join('\n')
+    const more = list.length > 3 ? '\n… 共 ' + list.length + ' 篇' : ''
+    wx.showModal({
+      title: 'AI 识别到 ' + list.length + ' 篇日记',
+      content: preview + more + '\n\n按日期导入日记本，确认吗？',
+      confirmText: '确认导入',
+      cancelText: '取消',
+      success: (res2) => {
+        if (!res2.confirm) {
+          wx.showToast({ title: '已取消导入', icon: 'none' })
           return
         }
-        // 转成日记对象
-        const list = result.diaries.map(item => storage.buildDiaryFromAI(item))
-        // 预览前 3 篇
-        const preview = list.slice(0, 3).map(d => {
-          const snippet = d.content.length > 18 ? d.content.slice(0, 18) + '…' : d.content
-          return '· ' + util.formatDate(d.created_at) + '  ' + snippet
-        }).join('\n')
-        const more = list.length > 3 ? '\n… 共 ' + list.length + ' 篇' : ''
-        wx.showModal({
-          title: 'AI 识别到 ' + list.length + ' 篇日记',
-          content: preview + more + '\n\n按日期导入日记本，确认吗？',
-          confirmText: '确认导入',
-          cancelText: '取消',
-          success: (res2) => {
-            if (!res2.confirm) return
-            try {
-              const r = storage.importDiaryObjects(list, mode === 'replace')
-              if (opts.onFinish) opts.onFinish(r.added, r.added > 0 ? '已导入 ' + r.added + ' 条日记' : '没有新增日记（内容已存在，无需重复导入）')
-            } catch (e) {
-              if (opts.onError) opts.onError('写入日记本时出错：' + (e && e.message || e) + '。\n\n数据未改动，请重试。')
-            }
-          }
-        })
-      })
-    }
+        try {
+          const r = storage.importDiaryObjects(list, mode === 'replace')
+          if (opts.onFinish) opts.onFinish(r.added, r.added > 0 ? '已导入 ' + r.added + ' 条日记' : '没有新增日记（内容已存在，无需重复导入）')
+        } catch (e) {
+          if (opts.onError) opts.onError('写入日记本时出错：' + (e && e.message || e) + '。\n\n数据未改动，请重试。')
+        }
+      }
+    })
   })
 }
 
