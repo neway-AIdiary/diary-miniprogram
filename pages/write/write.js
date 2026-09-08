@@ -1438,9 +1438,10 @@ Page({
       }
 
       // 所有带解释的名词都纳入正文清理（弹窗与否都会清掉解释部分，只留名词）
+      // 再过滤一次：name 必须是 2-4 字名词，description 必须有实际解释意义
       const existing = new Map(storage.getArchives().map(a => [a.name, a]))
       const all = result.entities
-        .filter(e => e.name && e.description)
+        .filter(e => e.name && e.description && e.name.length >= 2 && e.name.length <= 4 && e.description.length >= 4)
         .map(e => {
           const old = existing.get(e.name)
           return {

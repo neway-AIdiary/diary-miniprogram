@@ -265,6 +265,8 @@ function localExtractExplainedEntities(content) {
     '事情', '地方', '东西', '大家', '自己', '晚上', '上午', '下午', '中午', '早上']
   const results = []
   const seen = new Set()
+  // 叙述词/连接词/动词：name 里不能出现这些，否则就不是名词
+  const INVALID_NAME_WORDS = ['是', '去', '上', '让', '带', '做', '吃', '待', '等', '为了', '然后', '又', '还', '也', '就', '和', '跟', '与', '同', '在', '到', '从', '把', '被', '给', '叫', '说', '看', '来', '走', '想', '要', '会', '能', '可以']
 
   const push = (name, desc, expl) => {
     name = cleanEntityName(name)
@@ -276,10 +278,13 @@ function localExtractExplainedEntities(content) {
     }
     desc = cut(desc)
     if (!name || !desc) return
-    if (name.length < 2 || name.length > 12 || desc.length < 4 || desc.length > 30) return
+    // 硬规则：name 必须是 2-4 字的名词；description 必须有实际解释意义
+    if (name.length < 2 || name.length > 4 || desc.length < 4 || desc.length > 30) return
     if (STOP.indexOf(name) !== -1) return
     // 名词不能以指示/人称代词开头（如「这是我的母校」误匹配为名词）
-    if (/^[这那他她它们]/.test(name)) return
+    if (/^[这那他她它们我你您]./.test(name)) return
+    // name 里不能出现叙述词/连接词/动词
+    if (INVALID_NAME_WORDS.some(w => name.indexOf(w) !== -1)) return
     // 与已提取结果重叠（同一名词的重复匹配/脏匹配）→ 跳过
     if (results.some(r => name.indexOf(r.name) !== -1 || name.indexOf(r.description) !== -1)) return
     // 解释规范化：「我大学同学」→「我的大学同学」（句中已有"的"则保持原样）
@@ -291,8 +296,8 @@ function localExtractExplainedEntities(content) {
     results.push({ name: name, description: desc, explanation: explanation, type: 'other' })
   }
 
-  // 模式1：X（，/：）(这是|他是|她是|它是|就是|也是|正是|是)解释
-  const re1 = /([\u4e00-\u9fa5A-Za-z0-9·]{2,12})(?:[，,：:]\s*)?(?:这是|他是|她是|它是|就是|也是|正是|是)([\u4e00-\u9fa5A-Za-z0-9·]{2,20}(?:的[\u4e00-\u9fa5A-Za-z0-9·]{1,10})?)/g
+  // 模式1：X（，/：）(这是|他是|她是|它是|就是|也是|正是|是|叫|名叫|叫做)解释
+  const re1 = /([\u4e00-\u9fa5A-Za-z0-9·]{2,4})(?:[，,：:]\s*)?(?:这是|他是|她是|它是|就是|也是|正是|是|叫|名叫|叫做)([\u4e00-\u9fa5A-Za-z0-9·]{2,20}(?:的[\u4e00-\u9fa5A-Za-z0-9·]{1,10})?)/g
   let m
   while ((m = re1.exec(text)) !== null) {
     // explanation：解释在原文中的逐字片段（名词之后的部分，去掉前导标点）
@@ -311,7 +316,7 @@ function localExtractExplainedEntities(content) {
   }
 
   // 模式2：X，我的xx（逗号后直接以"我的"开头，无"是"引导）
-  const re2 = /([\u4e00-\u9fa5A-Za-z0-9·]{2,12})[，,]\s*(我[的]?[\u4e00-\u9fa5A-Za-z0-9·]{2,18})/g
+  const re2 = /([\u4e00-\u9fa5A-Za-z0-9·]{2,4})[，,]\s*(我[的]?[\u4e00-\u9fa5A-Za-z0-9·]{2,18})/g
   while ((m = re2.exec(text)) !== null) {
     push(m[1], m[2], m[2])
     if (results.length >= 8) return results
@@ -371,8 +376,22 @@ function callAIExtractEntities(content) {
         // 云端旧版未返回 description（云函数未重新部署）→ 本地规则兜底补解释
         const hasDesc = r.entities.some(e => e && e.description)
         if (hasDesc) {
-          // 硬校验：只保留"解释真实存在于原文"且解释内容≥4字的名词（AI 编造/过短解释全部过滤）
-          const valid = r.entities.filter(e => e && String(e.description || '').trim().length >= 4 && hasRealExplanation(text, e))
+          // 硬校验：只保留"解释真实存在于原文"且 name 是 2-4 字名词、解释内容 4-30 字的实体（AI 编造/过短/过长/非名词全部过滤）
+          const INVALID_NAME_WORDS = ['是', '去', '上', '让', '带', '做', '吃', '待', '等', '为了', '然后', '又', '还', '也', '就', '和', '跟', '与', '同', '在', '到', '从', '把', '被', '给', '叫', '说', '看', '来', '走', '想', '要', '会', '能', '可以']
+          const valid = r.entities.filter(e => {
+            if (!e || !e.name || !e.description) return false
+            const name = String(e.name).trim()
+            const desc = String(e.description).trim()
+            // name 必须是 2-4 字名词；description 必须有实际解释意义
+            if (name.length < 2 || name.length > 4) return false
+            if (desc.length < 4 || desc.length > 30) return false
+            // name 里不能出现叙述词/连接词/动词
+            if (INVALID_NAME_WORDS.some(w => name.indexOf(w) !== -1)) return false
+            // name 不能是指示/人称代词开头
+            if (/^[这那他她它们我你您我们你们他们她们]./.test(name)) return false
+            // 解释必须真实存在于原文
+            return hasRealExplanation(text, e)
+          })
           if (valid.length > 0) {
             console.log('[aiCloud] AI 提取名词解释成功 from=cloud:', r.entities.length, '个，解释校验通过:', valid.length, '个')
             finish({ entities: valid, from: 'cloud' })

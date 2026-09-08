@@ -193,25 +193,36 @@ function buildExtractEntitiesPrompt(content) {
   return [
     '你是一位文本分析助手。请从用户的日记中找出"用户对某个名词做了解释或说明"的内容，提取名词及其解释。',
     '只有日记中明确解释了"这个名词是什么/是谁"才提取；只是被提到、没有解释的名词一律不提取。',
+    '名词提取规则（必须同时满足，缺一不可）：',
+    '1. name 必须是单一名词（人名/地名/机构名/品牌名/物品名等专有名词），不能是短语、不能是完整句子；',
+    '2. name 长度必须小于等于4个字；',
+    '3. 文中必须对 name 有明确解释说明，解释句式形如「XX是XXXX」「XX是我的XXXX」「XX叫XXXX」「XX就是XXXX」等；',
+    '4. description 必须是对 name 的解释概括，而不是名词本身或另一个句子；',
+    '5. 如果 name 本身超过4个字，或者 name 不是名词，一律不提取。',
     '示例：',
-    '- 日记写"我今天和王磊，他是我大学同学一起吃的饭" → 提取 name=王磊, description=我的大学同学, explanation=他是我大学同学',
+    '- 日记写"小明是我大学同学" → 提取 name=小明, description=我的大学同学, explanation=是我大学同学',
+    '- 日记写"我母亲叫王喜兰" → 提取 name=王喜兰, description=我的母亲, explanation=我母亲叫王喜兰',
+    '- 日记写"那里是一个我们小时候经常去的水库西坝河水库" → 提取 name=西坝河水库, description=我们小时候经常去的水库, explanation=是一个我们小时候经常去的水库西坝河水库',
     '- 日记写"海洋大学，这是我的母校" → 提取 name=海洋大学, description=我的母校, explanation=这是我的母校',
     '- 日记写"腾讯是我工作的公司" → 提取 name=腾讯, description=我工作的公司, explanation=是我工作的公司',
-    '- 日记写"今天遇到了张三，张三是我大学同学" → 提取 name=张三, description=我的大学同学, explanation=张三是我大学同学',
     '- 日记写"今天去了腾讯公司，这个公司是我们公司的客户" → 提取 name=腾讯公司, description=我们公司的客户, explanation=这个公司是我们公司的客户',
+    '- 反例：日记写"天又带孩子去上单簧管的课，孩子学了两年的课程" → 不提取，因为"天又带孩子去上单簧管的课"不是名词，而是一个完整句子',
+    '- 反例：日记写"领导让我继续多待几天，我的也不清楚他希望我待到什么时候" → 不提取，因为其中没有≤4字的名词，也没有明确解释',
+    '- 反例：日记写"为了完成认证，我的办理了个体工商户" → 不提取，因为"为了完成认证"不是名词，也不是专有名词',
     '- 反例：日记只写"今天和张三吃饭"（只是提到张三，没有解释他是谁）→ 不提取',
     '- 反例：日记只写"今天去了腾讯公司开会"（只是提到腾讯公司，没有解释它是什么）→ 不提取，即使你猜得出也不要提取、不要编造解释',
     '- 反例：日记写"小灰是我的猫"（解释"我的猫"只有3个字，不足4字）→ 不提取',
     '要求：',
-    '1. 只提取日记中带有解释说明的专有名词（人名/地名/机构名等）；单纯提到而没有解释的名词，绝对不要提取，也不得为其编造 description；',
-    '2. 必须明确判断用户有"解释意图"：只有「XX是XXXX」这类定义句式（是/就是/这是/他是/她是/它是等引导）才算解释；解释内容（description）必须不少于4个字，不足4个字的解释（如"是我朋友""是我妈"）视为只是提及，不要提取；',
-    '3. description 必须来自日记原文中对名词的实际解释，去掉"是/这是/就是"等引导词，以"我的xx""我xx的xx"等形式概括，不超过30字；',
-    '4. explanation 为该解释在日记原文中的逐字片段（不含名词本身，从原文原样复制，可含"他是/这是/就是我"等引导词，不含名词前后的逗号），用于后续从原文中删除解释部分；不得改写、不得编造，如果原文中没有解释片段则不要提取该名词；',
+    '1. 只提取日记中带有解释说明的专有名词（人名/地名/机构名/物品名等）；单纯提到而没有解释的名词，绝对不要提取，也不得为其编造 description；',
+    '2. 必须明确判断用户有"解释意图"：只有「XX是XXXX」这类定义句式（是/就是/这是/他是/她是/它是/叫/名叫/叫做等引导）才算解释；解释内容（description）必须不少于4个字，不足4个字的解释（如"是我朋友""是我妈"）视为只是提及，不要提取；',
+    '3. description 必须来自日记原文中对名词的实际解释，去掉"是/这是/就是/叫"等引导词，以"我的xx""我xx的xx"等形式概括，不超过30字；',
+    '4. explanation 为该解释在日记原文中的逐字片段（不含名词本身，从原文原样复制，可含"他是/这是/就是我/叫"等引导词，不含名词前后的逗号），用于后续从原文中删除解释部分；不得改写、不得编造，如果原文中没有解释片段则不要提取该名词；',
     '5. 每个实体包含 name（名称）、description（概括解释）、explanation（原文解释片段）、type（person/place/org/other）；',
-    '6. 不要提取常见动词、形容词、普通名词（如"工作"、"开心"、"日记"）；',
-    '7. 不要提取时间词（如"今天"、"昨天"、"8月14日"）；',
-    '8. 同一名词只出现一次；',
-    '9. 如果日记中没有任何带解释的名词，返回空数组。',
+    '6. name 字段里不能出现"是/去/上/让/带/做/吃/待/等/为了/然后"等叙述词或连接词，必须是纯粹的名词；',
+    '7. 不要提取常见动词、形容词、普通名词（如"工作"、"开心"、"日记"）；',
+    '8. 不要提取时间词（如"今天"、"昨天"、"8月14日"）；',
+    '9. 同一名词只出现一次；',
+    '10. 如果日记中没有任何带解释的名词，返回空数组。',
     '',
     '用户日记：',
     content,
@@ -428,6 +439,8 @@ exports.main = async (event, context) => {
       let entities = (r.parsed && Array.isArray(r.parsed.entities)) ? r.parsed.entities : []
       // 清洗（explanation 为原文解释片段，供前端从正文中删除解释部分）
       const seen = new Set()
+      // 叙述词/连接词/动词：name 里不能出现这些，否则就不是名词
+      const INVALID_NAME_WORDS = ['是', '去', '上', '让', '带', '做', '吃', '待', '等', '为了', '然后', '又', '还', '也', '就', '和', '跟', '与', '同', '在', '到', '从', '把', '被', '给', '叫', '说', '看', '来', '走', '想', '要', '会', '能', '可以']
       entities = entities
         .map(e => ({
           name: String(e.name || '').trim().slice(0, 50),
@@ -435,7 +448,24 @@ exports.main = async (event, context) => {
           explanation: String(e.explanation || '').trim().slice(0, 60),
           type: ['person', 'place', 'org', 'other'].includes(e.type) ? e.type : 'other'
         }))
-        .filter(e => e.name && e.description && e.description.trim().length >= 4 && !seen.has(e.name) && seen.add(e.name))
+        .filter(e => {
+          if (!e.name || !e.description) return false
+          const name = e.name
+          const desc = e.description
+          // 硬规则：name 必须是 2-4 字的名词；description 必须有实际解释意义
+          if (name.length < 2 || name.length > 4) return false
+          if (desc.length < 4 || desc.length > 30) return false
+          // name 里不能出现叙述词或连接词
+          if (INVALID_NAME_WORDS.some(w => name.indexOf(w) !== -1)) return false
+          // name 不能是指示/人称代词开头
+          if (/^[这那他她它们我你您我们你们他们她们]./.test(name)) return false
+          // name 不能是纯数字、纯英文（允许中英混合）
+          if (/^[0-9]+$/.test(name) || /^[a-zA-Z]+$/.test(name)) return false
+          // 同一名词去重
+          if (seen.has(name)) return false
+          seen.add(name)
+          return true
+        })
       return { entities: entities }
     } catch (err) {
       return { error: '调用 AI 失败: ' + (err && err.message || err) }
