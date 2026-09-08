@@ -301,7 +301,7 @@ function importFromFile(opts) {
       wx.chooseMessageFile({
         count: 1,
         type: 'file',
-        extension: ['docx', 'doc', 'txt', 'json'],
+        extension: ['docx', 'doc', 'txt', 'json', 'md', 'markdown', 'log', 'text', 'csv', 'html', 'htm'],
         success: (chooseRes) => {
           const file = chooseRes.tempFiles[0]
           if (!file || !file.path) {
@@ -414,7 +414,13 @@ function aiParseFlow(raw, mode, opts) {
       if (!res.confirm) return
       const aiCloud = require('./aiCloud.js')
       wx.showLoading({ title: 'AI 识别中...', mask: true })
-      aiCloud.callAIParse(raw).then((result) => {
+      // 轻量清洗：去 HTML 标签 / Markdown 符号 / 连续空白，提升 AI 识别准确率
+      const cleaned = String(raw || '')
+        .replace(/<[^>]+>/g, ' ')
+        .replace(/[#*_>`\-]{2,}/g, ' ')
+        .replace(/[ \t]+/g, ' ')
+        .trim()
+      aiCloud.callAIParse(cleaned).then((result) => {
         wx.hideLoading()
         if (result.error || !result.diaries || !result.diaries.length) {
           const reason = result.error || '未能从文本中识别出日记内容'
