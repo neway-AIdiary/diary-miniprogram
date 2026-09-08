@@ -86,13 +86,27 @@ Page({
     // 底部输入栏高度：内容区 80rpx + padding-top 12rpx + base padding-bottom 22rpx + 安全区 + 16rpx 缓冲
     const rpx2px = (win.windowWidth || 375) / 750
     const inputBarHeight = Math.ceil((80 + 12 + 22 + 16) * rpx2px + safeAreaBottom)
+    // 正文滚动区最大高度：屏幕减去顶部安全区、标题/心情/按钮/输入栏等固定占用
+    const fixedRpx = 380
+    const scrollMaxHeight = Math.max(
+      240,
+      Math.floor(win.windowHeight - safeAreaTop - 8 - fixedRpx * rpx2px - inputBarHeight)
+    )
+    // 详情查看模式滚动区最大高度：屏幕减去页面内边距、卡片内边距、标题/日期/操作按钮等固定占用
+    const viewFixedRpx = 470
+    const detailScrollMaxHeight = Math.max(
+      240,
+      Math.floor(win.windowHeight - safeAreaBottom - viewFixedRpx * rpx2px)
+    )
     this.setData({
       safeAreaTop: safeAreaTop,
       pageTop: safeAreaTop + 8,
       // detail 页是系统导航栏，内容天然从导航栏下方开始，编辑区只需极小顶部间距
       editTop: 8,
       safeAreaBottom: safeAreaBottom,
-      inputBarHeight: inputBarHeight
+      inputBarHeight: inputBarHeight,
+      scrollMaxHeight: scrollMaxHeight,
+      detailScrollMaxHeight: detailScrollMaxHeight
     })
     // 恢复分享展示开关的上次设置（跨会话记忆，未存过则用默认值）
     let savedSw = {}

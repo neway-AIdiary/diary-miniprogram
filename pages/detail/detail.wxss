@@ -1,9 +1,16 @@
-/* ===== 详情页：微信小程序标准阅读风格 · 浅青绿底 ===== */
+/* ===== 详情页：微信小程序标准阅读风格 · 浅青绿底 =====
+   整页锁死（100vh + overflow:hidden）：
+   - 查看模式：详情卡片在页面内浮动，正文 scroll-view 独立滚动，
+              卡片顶部（标题/日期）始终固定在视口顶端，不会被压盖
+   - 编辑模式：.edit-page 是 fixed 单独铺满，与 .page 无关 */
 .page {
-  min-height: 100vh;
+  height: 100vh;
+  overflow: hidden;
   background: var(--bg);
   padding: 24rpx;
   box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
 }
 
 /* 查看模式：白色阅读卡片 */
@@ -11,6 +18,10 @@
   background: var(--surface);
   border-radius: 16rpx;
   padding: 48rpx 36rpx 40rpx;
+  flex: 0 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
 }
 
 .detail-title {
@@ -19,6 +30,7 @@
   color: var(--ink);
   line-height: 1.5;
   margin-bottom: 24rpx;
+  flex-shrink: 0;
 }
 
 .detail-meta {
@@ -28,6 +40,7 @@
   margin-bottom: 32rpx;
   padding-bottom: 24rpx;
   border-bottom: 1rpx solid var(--line);
+  flex-shrink: 0;
 }
 
 .detail-date {
@@ -72,6 +85,16 @@
   line-height: 2;
   white-space: pre-wrap;
   word-wrap: break-word;
+}
+
+/* 详情卡片内部滚动区：高度随内容增减，最长不超过可用剩余空间 */
+.detail-scroll {
+  display: block;
+}
+
+.detail-scroll-inner {
+  display: block;
+  padding-bottom: 24rpx;
 }
 
 /* 详情位置 & 天气（同一行，中间弹性间隔） */
@@ -126,7 +149,8 @@
   display: flex;
   gap: 16rpx;
   margin-top: 32rpx;
-  padding: 0 0 60rpx;
+  padding-bottom: 24rpx;
+  flex-shrink: 0;
 }
 
 .detail-actions button {
@@ -156,15 +180,20 @@
 .edit-area {
   margin: 0 24rpx;
   padding: 0 28rpx 16rpx;
+  flex: 0 1 auto;
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
 }
 
 .section {
   margin-bottom: 16rpx;
 }
 
-/* 标题区 / 心情区：底部加详情页同款分隔线，三块（标题/心情/正文）区隔 */
+/* 标题区 / 心情区：固定在上，底部加详情页同款分隔线，三块（标题/心情/正文）区隔 */
 .section-title,
 .section-mood {
+  flex-shrink: 0;
   border-bottom: 1rpx solid var(--line);
   padding-bottom: 20rpx;
 }
@@ -238,18 +267,12 @@
   display: flex;
   align-items: center;
   gap: 20rpx;
-  margin: 0 24rpx;
-  margin-top: auto;
-  padding: 24rpx 0 40rpx;
+  margin: 24rpx 24rpx 0;
+  padding-bottom: 24rpx;
 }
 
 .edit-actions button {
   flex: 1;
-}
-
-/* 底部输入栏占位：撑高滚动内容，避免按钮被固定底栏压住 */
-.edit-inputbar-space {
-  flex-shrink: 0;
 }
 
 /* 编辑态正文：与主页输入框一致，透明无边框、衬线体、随内容自动增高、超出 60vh 后自滚动 */
@@ -476,17 +499,23 @@
 }
 
 .edit-scroll {
-  flex: 1;
-  min-height: 0;
-  display: flex;
-  flex-direction: column;
+  display: block;
 }
 
-/* 滚动内容容器：最小高度撑满，让取消/保存按钮内容少时沉底、内容多时跟滚到末尾（滚到底仍在底栏上方） */
+/* 滚动内容容器 */
 .edit-scroll-inner {
-  display: flex;
-  flex-direction: column;
-  min-height: 100%;
+  display: block;
+}
+
+/* ===== 底部固定区：面板 + 输入栏 =====
+   面板展开时压盖在编辑区、取消/保存按钮之上 */
+.edit-bottom {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 30;
+  background: transparent;
 }
 
 /* ===== 底部输入栏（复用写日记主页底栏所有元素）===== */
@@ -494,6 +523,7 @@
   flex-shrink: 0;
   display: flex;
   align-items: flex-end;
+  margin-top: 0;
   background: rgba(248, 244, 238, 0.95);
   border-top: 1rpx solid var(--line-soft);
   padding: 12rpx 16rpx 22rpx;
@@ -619,7 +649,7 @@
   flex-shrink: 0;
   background: var(--surface);
   border-top: 1rpx solid var(--line);
-  z-index: 19;
+  z-index: 25;
 }
 
 .panel-tabs {

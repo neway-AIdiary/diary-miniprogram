@@ -147,63 +147,66 @@
     </view>
   </view>
 
-  <!-- ===== 底部输入栏（微信同款）===== -->
-  <view class="input-bar-wrap">
-    <view class="input-bar" style="padding-bottom: calc(22rpx + {{safeAreaBottom}}px);">
-    <!-- 表情/颜文字（飞书同款笑脸） -->
-    <view class="input-btn input-emoji {{showEmojiPanel ? 'active' : ''}}" bindtap="toggleEmojiPanel">
-      <view class="icon-bar icon-smiley"></view>
+  <!-- ===== 底部固定区：面板 + 输入栏，面板展开时压盖编辑区/AI优化·保存按钮 ===== -->
+  <view class="write-bottom">
+    <!-- ===== 表情/颜文字面板 ===== -->
+    <view class="panel panel-emoji" wx:if="{{showEmojiPanel}}">
+      <view class="panel-tabs">
+        <view class="panel-tab {{emojiTab === 'emoji' ? 'active' : ''}}" bindtap="switchEmojiTab" data-tab="emoji">表情</view>
+        <view class="panel-tab {{emojiTab === 'kaomoji' ? 'active' : ''}}" bindtap="switchEmojiTab" data-tab="kaomoji">颜文字</view>
+      </view>
+      <scroll-view class="emoji-scroll" scroll-y>
+        <view class="emoji-grid">
+          <view class="emoji-item {{emojiTab === 'kaomoji' ? 'k-item' : ''}}" wx:for="{{emojiList}}" wx:key="*this" bindtap="insertEmoji" data-emoji="{{item}}">{{item}}</view>
+        </view>
+      </scroll-view>
     </view>
 
-    <!-- 中间区：按住说话（默认语音输入；如需打字，点击上方正文输入区调起系统键盘） -->
-    <view class="input-middle">
+    <!-- ===== 添加面板（图片/视频/位置）===== -->
+    <view class="panel panel-add" wx:if="{{showAddPanel}}">
+      <view class="add-grid">
+        <view class="add-item" bindtap="chooseImage">
+          <view class="add-icon add-icon-photo"></view>
+          <text class="add-text">图片</text>
+        </view>
+        <view class="add-item" bindtap="chooseVideo">
+          <view class="add-icon add-icon-video"></view>
+          <text class="add-text">视频</text>
+        </view>
+        <view class="add-item" bindtap="chooseLocation">
+          <view class="add-icon add-icon-location"></view>
+          <text class="add-text">位置</text>
+        </view>
+      </view>
+    </view>
+
+    <!-- ===== 底部输入栏（微信同款）===== -->
+    <view class="input-bar-wrap">
+      <view class="input-bar" style="padding-bottom: calc(22rpx + {{safeAreaBottom}}px);">
+      <!-- 表情/颜文字（飞书同款笑脸） -->
+      <view class="input-btn input-emoji {{showEmojiPanel ? 'active' : ''}}" bindtap="toggleEmojiPanel">
+        <view class="icon-bar icon-smiley"></view>
+      </view>
+
+      <!-- 中间区：按住说话（默认语音输入；如需打字，点击上方正文输入区调起系统键盘） -->
+      <view class="input-middle">
+        <view
+          class="hold-talk {{recording ? 'recording' : ''}} {{voiceCanceling ? 'canceling' : ''}}"
+          bindtouchstart="onHoldStart"
+          bindtouchend="onHoldEnd"
+          bindtouchcancel="onHoldEnd"
+          bindtouchmove="onVoiceTouchMove"
+        >{{voiceCanceling ? '松开取消' : (recording ? '松开 结束' : (connecting ? '连接中…' : '按住 说话'))}}</view>
+      </view>
+
+      <!-- 添加(+)：图片 / 视频 / 位置 -->
       <view
-        class="hold-talk {{recording ? 'recording' : ''}} {{voiceCanceling ? 'canceling' : ''}}"
-        bindtouchstart="onHoldStart"
-        bindtouchend="onHoldEnd"
-        bindtouchcancel="onHoldEnd"
-        bindtouchmove="onVoiceTouchMove"
-      >{{voiceCanceling ? '松开取消' : (recording ? '松开 结束' : (connecting ? '连接中…' : '按住 说话'))}}</view>
+        class="input-add {{showAddPanel ? 'active' : ''}}"
+        bindtap="onAddOrSend"
+      >
+        <view class="icon-bar icon-plus"></view>
+      </view>
     </view>
-
-    <!-- 添加(+)：图片 / 视频 / 位置 -->
-    <view
-      class="input-add {{showAddPanel ? 'active' : ''}}"
-      bindtap="onAddOrSend"
-    >
-      <view class="icon-bar icon-plus"></view>
-    </view>
-  </view>
-  </view>
-
-  <!-- ===== 表情/颜文字面板 ===== -->
-  <view class="panel panel-emoji" wx:if="{{showEmojiPanel}}" style="padding-bottom: {{safeAreaBottom}}px;">
-    <view class="panel-tabs">
-      <view class="panel-tab {{emojiTab === 'emoji' ? 'active' : ''}}" bindtap="switchEmojiTab" data-tab="emoji">表情</view>
-      <view class="panel-tab {{emojiTab === 'kaomoji' ? 'active' : ''}}" bindtap="switchEmojiTab" data-tab="kaomoji">颜文字</view>
-    </view>
-    <scroll-view class="emoji-scroll" scroll-y>
-      <view class="emoji-grid">
-        <view class="emoji-item {{emojiTab === 'kaomoji' ? 'k-item' : ''}}" wx:for="{{emojiList}}" wx:key="*this" bindtap="insertEmoji" data-emoji="{{item}}">{{item}}</view>
-      </view>
-    </scroll-view>
-  </view>
-
-  <!-- ===== 添加面板（图片/视频/位置）===== -->
-  <view class="panel panel-add" wx:if="{{showAddPanel}}" style="padding-bottom: {{safeAreaBottom}}px;">
-    <view class="add-grid">
-      <view class="add-item" bindtap="chooseImage">
-        <view class="add-icon add-icon-photo"></view>
-        <text class="add-text">图片</text>
-      </view>
-      <view class="add-item" bindtap="chooseVideo">
-        <view class="add-icon add-icon-video"></view>
-        <text class="add-text">视频</text>
-      </view>
-      <view class="add-item" bindtap="chooseLocation">
-        <view class="add-icon add-icon-location"></view>
-        <text class="add-text">位置</text>
-      </view>
     </view>
   </view>
 

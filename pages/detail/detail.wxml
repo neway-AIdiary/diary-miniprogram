@@ -6,7 +6,7 @@
   <!-- 查看模式 -->
   <block wx:if="{{diary && !editing}}">
     <view class="detail-card">
-      <!-- 标题 -->
+      <!-- 固定区：标题 + 日期/标签（不随内容滚动） -->
       <view class="detail-title">{{diary.title || '无题'}}</view>
 
       <!-- 日期和标签 -->
@@ -19,39 +19,44 @@
         </view>
       </view>
 
-      <!-- 正文 -->
-      <view class="detail-content">{{diary.content}}</view>
+      <!-- 可滚动区：正文/位置/媒体，长内容时独立滚动 -->
+      <scroll-view class="detail-scroll" scroll-y enhanced show-scrollbar="{{false}}" style="max-height: {{detailScrollMaxHeight}}px;">
+        <view class="detail-scroll-inner">
+          <!-- 正文 -->
+          <view class="detail-content">{{diary.content}}</view>
 
-      <!-- 位置 & 天气 -->
-      <view class="detail-meta-row" wx:if="{{diary.locationText || diary.weatherText}}">
-        <text class="detail-location" wx:if="{{diary.locationText}}">📍 {{diary.locationText}}</text>
-        <text class="detail-weather" wx:if="{{diary.weatherText}}">{{diary.weatherIcon}} {{diary.weatherText}}</text>
-      </view>
+          <!-- 位置 & 天气 -->
+          <view class="detail-meta-row" wx:if="{{diary.locationText || diary.weatherText}}">
+            <text class="detail-location" wx:if="{{diary.locationText}}">📍 {{diary.locationText}}</text>
+            <text class="detail-weather" wx:if="{{diary.weatherText}}">{{diary.weatherIcon}} {{diary.weatherText}}</text>
+          </view>
 
-      <!-- 媒体：图片网格 + 视频 -->
-      <view class="detail-media" wx:if="{{diary.images.length > 0 || diary.videos.length > 0}}">
-        <image
-          class="detail-media-img"
-          wx:for="{{diary.images}}"
-          wx:key="*this"
-          src="{{item}}"
-          mode="aspectFill"
-          bindtap="previewMedia"
-          data-index="{{index}}"
-        />
-        <video
-          class="detail-media-video"
-          wx:for="{{diary.videos}}"
-          wx:key="fileID"
-          src="{{item.fileID}}"
-          poster="{{item.thumb || ''}}"
-          object-fit="cover"
-          controls="{{true}}"
-        />
-      </view>
+          <!-- 媒体：图片网格 + 视频 -->
+          <view class="detail-media" wx:if="{{diary.images.length > 0 || diary.videos.length > 0}}">
+            <image
+              class="detail-media-img"
+              wx:for="{{diary.images}}"
+              wx:key="*this"
+              src="{{item}}"
+              mode="aspectFill"
+              bindtap="previewMedia"
+              data-index="{{index}}"
+            />
+            <video
+              class="detail-media-video"
+              wx:for="{{diary.videos}}"
+              wx:key="fileID"
+              src="{{item.fileID}}"
+              poster="{{item.thumb || ''}}"
+              object-fit="cover"
+              controls="{{true}}"
+            />
+          </view>
+        </view>
+      </scroll-view>
     </view>
 
-    <!-- 操作按钮 -->
+    <!-- 操作按钮：紧贴卡片下方，随卡片高度移动 -->
     <view class="detail-actions">
       <button class="btn-secondary" bindtap="openSharePanel">分享</button>
       <button class="btn-secondary" bindtap="startEdit">编辑</button>
@@ -72,178 +77,182 @@
   <!-- 编辑模式 -->
   <block wx:if="{{diary && editing}}">
     <view class="edit-page">
-      <scroll-view class="edit-scroll" scroll-y enhanced show-scrollbar="{{false}}">
-        <view class="edit-scroll-inner">
-        <view class="edit-area" style="padding-top: {{editTop}}px;">
-      <view class="section section-title">
-        <input
-          class="input-field edit-title-input"
-          value="{{title}}"
-          bindinput="onTitleInput"
-          maxlength="50"
-          placeholder="标题"
-          adjust-position="{{false}}"
-          cursor-spacing="20"
-        />
-      </view>
-
-      <!-- 心情选择 -->
-      <view class="section section-mood">
-        <view class="mood-bar" bindtap="toggleMoodPicker" hover-class="mood-bar-hover">
-          <text class="mood-label">心情</text>
-          <text class="mood-value {{moodLabel ? '' : 'placeholder'}}">{{moodLabel || '可选，点击选择'}}</text>
-          <text class="mood-arrow">›</text>
+      <view class="edit-area" style="padding-top: {{editTop}}px;">
+        <!-- 标题区：固定在上，不随编辑区滚动 -->
+        <view class="section section-title">
+          <input
+            class="input-field edit-title-input"
+            value="{{title}}"
+            bindinput="onTitleInput"
+            maxlength="50"
+            placeholder="标题"
+            adjust-position="{{false}}"
+            cursor-spacing="20"
+          />
         </view>
-        <view class="mood-options" wx:if="{{showMoodPicker}}">
-          <view
-            class="mood-option {{mood === '' ? 'active' : ''}}"
-            data-key="none"
-            bindtap="selectMood"
-          >不选</view>
-          <view
-            class="mood-option {{mood === item.key ? 'active' : ''}}"
-            wx:for="{{moodOptions}}"
-            wx:key="key"
-            data-key="{{item.key}}"
-            bindtap="selectMood"
-          >{{item.label}}</view>
-        </view>
-      </view>
 
-      <view class="section">
-        <textarea
-          class="textarea-field"
-          value="{{content}}"
-          bindinput="onContentInput"
-          maxlength="-1"
-          auto-height
-          show-confirm-bar="{{false}}"
-          placeholder="日记内容"
-        />
-        <view class="char-count">{{content.length}} 字</view>
-      </view>
-
-      <!-- 位置（编辑）：带入原位置，可更换/清除 -->
-      <view class="section" wx:if="{{editLocation}}">
-        <view class="loc-card">
-          <view class="loc-icon">
-            <view class="pin-ball"></view>
-            <view class="pin-hole"></view>
-            <view class="pin-tip"></view>
+        <!-- 心情选择：固定在上，不随编辑区滚动 -->
+        <view class="section section-mood">
+          <view class="mood-bar" bindtap="toggleMoodPicker" hover-class="mood-bar-hover">
+            <text class="mood-label">心情</text>
+            <text class="mood-value {{moodLabel ? '' : 'placeholder'}}">{{moodLabel || '可选，点击选择'}}</text>
+            <text class="mood-arrow">›</text>
           </view>
-          <view class="loc-info">
-            <text class="loc-name">{{editLocation.name}}</text>
-            <text class="loc-addr" wx:if="{{editLocation.address}}">{{editLocation.address}}</text>
+          <view class="mood-options" wx:if="{{showMoodPicker}}">
+            <view
+              class="mood-option {{mood === '' ? 'active' : ''}}"
+              data-key="none"
+              bindtap="selectMood"
+            >不选</view>
+            <view
+              class="mood-option {{mood === item.key ? 'active' : ''}}"
+              wx:for="{{moodOptions}}"
+              wx:key="key"
+              data-key="{{item.key}}"
+              bindtap="selectMood"
+            >{{item.label}}</view>
           </view>
-          <view class="loc-clear" catchtap="clearEditLocation">✕</view>
         </view>
-      </view>
 
-      <!-- 媒体（编辑）：带入原图片/视频，长按拖动排序（与微信朋友圈一致） -->
-      <view class="section">
-        <view class="edit-media-grid" style="height: {{mediaGridHeight}}px;" wx:if="{{editMedia.length > 0}}">
-          <view
-            class="edit-media-item {{dragIndex === index ? 'dragging' : ''}}"
-            wx:for="{{editMedia}}"
-            wx:key="fileID"
-            style="transform: translate({{dragIndex === index ? dragPos.left : mediaPositions[index].left}}px, {{dragIndex === index ? dragPos.top : mediaPositions[index].top}}px){{dragIndex === index ? ' scale(1.08)' : ''}};{{dragIndex === index ? 'z-index: 99;' : ''}}"
-            bindlongpress="onMediaLongPress"
-            catchtouchmove="onMediaTouchMove"
-            catchtouchend="onMediaTouchEnd"
-            catchtouchcancel="onMediaTouchEnd"
-            bindtap="onEditMediaTap"
-            data-index="{{index}}"
-          >
-            <image
-              wx:if="{{item.type === 'image'}}"
-              class="edit-media-img"
-              src="{{item.fileID}}"
-              mode="aspectFill"
-            />
-            <view wx:else class="edit-media-video">
-              <video
-                class="edit-media-video-inner"
-                src="{{item.fileID}}"
-                poster="{{item.thumb || ''}}"
-                object-fit="cover"
-                controls="{{false}}"
-                show-center-play-btn="{{false}}"
-                enable-progress-gesture="{{false}}"
-                autoplay="{{false}}"
+        <!-- 可滚动编辑区：高度随内容增减，最长不超过可用剩余空间 -->
+        <scroll-view class="edit-scroll" scroll-y enhanced show-scrollbar="{{false}}" style="max-height: {{scrollMaxHeight}}px;">
+          <view class="edit-scroll-inner">
+            <view class="section textarea-section">
+              <textarea
+                class="textarea-field"
+                value="{{content}}"
+                bindinput="onContentInput"
+                maxlength="-1"
+                auto-height
+                show-confirm-bar="{{false}}"
+                placeholder="日记内容"
               />
-              <text class="edit-media-dur">{{item.duration || 0}}s</text>
+              <view class="char-count">{{content.length}} 字</view>
             </view>
-            <view class="edit-media-remove" catchtap="removeEditMedia" data-index="{{index}}">✕</view>
-          </view>
-        </view>
-        <view class="edit-media-tip" wx:if="{{editMedia.length > 0}}">长按图片或视频可拖动排序</view>
-      </view>
+
+            <!-- 位置（编辑）：带入原位置，可更换/清除 -->
+            <view class="section" wx:if="{{editLocation}}">
+              <view class="loc-card">
+                <view class="loc-icon">
+                  <view class="pin-ball"></view>
+                  <view class="pin-hole"></view>
+                  <view class="pin-tip"></view>
+                </view>
+                <view class="loc-info">
+                  <text class="loc-name">{{editLocation.name}}</text>
+                  <text class="loc-addr" wx:if="{{editLocation.address}}">{{editLocation.address}}</text>
+                </view>
+                <view class="loc-clear" catchtap="clearEditLocation">✕</view>
+              </view>
+            </view>
+
+            <!-- 媒体（编辑）：带入原图片/视频，长按拖动排序（与微信朋友圈一致） -->
+            <view class="section">
+              <view class="edit-media-grid" style="height: {{mediaGridHeight}}px;" wx:if="{{editMedia.length > 0}}">
+                <view
+                  class="edit-media-item {{dragIndex === index ? 'dragging' : ''}}"
+                  wx:for="{{editMedia}}"
+                  wx:key="fileID"
+                  style="transform: translate({{dragIndex === index ? dragPos.left : mediaPositions[index].left}}px, {{dragIndex === index ? dragPos.top : mediaPositions[index].top}}px){{dragIndex === index ? ' scale(1.08)' : ''}};{{dragIndex === index ? 'z-index: 99;' : ''}}"
+                  bindlongpress="onMediaLongPress"
+                  catchtouchmove="onMediaTouchMove"
+                  catchtouchend="onMediaTouchEnd"
+                  catchtouchcancel="onMediaTouchEnd"
+                  bindtap="onEditMediaTap"
+                  data-index="{{index}}"
+                >
+                  <image
+                    wx:if="{{item.type === 'image'}}"
+                    class="edit-media-img"
+                    src="{{item.fileID}}"
+                    mode="aspectFill"
+                  />
+                  <view wx:else class="edit-media-video">
+                    <video
+                      class="edit-media-video-inner"
+                      src="{{item.fileID}}"
+                      poster="{{item.thumb || ''}}"
+                      object-fit="cover"
+                      controls="{{false}}"
+                      show-center-play-btn="{{false}}"
+                      enable-progress-gesture="{{false}}"
+                      autoplay="{{false}}"
+                    />
+                    <text class="edit-media-dur">{{item.duration || 0}}s</text>
+                  </view>
+                  <view class="edit-media-remove" catchtap="removeEditMedia" data-index="{{index}}">✕</view>
+                </view>
+              </view>
+              <view class="edit-media-tip" wx:if="{{editMedia.length > 0}}">长按图片或视频可拖动排序</view>
+            </view>
+
+              </view>
+        </scroll-view>
       </view>
 
-      <!-- 取消/保存：置于白色卡片下方琥珀背景，紧跟内容，底部留出输入栏高度避免被压盖 -->
+      <!-- 取消/保存：放在白色卡片 edit-area 下方琥珀色背景上 -->
       <view class="edit-actions">
         <button class="btn-secondary" bindtap="cancelEdit">取消</button>
         <button class="btn-primary" bindtap="saveEdit">保存</button>
       </view>
-      <!-- 底部输入栏占位：撑高滚动内容，让按钮沉底/滚到底都完整露出 -->
-      <view class="edit-inputbar-space" style="height: {{inputBarHeight}}px;"></view>
-    </view>
-  </scroll-view>
 
-      <!-- 底部输入栏（复用写日记主页底栏所有元素） -->
-      <view class="input-bar" style="padding-bottom: calc(22rpx + {{safeAreaBottom}}px);">
-        <!-- 表情/颜文字（飞书同款笑脸） -->
-        <view class="input-btn input-emoji {{showEmojiPanel ? 'active' : ''}}" bindtap="toggleEmojiPanel">
-          <view class="icon-bar icon-smiley"></view>
+      <!-- 底部固定区：面板 + 输入栏，面板展开时压盖编辑区/取消/保存按钮 -->
+      <view class="edit-bottom">
+        <!-- 表情/颜文字面板 -->
+        <view class="panel panel-emoji" wx:if="{{showEmojiPanel}}">
+          <view class="panel-tabs">
+            <view class="panel-tab {{emojiTab === 'emoji' ? 'active' : ''}}" bindtap="switchEmojiTab" data-tab="emoji">表情</view>
+            <view class="panel-tab {{emojiTab === 'kaomoji' ? 'active' : ''}}" bindtap="switchEmojiTab" data-tab="kaomoji">颜文字</view>
+          </view>
+          <scroll-view class="emoji-scroll" scroll-y>
+            <view class="emoji-grid">
+              <view class="emoji-item {{emojiTab === 'kaomoji' ? 'k-item' : ''}}" wx:for="{{emojiList}}" wx:key="*this" bindtap="insertEmoji" data-emoji="{{item}}">{{item}}</view>
+            </view>
+          </scroll-view>
         </view>
 
-        <!-- 中间区：按住说话（默认语音输入；如需打字，点击上方正文输入区调起系统键盘） -->
-        <view class="input-middle">
+        <!-- 添加面板：图片 / 视频 / 位置 -->
+        <view class="panel panel-add" wx:if="{{showAddPanel}}">
+          <view class="add-grid">
+            <view class="add-item" bindtap="chooseEditImage">
+              <view class="add-icon add-icon-photo"></view>
+              <text class="add-text">图片</text>
+            </view>
+            <view class="add-item" bindtap="chooseEditVideo">
+              <view class="add-icon add-icon-video"></view>
+              <text class="add-text">视频</text>
+            </view>
+            <view class="add-item" bindtap="chooseEditLocation">
+              <view class="add-icon add-icon-location"></view>
+              <text class="add-text">位置</text>
+            </view>
+          </view>
+        </view>
+
+        <!-- 底部输入栏（复用写日记主页底栏所有元素） -->
+        <view class="input-bar" style="padding-bottom: calc(22rpx + {{safeAreaBottom}}px);">
+          <!-- 表情/颜文字（飞书同款笑脸） -->
+          <view class="input-btn input-emoji {{showEmojiPanel ? 'active' : ''}}" bindtap="toggleEmojiPanel">
+            <view class="icon-bar icon-smiley"></view>
+          </view>
+
+          <!-- 中间区：按住说话（默认语音输入；如需打字，点击上方正文输入区调起系统键盘） -->
+          <view class="input-middle">
+            <view
+              class="hold-talk {{recording ? 'recording' : ''}} {{voiceCanceling ? 'canceling' : ''}}"
+              bindtouchstart="onHoldStart"
+              bindtouchend="onHoldEnd"
+              bindtouchcancel="onHoldEnd"
+              bindtouchmove="onVoiceTouchMove"
+            >{{voiceCanceling ? '松开取消' : (recording ? '松开 结束' : (connecting ? '连接中…' : '按住 说话'))}}</view>
+          </view>
+
+          <!-- 添加(+)：图片 / 视频 / 位置 -->
           <view
-            class="hold-talk {{recording ? 'recording' : ''}} {{voiceCanceling ? 'canceling' : ''}}"
-            bindtouchstart="onHoldStart"
-            bindtouchend="onHoldEnd"
-            bindtouchcancel="onHoldEnd"
-            bindtouchmove="onVoiceTouchMove"
-          >{{voiceCanceling ? '松开取消' : (recording ? '松开 结束' : (connecting ? '连接中…' : '按住 说话'))}}</view>
-        </view>
-
-        <!-- 添加(+)：图片 / 视频 / 位置 -->
-        <view
-          class="input-add {{showAddPanel ? 'active' : ''}}"
-          bindtap="onAddOrSend"
-        >
-          <view class="icon-bar icon-plus"></view>
-        </view>
-      </view>
-
-      <!-- 表情/颜文字面板 -->
-      <view class="panel panel-emoji" wx:if="{{showEmojiPanel}}" style="padding-bottom: {{safeAreaBottom}}px;">
-        <view class="panel-tabs">
-          <view class="panel-tab {{emojiTab === 'emoji' ? 'active' : ''}}" bindtap="switchEmojiTab" data-tab="emoji">表情</view>
-          <view class="panel-tab {{emojiTab === 'kaomoji' ? 'active' : ''}}" bindtap="switchEmojiTab" data-tab="kaomoji">颜文字</view>
-        </view>
-        <scroll-view class="emoji-scroll" scroll-y>
-          <view class="emoji-grid">
-            <view class="emoji-item {{emojiTab === 'kaomoji' ? 'k-item' : ''}}" wx:for="{{emojiList}}" wx:key="*this" bindtap="insertEmoji" data-emoji="{{item}}">{{item}}</view>
-          </view>
-        </scroll-view>
-      </view>
-
-      <!-- 添加面板：图片 / 视频 / 位置 -->
-      <view class="panel panel-add" wx:if="{{showAddPanel}}" style="padding-bottom: {{safeAreaBottom}}px;">
-        <view class="add-grid">
-          <view class="add-item" bindtap="chooseEditImage">
-            <view class="add-icon add-icon-photo"></view>
-            <text class="add-text">图片</text>
-          </view>
-          <view class="add-item" bindtap="chooseEditVideo">
-            <view class="add-icon add-icon-video"></view>
-            <text class="add-text">视频</text>
-          </view>
-          <view class="add-item" bindtap="chooseEditLocation">
-            <view class="add-icon add-icon-location"></view>
-            <text class="add-text">位置</text>
+            class="input-add {{showAddPanel ? 'active' : ''}}"
+            bindtap="onAddOrSend"
+          >
+            <view class="icon-bar icon-plus"></view>
           </view>
         </view>
       </view>
