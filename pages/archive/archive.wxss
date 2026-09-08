@@ -123,8 +123,8 @@
   flex-shrink: 0;
   display: flex;
   align-items: flex-end;
-  background: var(--surface);
-  border-top: 1rpx solid var(--line);
+  background: rgba(248, 244, 238, 0.95);
+  border-top: 1rpx solid var(--line-soft);
   padding: 12rpx 16rpx 22rpx;
   z-index: 20;
 }
@@ -142,6 +142,12 @@
 .input-btn.active {
   background: var(--line-soft);
   border-radius: 16rpx;
+}
+
+/* 底栏按钮置灰不可用（档案页表情按钮：档案条目不需要表情） */
+.input-btn.disabled {
+  opacity: 0.3;
+  pointer-events: none;
 }
 
 .input-middle {
@@ -635,7 +641,7 @@
 }
 
 .input-bar {
-  background: var(--surface);
+  background: rgba(248, 244, 238, 0.95);
   border-top: 1rpx solid var(--line-soft);
 }
 
