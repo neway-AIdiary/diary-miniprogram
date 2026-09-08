@@ -1117,7 +1117,9 @@ function parseDiariesFromText(text) {
  *
  *   8月10日日记
  *   周一早高峰……
- * 支持标题变体：
+ * 支持标题变体（「日记」二字均可省略）：
+ *   「8月11日」                       → 单独日期也算标题
+ *   「8月11日 日记」/「8月11日日记」   → 带「日记」后缀
  *   「8月1日、8月2日日记」           → 合并日记，取第一个日期
  *   「7月15日、16日合并日记」        → 第二个日期可省略月份
  *   「7月26日、7月27日合并日记」     → 显式「合并日记」
@@ -1127,8 +1129,9 @@ function parseNumberedDiaries(text) {
   if (!text || typeof text !== 'string') return []
   const lines = text.split('\n')
   const diaries = []
-  // 标题行：以「X月X日」开头、以「日记」结尾，中间可带「、X月X日/、X日」及「合并」
-  const titleRe = /^\s*\d{1,2}月\d{1,2}日(?:[、,]\s*(?:\d{1,2}月)?\d{1,2}日)?(?:合并)?日记\s*$/
+  // 标题行：以「X月X日」开头，整行只含日期（可多个顿号/逗号分隔）及可选的「合并」「日记」后缀
+  // 「日记」二字可省略，故「8月11日」单独一行也能作为标题识别
+  const titleRe = /^\s*\d{1,2}月\d{1,2}日(?:\s*[、,，]\s*(?:\d{1,2}月)?\d{1,2}日)*(?:\s*合并)?\s*(?:日记)?\s*$/
   const dateRe = /(\d{1,2})月(\d{1,2})日/
   let current = null // { dateStr, contentLines: [] }
 
@@ -1405,6 +1408,48 @@ function scheduleCloudBackup() {
   } catch (e) { /* 备份模块异常不影响主流程 */ }
 }
 
+/**
+ * 把 HTML 源码还原为纯文本（保留块级换行结构，并解码 HTML 实体）
+ * 用于导入 .html/.htm 文件：记事本/部分编辑器「另存为 HTML」时，中文常被编码成
+ * 数字实体（如「月」→ &#26376;），且标题/正文靠 <br>/<p> 等标签分行。
+ * 若不先还原，本地解析器认不到字面「月/日」、AI 兜底也会收到实体乱码。
+ * 处理顺序：去 script/style → 解码实体 → 块级标签转行 → 去其余标签 → 压缩空白。
+ */
+function htmlToText(html) {
+  if (!html || typeof html !== 'string') return ''
+  let s = html
+  // 0) 先移除 <script>/<style> 整块（含内部文本，避免脚本/样式混入正文）
+  s = s
+    .replace(/<script[\s\S]*?<\/script>/gi, '')
+    .replace(/<style[\s\S]*?<\/style>/gi, '')
+  // 1) 解码 HTML 实体：数字（十进制/十六进制）+ 常见命名实体
+  s = s
+    .replace(/&#x([0-9a-fA-F]+);/g, (m, h) => String.fromCodePoint(parseInt(h, 16)))
+    .replace(/&#([0-9]+);/g, (m, d) => String.fromCodePoint(parseInt(d, 10)))
+    .replace(/&nbsp;/g, ' ')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&apos;/g, "'")
+    .replace(/&amp;/g, '&')
+  // 2) 块级换行标签 → 换行（<br> 及各类块级闭合标签）
+  s = s
+    .replace(/<br\s*\/?\s*>/gi, '\n')
+    .replace(/<hr\s*\/?\s*>/gi, '\n')
+    .replace(/<\/(p|div|h[1-6]|li|ul|ol|tr|td|th|section|article|blockquote|pre|table|form)\s*>/gi, '\n')
+  // 3) 其余所有标签去掉
+  s = s.replace(/<[^>]+>/g, '')
+  // 4) 压缩连续空行、行首尾空白
+  s = s
+    .replace(/[ \t]+\n/g, '\n')
+    .replace(/\n{3,}/g, '\n\n')
+    .split('\n')
+    .map(l => l.trim())
+    .join('\n')
+    .trim()
+  return s
+}
+
 module.exports = {
   getAllDiaries,
   saveDiary,
@@ -1420,7 +1465,9 @@ module.exports = {
   replaceAllDiaries,
   exportDiariesToText,
   parseDiariesFromText,
+  parseNumberedDiaries,
   importDiariesFromText,
+  htmlToText,
   buildWordFileName,
   buildWordHtml,
   parseWordHtml,

@@ -323,6 +323,13 @@ function importFromFile(opts) {
                 let raw = String(readRes.data || '')
                 // 去掉 UTF-8 BOM（部分编辑器保存文件会自动加上）
                 if (raw.charCodeAt(0) === 0xFEFF) raw = raw.slice(1)
+                // HTML 文件：先还原成纯文本（解码实体 + 块级标签转行），否则标签/实体让解析失效
+                const nameLower = String(file.name || '').toLowerCase()
+                const looksHtml = /\.html?$/i.test(nameLower) ||
+                  (/^\s*</.test(raw) && /<(html|body|div|p|h[1-6]|li|table|br)\b/i.test(raw))
+                if (looksHtml) {
+                  raw = storage.htmlToText(raw)
+                }
                 const trimmed = raw.trim()
                 if (!trimmed) {
                   error('文件内容为空，请选择包含日记内容的文件。')
