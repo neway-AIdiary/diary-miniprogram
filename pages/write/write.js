@@ -1371,7 +1371,8 @@ Page({
           icon: result.from === 'cloud' ? 'success' : 'none'
         })
 
-        this.checkNewEntities(mergedContent)
+        // 只对「本次新增的内容」识别名词备案，旧日记里已存在的名词不再重复提示
+        this.checkNewEntities(savedContent)
       }).catch(() => {
         // AI 标签获取失败：复位按钮，内容保留可重试
         this._savingMedia = false
