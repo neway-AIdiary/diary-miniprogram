@@ -271,9 +271,11 @@ function importFromFile(opts) {
                     : storage.importDiaries(parsed.diaries)
                   finish(added, parsed.notes && parsed.notes.length ? parsed.notes.join('\n') : '')
                 } else {
-                  // 回退解析：新 id，按「日期+内容」去重合并
-                  const r = storage.importDiaryObjects(parsed.diaries, mode === 'replace')
-                  finish(r.added, parsed.notes && parsed.notes.length ? parsed.notes.join('\n') : '')
+                  // 回退解析：新 id，按「日期+内容」去重合并；先 AI 补全 心情/天气/标签
+                  enrichDiariesWithMeta(parsed.diaries, () => {
+                    const r = storage.importDiaryObjects(parsed.diaries, mode === 'replace')
+                    finish(r.added, parsed.notes && parsed.notes.length ? parsed.notes.join('\n') : '')
+                  })
                 }
               } catch (e) {
                 error('解析 Word 文档出错：' + ((e && e.message) || e) + '。\n\n数据未改动，请重试。')
@@ -387,14 +389,18 @@ function importFromFile(opts) {
 
                 // 3) 纯文本格式（日期分段）
                 if (!recognized) {
-                  const parsedCount = storage.parseDiariesFromText(raw).length
-                  if (parsedCount === 0) {
+                  const list = storage.parseDiariesFromText(raw)
+                  if (list.length === 0) {
                     // 本地解析失败 → 直接调 AI 智能识别文本中的日记（识别结果确认后再导入）
                     aiParseFlow(raw, mode, opts)
                     return
                   }
-                  const result = storage.importDiariesFromText(raw, mode === 'replace')
-                  added = result.added
+                  // 本地切块成功 → 逐篇 AI 补全 心情/天气/标签 后再导入
+                  enrichDiariesWithMeta(list, () => {
+                    const result = storage.importDiaryObjects(list, mode === 'replace')
+                    finish(result.added)
+                  })
+                  return
                 }
 
                 finish(added)
@@ -417,6 +423,52 @@ function importFromFile(opts) {
       wx.showToast({ title: '已取消导入', icon: 'none' })
     }
   })
+}
+
+// AI 结构化提取：本地切块成功后，分批把每篇交给 AI 提取「日期/心情/天气/标签」，补全字段后再导入。
+// 只填字段、不改变 date/content；本地已有值优先，AI 仅填空缺；失败自动降级本地标签引擎，不影响导入。
+function enrichDiariesWithMeta(list, onDone) {
+  if (!list || !list.length || !wx.cloud) { onDone(); return }
+  const aiCloud = require('./aiCloud.js')
+  const BATCH = 10
+  let cursor = 0
+  const step = () => {
+    if (cursor >= list.length) {
+      wx.hideLoading()
+      onDone()
+      return
+    }
+    const batch = list.slice(cursor, cursor + BATCH).map((d, i) => ({
+      index: cursor + i,
+      date: d.created_at ? util.getDateKey(new Date(d.created_at)) : '',
+      content: d.content
+    }))
+    wx.showLoading({
+      title: 'AI 补全 ' + Math.min(cursor + BATCH, list.length) + '/' + list.length + ' 篇…',
+      mask: false
+    })
+    aiCloud.callAIExtractMetaBatch(batch).then((results) => {
+      ;(results || []).forEach((meta) => {
+        const d = list[meta.index]
+        if (!d) return
+        // 本地已有值优先，AI 只填空缺
+        if (meta.mood && !d.mood) {
+          const key = storage.moodTextToKey(meta.mood)
+          if (key) d.mood = key
+        }
+        if (meta.weather && !d.weather) {
+          const w = storage.parseWeatherText(meta.weather)
+          if (w) d.weather = w
+        }
+        if (Array.isArray(meta.tags) && meta.tags.length && (!d.tags || !d.tags.length)) {
+          d.tags = meta.tags.slice(0, 5)
+        }
+      })
+      cursor += BATCH
+      step()
+    })
+  }
+  step()
 }
 
 // AI 智能识别导入（本地解析失败时兜底）

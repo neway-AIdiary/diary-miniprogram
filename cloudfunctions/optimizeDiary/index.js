@@ -281,6 +281,37 @@ function buildMergePrompt(oldContent, newContent, oldMood, newMood, archives, in
 }
 
 /**
+ * 构造 extractMetaBatch（对已切分好的多篇日记，逐篇提取 日期/心情/天气/标签）的 prompt
+ * 与 parse 的区别：本地已经把块切好（date+content 已定），这里只让 AI 做单一任务——填字段，不切分、不重写正文
+ * @param {Array<{index:number, date:string, content:string}>} items
+ */
+function buildExtractMetaBatchPrompt(items) {
+  const listText = items.map(it =>
+    '【第' + (it.index + 1) + '篇】index=' + it.index + '\n已提供日期：' + (it.date || '（未知）') + '\n正文：\n' + it.content
+  ).join('\n\n')
+
+  return [
+    '你是一位日记整理助手。用户提供了 ' + items.length + ' 篇已切分好的日记（每篇已标注 index 编号、日期和正文），请只做一件事：为每一篇分别提取「日期 / 心情 / 天气 / 标签」四个字段。',
+    '字段说明（每篇独立提取，绝不要把不同篇的内容混在一起）：',
+    '   - date: 日记日期，格式 YYYY-MM-DD。优先沿用该篇「已提供日期」；仅当正文明确写了另一个日期时才纠正它；无法确定则留空字符串；',
+    '   - mood: 当天心情，从「开心/平静/一般/难过/生气/幸福/疲倦/兴奋」中选一个；正文没有心情描述则留空字符串；',
+    '   - weather: 天气描述，如「晴」「多云」「下雨」「阴天」等，可带温度（如「晴 28°」）；正文没提天气则留空字符串；',
+    '   - tags: 中文关键词标签，每个 2-4 个字，最多 5 个，从该篇正文实际提到的主题/事件/人物/心情提炼；正文确实无主题则返回空数组；',
+    '要求：',
+    '1. 只输出严格 JSON，不要输出任何其他文字；',
+    '2. 不修改、不重写正文，只提取字段；',
+    '3. 每篇输出一条结果，index 必须与输入完全一致，按输入顺序排列；',
+    '4. 正文里没有的信息一律留空字符串或空数组，绝不虚构、不猜测。',
+    '',
+    '日记列表：',
+    listText,
+    '',
+    '请严格按以下 JSON 格式返回（不要输出任何其他文字）：',
+    '{"results":[{"index":0,"date":"2026-08-14","mood":"开心","weather":"晴 28°","tags":["加班","项目"]}]}'
+  ].join('\n')
+}
+
+/**
  * 调用 DeepSeek（Node 内置 https，无第三方依赖）
  */
 function callDeepSeek(payload) {
@@ -318,14 +349,14 @@ function callDeepSeek(payload) {
  * 公共：调用 DeepSeek 并解析出 JSON 对象
  * @returns {Promise<{parsed?: object, error?: string}>}
  */
-async function runPrompt(prompt, maxTokens) {
+async function runPrompt(prompt, maxTokens, temperature) {
   const res = await callDeepSeek({
     model: MODEL,
     messages: [
       { role: 'system', content: '你只输出严格的 JSON，不要输出任何其他内容。' },
       { role: 'user', content: prompt }
     ],
-    temperature: 0.8,
+    temperature: (typeof temperature === 'number') ? temperature : 0.8,
     max_tokens: maxTokens || 2500,
     response_format: { type: 'json_object' }
   })
@@ -468,6 +499,39 @@ exports.main = async (event, context) => {
           return true
         })
       return { entities: entities }
+    } catch (err) {
+      return { error: '调用 AI 失败: ' + (err && err.message || err) }
+    }
+  }
+
+  // ===== extractMetaBatch：对已切分好的多篇日记，逐篇提取 日期/心情/天气/标签 =====
+  if (action === 'extractMetaBatch') {
+    const items = Array.isArray(event && event.items) ? event.items.slice(0, 10) : []
+    if (!items.length) return { results: [] }
+    if (!API_KEY) return { error: '服务端未配置 DEEPSEEK_API_KEY' }
+    const norm = items.map((it, i) => ({
+      index: (typeof it.index === 'number') ? it.index : i,
+      date: String((it && it.date) || '').trim(),
+      content: String((it && it.content) || '').slice(0, 2000)
+    })).filter(it => it.content)
+    if (!norm.length) return { results: [] }
+    const prompt = buildExtractMetaBatchPrompt(norm)
+    try {
+      // 识别类任务用低温度，结果更稳定、不瞎编
+      const r = await runPrompt(prompt, 1500, 0.2)
+      if (r.error) return { error: r.error }
+      const rawResults = (r.parsed && Array.isArray(r.parsed.results)) ? r.parsed.results : []
+      const cleaned = rawResults.map(x => ({
+        index: parseInt(x && x.index, 10) || 0,
+        date: String((x && x.date) || '').trim(),
+        mood: String((x && x.mood) || '').trim(),
+        weather: String((x && x.weather) || '').trim(),
+        tags: (Array.isArray(x && x.tags) ? x.tags : [])
+          .map(t => String(t || '').trim().slice(0, 6))
+          .filter(Boolean)
+          .slice(0, 5)
+      }))
+      return { results: cleaned }
     } catch (err) {
       return { error: '调用 AI 失败: ' + (err && err.message || err) }
     }

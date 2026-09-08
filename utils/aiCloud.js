@@ -131,6 +131,96 @@ function callAIParse(text) {
 }
 
 /**
+ * AI 结构化提取（批量）：对已切分好的多篇日记，逐篇提取 日期/心情/天气/标签
+ * 本地已经把块切好（date+content 已定），这里只让 AI 做单一任务——填字段，不切分、不重写正文。
+ * 失败自动降级：本地标签引擎补 tags，心情/天气留空（不影响导入）。
+ * @param {Array<{index:number, date:string, content:string}>} items
+ * @returns {Promise<Array<{index:number, date:string, mood:string, weather:string, tags:string[], from:string}>>}
+ */
+function callAIExtractMetaBatch(items) {
+  const tagsEngine = require('./tags.js')
+  return new Promise((resolve) => {
+    // 本地降级：每篇只补标签（tags 引擎可靠）；心情/天气不做粗提（易误判），留空
+    const localResults = () => (items || []).map(it => ({
+      index: it.index,
+      date: it.date || '',
+      mood: '',
+      weather: '',
+      tags: tagsEngine.extractTags(it.content, 5),
+      from: 'local'
+    }))
+
+    if (!wx.cloud) {
+      console.warn('[aiCloud] 当前环境无 wx.cloud，元数据本地降级')
+      resolve(localResults())
+      return
+    }
+
+    let done = false
+    const finish = (result) => {
+      if (done) return
+      done = true
+      clearTimeout(timer)
+      resolve(result)
+    }
+
+    wx.cloud.callFunction({
+      name: 'optimizeDiary',
+      data: {
+        action: 'extractMetaBatch',
+        items: (items || []).map(it => ({
+          index: it.index,
+          date: it.date || '',
+          content: String(it.content || '').slice(0, 2000)
+        }))
+      }
+    }).then(res => {
+      const r = res && res.result
+      if (r && !r.error && Array.isArray(r.results)) {
+        const map = {}
+        r.results.forEach(x => { map[x.index] = x })
+        // 按 index 对齐，AI 漏返回的篇降级本地 tags
+        const out = (items || []).map(it => {
+          const x = map[it.index]
+          if (x) {
+            return {
+              index: it.index,
+              date: x.date || it.date || '',
+              mood: x.mood || '',
+              weather: x.weather || '',
+              tags: Array.isArray(x.tags) ? x.tags : [],
+              from: 'cloud'
+            }
+          }
+          return {
+            index: it.index,
+            date: it.date || '',
+            mood: '',
+            weather: '',
+            tags: tagsEngine.extractTags(it.content, 5),
+            from: 'local'
+          }
+        })
+        console.log('[aiCloud] 批量提取元数据成功 from=cloud')
+        finish(out)
+      } else {
+        console.warn('[aiCloud] 批量提取元数据异常，本地降级:', (r && r.error) || '无results字段')
+        finish(localResults())
+      }
+    }).catch(err => {
+      console.warn('[aiCloud] 批量提取元数据调用失败，本地降级:', err && err.errMsg)
+      finish(localResults())
+    })
+
+    // 云函数冷启动可能较慢，超时兜底
+    const timer = setTimeout(() => {
+      console.warn('[aiCloud] 批量提取元数据超时(20s)，本地降级')
+      finish(localResults())
+    }, 20000)
+  })
+}
+
+/**
  * AI 自动打标签：云函数 DeepSeek 生成，失败自动降级本地关键词引擎
  * @param {string} content 日记内容
  * @param {string} mood 心情 key（可空）
@@ -481,4 +571,4 @@ function callAIMergeDiary(oldContent, newContent, opts) {
   })
 }
 
-module.exports = { callAI, callAIParse, callAITags, callAIOrganizeArchive, callAIExtractEntities, callAIMergeDiary, stripMoodTail }
+module.exports = { callAI, callAIParse, callAIExtractMetaBatch, callAITags, callAIOrganizeArchive, callAIExtractEntities, callAIMergeDiary, stripMoodTail }
