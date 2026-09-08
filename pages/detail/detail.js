@@ -93,12 +93,6 @@ Page({
       240,
       Math.floor(win.windowHeight - safeAreaTop - 8 - fixedRpx * rpx2px - inputBarHeight)
     )
-    // 详情查看模式滚动区最大高度：屏幕减去页面内边距、卡片内边距、标题/日期/操作按钮等固定占用
-    const viewFixedRpx = 470
-    const detailScrollMaxHeight = Math.max(
-      240,
-      Math.floor(win.windowHeight - safeAreaBottom - viewFixedRpx * rpx2px)
-    )
     this.setData({
       safeAreaTop: safeAreaTop,
       pageTop: safeAreaTop + 8,
@@ -106,8 +100,7 @@ Page({
       editTop: 8,
       safeAreaBottom: safeAreaBottom,
       inputBarHeight: inputBarHeight,
-      scrollMaxHeight: scrollMaxHeight,
-      detailScrollMaxHeight: detailScrollMaxHeight
+      scrollMaxHeight: scrollMaxHeight
     })
     // 恢复分享展示开关的上次设置（跨会话记忆，未存过则用默认值）
     let savedSw = {}

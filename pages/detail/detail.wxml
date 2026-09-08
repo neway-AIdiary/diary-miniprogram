@@ -20,7 +20,7 @@
       </view>
 
       <!-- 可滚动区：正文/位置/媒体，长内容时独立滚动 -->
-      <scroll-view class="detail-scroll" scroll-y enhanced show-scrollbar="{{false}}" style="max-height: {{detailScrollMaxHeight}}px;">
+      <scroll-view class="detail-scroll" scroll-y enhanced show-scrollbar="{{false}}">
         <view class="detail-scroll-inner">
           <!-- 正文 -->
           <view class="detail-content">{{diary.content}}</view>

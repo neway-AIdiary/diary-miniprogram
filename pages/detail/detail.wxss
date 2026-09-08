@@ -18,10 +18,11 @@
   background: var(--surface);
   border-radius: 16rpx;
   padding: 48rpx 36rpx 40rpx;
-  flex: 0 1 auto;
+  flex: 1 1 auto;
   min-height: 0;
   display: flex;
   flex-direction: column;
+  overflow: hidden;
 }
 
 .detail-title {
@@ -87,9 +88,11 @@
   word-wrap: break-word;
 }
 
-/* 详情卡片内部滚动区：高度随内容增减，最长不超过可用剩余空间 */
+/* 详情卡片内部滚动区：flex 自适应剩余空间，内容超长在卡片内滚动 */
 .detail-scroll {
   display: block;
+  flex: 1 1 auto;
+  min-height: 0;
 }
 
 .detail-scroll-inner {
