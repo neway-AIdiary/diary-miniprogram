@@ -5,7 +5,8 @@
     "pages/profile/profile",
     "pages/detail/detail",
     "pages/archive/archive",
-    "pages/backup/backup"
+    "pages/backup/backup",
+    "pages/setting/setting"
   ],
   "window": {
     "navigationBarBackgroundColor": "#F8F4EE",

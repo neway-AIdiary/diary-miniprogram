@@ -951,6 +951,12 @@ Page({
     wx.navigateTo({ url: '/pages/backup/backup' })
   },
 
+  // 设置页
+  goToSetting() {
+    this.setData({ showSidebar: false })
+    wx.navigateTo({ url: '/pages/setting/setting' })
+  },
+
   getUserProfile() {
     wx.getUserProfile({
       desc: '用于展示个人信息',

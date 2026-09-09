@@ -300,9 +300,9 @@
             <text class="s-menu-text">云端备份</text>
             <text class="s-arrow">›</text>
           </view>
-          <view class="s-menu-item" bindtap="showAbout">
-            <view class="s-menu-icon icon-about"></view>
-            <text class="s-menu-text">关于</text>
+          <view class="s-menu-item" bindtap="goToSetting">
+            <view class="s-menu-icon icon-setting"></view>
+            <text class="s-menu-text">设置</text>
             <text class="s-arrow">›</text>
           </view>
           <view class="s-menu-item danger" bindtap="clearAllDiaries">

@@ -1,0 +1,28 @@
+<!-- 设置页：五个功能按钮（占位） -->
+<view class="page">
+  <view class="menu-section">
+    <view class="menu-title">设置</view>
+    <view class="menu-card">
+      <view class="menu-item" bindtap="onComingSoon" data-name="主题">
+        <text class="menu-text">主题</text>
+        <text class="menu-arrow">›</text>
+      </view>
+      <view class="menu-item" bindtap="onComingSoon" data-name="日记字体">
+        <text class="menu-text">日记字体</text>
+        <text class="menu-arrow">›</text>
+      </view>
+      <view class="menu-item" bindtap="onComingSoon" data-name="闹钟">
+        <text class="menu-text">闹钟</text>
+        <text class="menu-arrow">›</text>
+      </view>
+      <view class="menu-item" bindtap="onComingSoon" data-name="AI模型">
+        <text class="menu-text">AI模型</text>
+        <text class="menu-arrow">›</text>
+      </view>
+      <view class="menu-item" bindtap="showAbout">
+        <text class="menu-text">关于</text>
+        <text class="menu-arrow">›</text>
+      </view>
+    </view>
+  </view>
+</view>
