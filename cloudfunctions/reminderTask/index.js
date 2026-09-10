@@ -5,7 +5,7 @@
  * 模板 ID（用户已选用「待办事项提醒」生效中，模版编号 2983，类目：备忘录）：
  *   43jTDjTJTUZd3tvis9ErkXv5Zoz0yUWPmB-7paOeGwc
  * 字段内容：
- *   事项主题 = 日记（固定值）
+ *   事项主题 = 写日记（固定值）
  *   提醒时间 = 当天日期 + 用户设的提醒时刻，如「2026年9月10日 21:00」
  *   事项描述 = 点击进入一灯记
  *
@@ -133,7 +133,7 @@ exports.main = async () => {
         templateId: TEMPLATE_ID,
         page: 'pages/write/write',
         data: {
-          [TEMPLATE_FIELDS.subject]: { value: '日记' },
+          [TEMPLATE_FIELDS.subject]: { value: '写日记' },
           [TEMPLATE_FIELDS.time]: { value: fmtDateCN(parts.year, parts.month, parts.day) + ' ' + (r.time || timeStr) },
           [TEMPLATE_FIELDS.desc]: { value: '点击进入一灯记' }
         }
