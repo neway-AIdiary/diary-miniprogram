@@ -4,8 +4,8 @@
  */
 const util = require('../../utils/util.js')
 
-// 微信公众平台「我的模板」中的订阅消息模板 ID
-const SUBSCRIBE_TPL_ID = 'vLvztBed6Og4EEVcO2phVJUYFLtKU-BlVMS-bVEqA80'
+// 微信公众平台「我的模板」中的订阅消息模板 ID（待办事项提醒，模版编号 2983）
+const SUBSCRIBE_TPL_ID = '43jTDjTJTUZd3tvis9ErkXv5Zoz0yUWPmB-7paOeGwc'
 
 // 周几标签：value 1-7（1=周一）
 const WEEKDAY_LABELS = [
@@ -32,7 +32,7 @@ function buildHintText(enabled) {
   if (enabled) {
     return '到点若未写日记，会通过微信服务通知提醒你。\n频繁推送请引导勾选「总是保持以上选择」以静默续期。'
   }
-  return '开启后需授权微信订阅消息，到点会推送「每日记录提醒」。\n授权一次可发送一条，勾选「总是保持」可静默续期。'
+  return '开启后需授权微信订阅消息，到点会推送「待办事项提醒」。\n授权一次可发送一条，勾选「总是保持」可静默续期。'
 }
 
 Page({
@@ -207,12 +207,16 @@ Page({
           })
         } else {
           onFail()
-          wx.showToast({ title: (res && res.result && res.result.error) || '保存失败', icon: 'none' })
+          const err = (res && res.result && (res.result.error || res.result.errMsg)) || '保存失败'
+          console.error('[saveReminder] 业务失败:', res)
+          wx.showModal({ title: '保存失败', content: String(err), showCancel: false })
         }
       },
-      fail: () => {
+      fail: (err) => {
+        console.error('[saveReminder] callFunction fail:', err)
         onFail()
-        wx.showToast({ title: '网络异常，请重试', icon: 'none' })
+        const msg = (err && (err.errMsg || err.message)) || '网络异常，请重试'
+        wx.showModal({ title: '保存失败', content: String(msg), showCancel: false })
       }
     })
   }

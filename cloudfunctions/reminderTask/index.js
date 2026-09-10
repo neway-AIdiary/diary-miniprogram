@@ -2,15 +2,14 @@
  * 云函数：reminderTask
  * 定时触发器（每分钟一次）—— 扫所有 enabled 提醒，按周期匹配到点且「周期内还没写过日记」的用户，推送订阅消息
  *
- * 模板 ID（用户已选用「每日记录提醒」生效中）：
- *   vLvztBed6Og4EEVcO2phVJUYFLtKU-BlVMS-bVEqA80
+ * 模板 ID（用户已选用「待办事项提醒」生效中，模版编号 2983，类目：备忘录）：
+ *   43jTDjTJTUZd3tvis9ErkXv5Zoz0yUWPmB-7paOeGwc
  * 字段内容：
- *   日期 = 2026年9月10日（当天日期）
- *   记录内容 = Hi，写日记啦
- *   已记录天数 = 该用户 written_dates 集合总数
- *   备注 = 点击进入一灯记
+ *   事项主题 = 日记（固定值）
+ *   提醒时间 = 当天日期 + 用户设的提醒时刻，如「2026年9月10日 21:00」
+ *   事项描述 = 点击进入一灯记
  *
- * ⚠️ 字段 key（date1/thing1/number1/thing2 等）是模板详情里每个字段右侧标识符。
+ * ⚠️ 字段 key（thing1/time23/thing4 等）是模板详情里每个字段右侧标识符。
  *    若发送报错 missing parameter，请到微信公众平台「订阅消息 → 我的模板 → 详情」查看真实 key 改 TEMPLATE_FIELDS。
  *
  * 数据库：
@@ -23,18 +22,16 @@ const cloud = require('wx-server-sdk')
 cloud.init({ env: cloud.DYNAMIC_CURRENT_ENV })
 const db = cloud.database()
 
-const TEMPLATE_ID = 'vLvztBed6Og4EEVcO2phVJUYFLtKU-BlVMS-bVEqA80'
+const TEMPLATE_ID = '43jTDjTJTUZd3tvis9ErkXv5Zoz0yUWPmB-7paOeGwc'
 
-// 模板字段 key（微信公众平台「每日记录提醒」模板详情实测）：
-//   日期 → date1
-//   记录内容 → thing2
-//   已记录天数 → number3
-//   备注 → thing4
+// 模板字段 key（微信公众平台「待办事项提醒」模板详情实测）：
+//   事项主题 → thing1
+//   提醒时间 → time23（「时间」类型，填「日期+时刻」格式）
+//   事项描述 → thing4
 const TEMPLATE_FIELDS = {
-  date: 'date1',
-  content: 'thing2',
-  totalDays: 'number3',
-  remark: 'thing4'
+  subject: 'thing1',
+  time: 'time23',
+  desc: 'thing4'
 }
 
 // 微信云函数运行在 UTC+0，统一按北京时间计算
@@ -129,20 +126,16 @@ exports.main = async () => {
       skipped++; continue
     }
 
-    // 算总记录天数
-    const totalDays = writtenDates.length
-
-    // 推送订阅消息
+    // 推送订阅消息（提醒时间 = 当天日期 + 用户设的提醒时刻）
     try {
       await cloud.openapi.subscribeMessage.send({
         touser: r.openid,
         templateId: TEMPLATE_ID,
         page: 'pages/write/write',
         data: {
-          [TEMPLATE_FIELDS.date]: { value: fmtDateCN(parts.year, parts.month, parts.day) },
-          [TEMPLATE_FIELDS.content]: { value: 'Hi，写日记啦' },
-          [TEMPLATE_FIELDS.totalDays]: { value: String(totalDays) },
-          [TEMPLATE_FIELDS.remark]: { value: '点击进入一灯记' }
+          [TEMPLATE_FIELDS.subject]: { value: '日记' },
+          [TEMPLATE_FIELDS.time]: { value: fmtDateCN(parts.year, parts.month, parts.day) + ' ' + (r.time || timeStr) },
+          [TEMPLATE_FIELDS.desc]: { value: '点击进入一灯记' }
         }
       })
       await db.collection('reminders').doc(r._id).update({
