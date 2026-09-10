@@ -957,6 +957,12 @@ Page({
     wx.navigateTo({ url: '/pages/setting/setting' })
   },
 
+  // 智能总结
+  goToSummary() {
+    this.setData({ showSidebar: false })
+    wx.navigateTo({ url: '/pages/summary/summary' })
+  },
+
   getUserProfile() {
     wx.getUserProfile({
       desc: '用于展示个人信息',

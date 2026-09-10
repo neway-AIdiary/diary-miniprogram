@@ -97,4 +97,10 @@
     <view class="empty-text">还没有日记，写下第一篇吧</view>
     <view class="btn-primary empty-btn" bindtap="goToWrite">写日记</view>
   </view>
+
+  <!-- 智能总结悬浮按钮 -->
+  <view class="summary-fab" bindtap="goToSummary">
+    <text class="summary-fab-icon">✨</text>
+    <text class="summary-fab-text">智能总结</text>
+  </view>
 </view>

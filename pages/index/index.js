@@ -139,6 +139,10 @@ Page({
     wx.reLaunch({ url: '/pages/write/write' })
   },
 
+  goToSummary() {
+    wx.navigateTo({ url: '/pages/summary/summary' })
+  },
+
   onShareAppMessage() {
     return {
       title: 'AI日记 — 记录每一天的故事',

@@ -1,0 +1,9 @@
+{
+  "name": "aiSummary",
+  "version": "1.0.0",
+  "description": "智能总结云函数：读取日记上下文调用 DeepSeek 生成自定义总结",
+  "main": "index.js",
+  "dependencies": {
+    "wx-server-sdk": "~2.6.3"
+  }
+}

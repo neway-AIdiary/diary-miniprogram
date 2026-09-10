@@ -1,0 +1,478 @@
+/* 智能总结页 —— 复用全局 design tokens，极简琥珀编辑风 */
+
+.page {
+  min-height: 100vh;
+  background: var(--bg);
+  padding: var(--sp-md) var(--sp-lg) 80rpx;
+  box-sizing: border-box;
+}
+
+/* ===== 筛选区（参考写日记主页左上角日期胶囊）===== */
+.filter-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--sp-sm);
+  margin-bottom: var(--sp-md);
+}
+
+.range-pill {
+  display: inline-flex;
+  align-items: center;
+  background: rgba(0, 0, 0, 0.06);
+  border-radius: 30rpx;
+  padding: 10rpx 28rpx;
+  font-size: 24rpx;
+  color: var(--ink-soft);
+}
+
+.pill-hover {
+  opacity: 0.65;
+}
+
+.chip-arrow {
+  margin-left: 8rpx;
+  font-size: 20rpx;
+  color: var(--ink-soft);
+}
+
+.range-detail {
+  font-size: 22rpx;
+  color: var(--ink-soft);
+}
+
+/* ===== 时间范围选择弹层 ===== */
+.range-mask {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.4);
+  z-index: 70;
+}
+
+.range-sheet {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 71;
+  background: var(--surface);
+  border-radius: 24rpx 24rpx 0 0;
+  padding: 28rpx 32rpx;
+  padding-bottom: calc(28rpx + env(safe-area-inset-bottom));
+}
+
+.sheet-title {
+  text-align: center;
+  font-size: 30rpx;
+  font-weight: 600;
+  color: var(--ink);
+  margin-bottom: 16rpx;
+}
+
+.range-options {
+  display: flex;
+  flex-direction: column;
+}
+
+.range-option {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 26rpx 8rpx;
+  font-size: 28rpx;
+  color: var(--ink);
+  border-bottom: 1rpx solid var(--line-soft);
+}
+
+.range-option:last-child {
+  border-bottom: none;
+}
+
+.range-option.active {
+  color: var(--brand);
+  font-weight: 500;
+}
+
+.option-check {
+  font-size: 28rpx;
+  color: var(--brand);
+}
+
+.custom-dates {
+  display: flex;
+  align-items: center;
+  gap: 16rpx;
+  margin-top: 24rpx;
+  padding: 0 8rpx;
+}
+
+.date-chip {
+  padding: 16rpx 24rpx;
+  background: var(--bg-soft);
+  border: 1rpx solid var(--line);
+  border-radius: var(--r-md);
+  font-size: 26rpx;
+  color: var(--ink);
+}
+
+.date-chip.placeholder {
+  color: var(--ink-faint);
+}
+
+.date-sep {
+  font-size: 24rpx;
+  color: var(--ink-soft);
+}
+
+.sheet-btn {
+  margin-top: 32rpx;
+  height: 88rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--brand);
+  color: var(--ink-invert);
+  border-radius: var(--r-pill);
+  font-size: 30rpx;
+  font-weight: 500;
+}
+
+.sheet-btn:active {
+  opacity: 0.85;
+}
+
+/* ===== 输入区 ===== */
+.input-card {
+  background: var(--surface);
+  border: 1rpx solid var(--line-soft);
+  border-radius: var(--r-lg);
+  padding: var(--sp-md);
+  box-shadow: var(--shadow-sm);
+  margin-bottom: var(--sp-md);
+  position: relative;
+}
+
+.input-placeholder {
+  position: absolute;
+  top: 44rpx;
+  left: 44rpx;
+  right: 44rpx;
+  pointer-events: none;
+  font-size: 30rpx;
+  color: var(--ink-faint);
+  line-height: 1.7;
+}
+
+.placeholder-sub {
+  font-size: 24rpx;
+  color: var(--ink-faint);
+  margin-top: 8rpx;
+}
+
+.prompt-textarea {
+  width: 100%;
+  min-height: 180rpx;
+  font-size: 30rpx;
+  line-height: 1.7;
+  color: var(--ink);
+}
+
+.input-actions {
+  display: flex;
+  align-items: center;
+  margin-top: var(--sp-sm);
+}
+
+/* 中间区：与写日记主页底栏结构一致 */
+.input-middle {
+  flex: 1;
+  min-width: 0;
+  margin-right: 12rpx;
+}
+
+/* 按住说话：尺寸/圆角/底色与写日记主页底栏完全一致 */
+.hold-talk {
+  height: 80rpx;
+  background: var(--line-soft);
+  border-radius: 40rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 28rpx;
+  color: var(--ink);
+}
+
+.hold-talk:active,
+.hold-talk.recording {
+  background: var(--line);
+  color: var(--brand);
+}
+
+.hold-talk.connecting {
+  color: var(--ink-soft);
+}
+
+.generate-btn {
+  width: 176rpx;
+  height: 80rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, var(--brand-bright) 0%, var(--brand) 55%, var(--brand-deep) 100%);
+  color: var(--ink-invert);
+  border: none;
+  border-radius: 40rpx;
+  font-size: 28rpx;
+  font-weight: 500;
+  line-height: 1;
+  padding: 0;
+  box-shadow: var(--shadow-brand);
+  margin: 0;
+}
+
+.generate-btn::after { border: none; }
+
+.generate-btn.disabled {
+  background: var(--brand-soft);
+  color: var(--ink-invert);
+  box-shadow: none;
+  opacity: 0.7;
+}
+
+/* ===== 快捷模板（竖向分行列表）===== */
+.shortcuts {
+  display: flex;
+  flex-direction: column;
+  gap: 12rpx;
+  margin-bottom: var(--sp-md);
+}
+
+.shortcut {
+  padding: 22rpx 24rpx;
+  background: var(--surface);
+  border: 1rpx solid var(--line-soft);
+  border-radius: var(--r-md);
+  font-size: 26rpx;
+  color: var(--ink-mid);
+}
+
+.shortcut:active {
+  background: var(--brand-tint-08);
+  border-color: var(--brand-tint-25);
+}
+
+/* ===== 结果区 ===== */
+.result-area {
+  margin-top: var(--sp-sm);
+}
+
+.result-placeholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 120rpx 0;
+}
+
+.placeholder-icon {
+  font-size: 64rpx;
+  opacity: 0.4;
+  margin-bottom: var(--sp-md);
+}
+
+.placeholder-text {
+  font-size: 26rpx;
+  color: var(--ink-soft);
+}
+
+.result-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 100rpx 0;
+}
+
+.loading-text {
+  font-size: 26rpx;
+  color: var(--ink-soft);
+  margin-top: var(--sp-md);
+}
+
+.result-error {
+  padding: 40rpx;
+  text-align: center;
+  color: var(--danger);
+  font-size: 26rpx;
+}
+
+.result-card {
+  background: var(--surface);
+  border: 1rpx solid var(--line-soft);
+  border-radius: var(--r-lg);
+  box-shadow: var(--shadow-sm);
+  overflow: hidden;
+}
+
+.result-header {
+  padding: var(--sp-md) var(--sp-md) var(--sp-sm);
+  border-bottom: 1rpx solid var(--line-soft);
+}
+
+.result-title {
+  font-family: var(--font-display);
+  font-size: 22rpx;
+  color: var(--brand);
+  letter-spacing: 1rpx;
+  margin-bottom: 8rpx;
+}
+
+.result-prompt {
+  font-size: 28rpx;
+  color: var(--ink);
+  line-height: 1.6;
+}
+
+.result-meta {
+  padding: 0 var(--sp-md) var(--sp-sm);
+  font-size: 22rpx;
+  color: var(--ink-soft);
+}
+
+.result-scroll {
+  max-height: 600rpx;
+  padding: var(--sp-sm) var(--sp-md) var(--sp-md);
+  box-sizing: border-box;
+}
+
+.result-content {
+  font-size: 30rpx;
+  line-height: 1.8;
+  color: var(--ink);
+  word-break: break-all;
+}
+
+/* 结果操作按钮 */
+.result-actions {
+  display: flex;
+  gap: var(--sp-sm);
+  margin-top: var(--sp-md);
+}
+
+.action-btn {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8rpx;
+  padding: 24rpx 8rpx;
+  background: var(--surface);
+  border: 1rpx solid var(--line-soft);
+  border-radius: var(--r-md);
+}
+
+.action-btn:active {
+  background: var(--brand-tint-08);
+}
+
+.action-icon {
+  font-size: 40rpx;
+}
+
+.action-text {
+  font-size: 24rpx;
+  color: var(--ink-mid);
+}
+
+/* ===== 语音录音浮层 ===== */
+.voice-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.voice-modal-mask {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(42, 38, 34, 0.4);
+}
+
+.voice-modal-body {
+  position: relative;
+  width: 520rpx;
+  background: var(--surface);
+  border-radius: var(--r-lg);
+  padding: 48rpx;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  box-shadow: var(--shadow-md);
+}
+
+.voice-dot {
+  width: 24rpx;
+  height: 24rpx;
+  border-radius: 50%;
+  background: var(--brand);
+  margin-bottom: var(--sp-md);
+}
+
+.voice-dot.pulse {
+  animation: voicePulse 1.2s ease-in-out infinite;
+}
+
+@keyframes voicePulse {
+  0%, 100% { opacity: 0.4; transform: scale(1); }
+  50% { opacity: 1; transform: scale(1.3); }
+}
+
+.voice-title {
+  font-size: 28rpx;
+  color: var(--ink);
+  margin-bottom: var(--sp-md);
+}
+
+.voice-text-scroll {
+  max-height: 200rpx;
+  width: 100%;
+}
+
+.voice-text {
+  font-size: 28rpx;
+  color: var(--ink-mid);
+  line-height: 1.7;
+  word-break: break-all;
+}
+
+/* 加载动画点 */
+.gen-dots {
+  display: flex;
+  gap: 12rpx;
+}
+
+.gen-dots .dot {
+  width: 14rpx;
+  height: 14rpx;
+  border-radius: 50%;
+  background: var(--brand);
+  animation: dotPulse 1.2s ease-in-out infinite;
+}
+
+.gen-dots .dot2 { animation-delay: 0.2s; }
+.gen-dots .dot3 { animation-delay: 0.4s; }
+
+@keyframes dotPulse {
+  0%, 100% { opacity: 0.3; transform: translateY(0); }
+  50% { opacity: 1; transform: translateY(-6rpx); }
+}

@@ -1,0 +1,151 @@
+<!-- 智能总结页 -->
+<view class="page">
+
+  <!-- 筛选区：时间范围（单胶囊，点击在弹层内选择） -->
+  <view class="filter-row">
+    <view class="range-pill" hover-class="pill-hover" bindtap="openRangePicker">
+      <text>📅 {{rangeLabel}}</text>
+      <text class="chip-arrow">▾</text>
+    </view>
+    <text class="range-detail" wx:if="{{range === 'custom' && customStart && customEnd}}">{{customStart}} 至 {{customEnd}}</text>
+  </view>
+
+  <!-- 提问输入区 -->
+  <view class="input-card">
+    <view class="input-placeholder" wx:if="{{!prompt}}">
+      <view>输入或说出你的总结需求</view>
+      <view class="placeholder-sub">例：汇总本月情绪变化、统计所有通勤相关日记</view>
+    </view>
+    <textarea
+      class="prompt-textarea"
+      value="{{prompt}}"
+      bindinput="onPromptInput"
+      maxlength="-1"
+      auto-height
+      show-confirm-bar="{{false}}"
+      cursor-spacing="20"
+    />
+    <!-- 底栏：与写日记主页底栏一致（无表情 / 无加号） -->
+    <view class="input-actions">
+      <view class="input-middle">
+        <view
+          class="hold-talk {{recording ? 'recording' : ''}} {{connecting ? 'connecting' : ''}}"
+          bindtouchstart="onHoldStart"
+          bindtouchend="onHoldEnd"
+          bindtouchcancel="onHoldEnd"
+        >{{recording ? '松开 结束' : (connecting ? '连接中…' : '按住 说话')}}</view>
+      </view>
+      <button class="generate-btn {{prompt ? '' : 'disabled'}}" disabled="{{!prompt || loading}}" bindtap="onGenerate">{{loading ? '生成中…' : '生成总结'}}</button>
+    </view>
+  </view>
+
+  <!-- 快捷模板标签栏（竖向分行列表） -->
+  <view class="shortcuts">
+    <view
+      class="shortcut"
+      wx:for="{{shortcuts}}"
+      wx:key="label"
+      bindtap="onShortcut"
+      data-fill="{{item.fill}}"
+    >{{item.label}}</view>
+  </view>
+
+  <!-- AI 结果展示区 -->
+  <view class="result-area">
+    <!-- 初始状态 -->
+    <view class="result-placeholder" wx:if="{{!loading && !error && !hasResult}}">
+      <view class="placeholder-icon">✨</view>
+      <view class="placeholder-text">提交需求后，AI 将基于你的日记生成总结</view>
+    </view>
+
+    <!-- Loading -->
+    <view class="result-loading" wx:if="{{loading}}">
+      <view class="gen-dots">
+        <view class="dot dot1"></view>
+        <view class="dot dot2"></view>
+        <view class="dot dot3"></view>
+      </view>
+      <view class="loading-text">正在读取日记，AI 正在分析，请稍候…</view>
+    </view>
+
+    <!-- 错误 -->
+    <view class="result-error" wx:if="{{error && !loading}}">
+      <text>{{error}}</text>
+    </view>
+
+    <!-- 成功结果 -->
+    <block wx:if="{{hasResult && !loading}}">
+      <view class="result-card">
+        <view class="result-header">
+          <view class="result-title">你的需求</view>
+          <view class="result-prompt">{{prompt}}</view>
+        </view>
+        <view class="result-meta" wx:if="{{diaryCount > 0}}">共读取 {{diaryCount}} 篇日记进行分析{{truncated ? '（日记较多，已选取最近部分）' : ''}}</view>
+        <scroll-view class="result-scroll" scroll-y enhanced show-scrollbar="{{false}}">
+          <rich-text class="result-content" nodes="{{resultHtml}}"></rich-text>
+        </scroll-view>
+      </view>
+
+      <!-- 结果操作按钮 -->
+      <view class="result-actions">
+        <view class="action-btn" bindtap="onCopy">
+          <text class="action-icon">📋</text>
+          <text class="action-text">复制总结</text>
+        </view>
+        <view class="action-btn" bindtap="onSave">
+          <text class="action-icon">💾</text>
+          <text class="action-text">保存为日记</text>
+        </view>
+        <view class="action-btn" bindtap="onReset">
+          <text class="action-icon">🔄</text>
+          <text class="action-text">重新提问</text>
+        </view>
+      </view>
+    </block>
+  </view>
+
+  <!-- 时间范围选择弹层 -->
+  <view class="range-mask" wx:if="{{showRangePicker}}" bindtap="closeRangePicker"></view>
+  <view class="range-sheet" wx:if="{{showRangePicker}}">
+    <view class="sheet-title">选择时间范围</view>
+
+    <view class="range-options">
+      <view
+        class="range-option {{range === item.key ? 'active' : ''}}"
+        wx:for="{{rangeList}}"
+        wx:key="key"
+        data-key="{{item.key}}"
+        bindtap="selectRange"
+      >
+        <text>{{item.label}}</text>
+        <text class="option-check" wx:if="{{range === item.key}}">✓</text>
+      </view>
+    </view>
+
+    <!-- 自定义起止日期（仅选「自定义」时展开） -->
+    <view class="custom-dates" wx:if="{{range === 'custom'}}">
+      <picker mode="date" value="{{customStart}}" bindchange="onCustomStart">
+        <view class="date-chip {{customStart ? '' : 'placeholder'}}">{{customStart || '开始日期'}}</view>
+      </picker>
+      <view class="date-sep">至</view>
+      <picker mode="date" value="{{customEnd}}" bindchange="onCustomEnd">
+        <view class="date-chip {{customEnd ? '' : 'placeholder'}}">{{customEnd || '结束日期'}}</view>
+      </picker>
+    </view>
+
+    <view class="sheet-btn" wx:if="{{range === 'custom'}}" bindtap="confirmRange">确定</view>
+  </view>
+
+  <!-- 语音录音浮层（简化） -->
+  <view class="voice-modal" wx:if="{{recording || transcribing}}">
+    <view class="voice-modal-mask"></view>
+    <view class="voice-modal-body">
+      <view class="voice-dot {{recording ? 'pulse' : ''}}"></view>
+      <view class="voice-title">{{transcribing ? '语音识别中' : '正在聆听'}}</view>
+      <scroll-view class="voice-text-scroll" scroll-y enhanced show-scrollbar="{{false}}">
+        <text class="voice-text">{{liveText || (recording ? '请说话…' : '识别中…')}}</text>
+      </scroll-view>
+    </view>
+  </view>
+
+</view>

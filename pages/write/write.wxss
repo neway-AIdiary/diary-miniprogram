@@ -1385,6 +1385,26 @@
   top: 8rpx;
 }
 
+/* 智能总结：四角星（sparkle）+ 中心点 */
+.icon-summary::before {
+  width: 20rpx;
+  height: 20rpx;
+  border: 4rpx solid currentColor;
+  border-radius: 3rpx;
+  transform: rotate(45deg);
+  left: 14rpx;
+  top: 14rpx;
+}
+
+.icon-summary::after {
+  width: 6rpx;
+  height: 6rpx;
+  border-radius: 50%;
+  background: currentColor;
+  left: 21rpx;
+  top: 21rpx;
+}
+
 /* 云端备份：云朵 + 向上箭头 */
 .icon-backup::before {
   width: 28rpx;

@@ -320,3 +320,34 @@
   padding: 20rpx 72rpx;
   display: inline-block;
 }
+
+/* ===== 智能总结悬浮按钮（右下角，层级高于日记卡片） ===== */
+.summary-fab {
+  position: fixed;
+  right: 32rpx;
+  bottom: 64rpx;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  gap: 10rpx;
+  padding: 22rpx 32rpx;
+  background: linear-gradient(135deg, var(--brand-bright) 0%, var(--brand) 55%, var(--brand-deep) 100%);
+  border-radius: var(--r-pill);
+  box-shadow: var(--shadow-brand);
+}
+
+.summary-fab:active {
+  transform: translateY(2rpx);
+  box-shadow: 0 6rpx 14rpx var(--brand-shadow-22);
+}
+
+.summary-fab-icon {
+  font-size: 32rpx;
+  line-height: 1;
+}
+
+.summary-fab-text {
+  font-size: 28rpx;
+  color: var(--ink-invert);
+  font-weight: 500;
+}

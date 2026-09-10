@@ -300,6 +300,11 @@
             <text class="s-menu-text">云端备份</text>
             <text class="s-arrow">›</text>
           </view>
+          <view class="s-menu-item" bindtap="goToSummary">
+            <view class="s-menu-icon icon-summary"></view>
+            <text class="s-menu-text">智能总结</text>
+            <text class="s-arrow">›</text>
+          </view>
           <view class="s-menu-item" bindtap="goToSetting">
             <view class="s-menu-icon icon-setting"></view>
             <text class="s-menu-text">设置</text>
