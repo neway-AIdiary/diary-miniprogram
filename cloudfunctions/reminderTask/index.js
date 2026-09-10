@@ -30,12 +30,12 @@ const TEMPLATE_ID = 'vLvztBed6Og4EEVcO2phVJUYFLtKU-BlVMS-bVEqA80'
 //   日期(YYYY年M月D日) → date1
 //   记录内容(Hi，写日记啦) → thing1
 //   已记录天数(数字) → number3
-//   备注(点击进入一灯记) → thing2
+//   备注(点击进入一灯记) → thing4
 const TEMPLATE_FIELDS = {
   date: 'date1',
   content: 'thing1',
   totalDays: 'number3',
-  remark: 'thing2'
+  remark: 'thing4'
 }
 
 // 微信云函数运行在 UTC+0，统一按北京时间计算
