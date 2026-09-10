@@ -25,15 +25,14 @@ const db = cloud.database()
 
 const TEMPLATE_ID = 'vLvztBed6Og4EEVcO2phVJUYFLtKU-BlVMS-bVEqA80'
 
-// 模板字段 key（按微信公众平台「我的模板 → 详情」实际标识填）
-// 模板名：每日记录提醒
-//   日期(YYYY年M月D日) → date1
-//   记录内容(Hi，写日记啦) → thing1
-//   已记录天数(数字) → number3
-//   备注(点击进入一灯记) → thing4
+// 模板字段 key（微信公众平台「每日记录提醒」模板详情实测）：
+//   日期 → date1
+//   记录内容 → thing2
+//   已记录天数 → number3
+//   备注 → thing4
 const TEMPLATE_FIELDS = {
   date: 'date1',
-  content: 'thing1',
+  content: 'thing2',
   totalDays: 'number3',
   remark: 'thing4'
 }
