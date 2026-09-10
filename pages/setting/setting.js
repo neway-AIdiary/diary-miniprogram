@@ -1,10 +1,15 @@
 Page({
   data: {},
 
-  // 占位功能按钮：主题 / 日记字体 / 闹钟 / AI模型
+  // 占位功能按钮：主题 / 日记字体 / AI模型
   onComingSoon(e) {
     const name = e.currentTarget.dataset.name || '该功能'
     wx.showToast({ title: name + '功能开发中', icon: 'none' })
+  },
+
+  // 闹钟：跳到闹钟设置页
+  goToReminder() {
+    wx.navigateTo({ url: '/pages/setting-reminder/setting-reminder' })
   },
 
   // 关于：复用原侧栏介绍弹窗

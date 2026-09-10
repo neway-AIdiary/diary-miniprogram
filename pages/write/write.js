@@ -1302,6 +1302,9 @@ Page({
       this.resetAfterSave(diaryDate)
       wx.showToast({ title: '保存成功', icon: 'success' })
 
+      // 上报「今天已写」（闹钟判断依据），失败静默
+      reminder.callMarkWritten(diaryDate)
+
       // 保存后检测新实体，检测完再跳转详情
       this.checkNewEntities(savedContent)
     }).catch(() => {

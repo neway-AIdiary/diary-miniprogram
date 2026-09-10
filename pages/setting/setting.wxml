@@ -11,7 +11,7 @@
         <text class="menu-text">日记字体</text>
         <text class="menu-arrow">›</text>
       </view>
-      <view class="menu-item" bindtap="onComingSoon" data-name="闹钟">
+      <view class="menu-item" bindtap="goToReminder">
         <text class="menu-text">闹钟</text>
         <text class="menu-arrow">›</text>
       </view>

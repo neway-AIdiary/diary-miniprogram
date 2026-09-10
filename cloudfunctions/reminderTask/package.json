@@ -1,0 +1,9 @@
+{
+  "name": "reminderTask",
+  "version": "1.0.0",
+  "description": "定时触发器：到点且周期内没写日记就推送订阅消息",
+  "main": "index.js",
+  "dependencies": {
+    "wx-server-sdk": "~2.6.3"
+  }
+}

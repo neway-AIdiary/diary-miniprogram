@@ -1,0 +1,14 @@
+{
+  "permissions": {
+    "openapi": [
+      "subscribeMessage.send"
+    ]
+  },
+  "triggers": [
+    {
+      "name": "reminderTaskTrigger",
+      "type": "timer",
+      "config": "0 * * * * * *"
+    }
+  ]
+}

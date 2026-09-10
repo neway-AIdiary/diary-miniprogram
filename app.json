@@ -6,7 +6,8 @@
     "pages/detail/detail",
     "pages/archive/archive",
     "pages/backup/backup",
-    "pages/setting/setting"
+    "pages/setting/setting",
+    "pages/setting-reminder/setting-reminder"
   ],
   "window": {
     "navigationBarBackgroundColor": "#F8F4EE",

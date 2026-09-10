@@ -1,0 +1,9 @@
+{
+  "name": "markWritten",
+  "version": "1.0.0",
+  "description": "用户写日记成功后上报「某 openid 在某日期写过日记」",
+  "main": "index.js",
+  "dependencies": {
+    "wx-server-sdk": "~2.6.3"
+  }
+}

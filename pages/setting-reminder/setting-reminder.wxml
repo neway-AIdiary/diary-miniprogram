@@ -1,0 +1,51 @@
+<!-- 闹钟提醒设置：周期 / 时间 / 周几 / 开关 -->
+<view class="page">
+  <!-- 周期 -->
+  <view class="card">
+    <view class="card-title">提醒周期</view>
+    <view class="cycle-tabs">
+      <view class="cycle-tab {{cycle === 'daily' ? 'active' : ''}}" data-cycle="daily" bindtap="onPickCycle">
+        <text>每日</text>
+      </view>
+      <view class="cycle-tab {{cycle === 'weekly' ? 'active' : ''}}" data-cycle="weekly" bindtap="onPickCycle">
+        <text>每周</text>
+      </view>
+    </view>
+
+    <!-- 提醒时间（picker 包住时间行，点击触发系统时间选择器） -->
+    <picker mode="time" value="{{time}}" bindchange="onTimeChange">
+      <view class="field-row">
+        <text class="field-label">提醒时间</text>
+        <view class="field-value-wrap">
+          <text class="field-value">{{time}}</text>
+          <text class="field-arrow">›</text>
+        </view>
+      </view>
+    </picker>
+
+    <!-- 周几（仅 weekly 显示） -->
+    <view wx:if="{{cycle === 'weekly'}}" class="weekday-row">
+      <view class="weekday-label">周几提醒</view>
+      <view class="weekday-list">
+        <view
+          wx:for="{{weekdayLabels}}"
+          wx:key="index"
+          class="weekday-item {{dayOfWeek === item.value ? 'active' : ''}}"
+          data-day="{{item.value}}"
+          bindtap="onPickWeekday"
+        >
+          <text>{{item.label}}</text>
+        </view>
+      </view>
+    </view>
+  </view>
+
+  <!-- 底部状态卡 -->
+  <view class="bottom-card">
+    <view class="bottom-status">
+      <view class="status-text">{{statusText}}</view>
+      <switch checked="{{enabled}}" bindchange="onToggle" color="#C0773A" />
+    </view>
+    <view class="hint-text">{{hintText}}</view>
+  </view>
+</view>

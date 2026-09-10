@@ -4,6 +4,7 @@ const voice = require('../../utils/voice.js')
 const aiEdit = require('../../utils/aiEdit.js')
 const mediaGuard = require('../../utils/mediaGuard.js')
 const share = require('../../utils/share.js')
+const reminder = require('../../utils/reminder.js')
 const app = getApp()
 
 // 编辑模式媒体限额（与写日记页一致）：图片最多 6 张、视频最多 2 个（按日记所属日期统计）
