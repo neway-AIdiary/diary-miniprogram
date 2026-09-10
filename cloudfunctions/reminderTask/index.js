@@ -27,15 +27,14 @@ const TEMPLATE_ID = 'vLvztBed6Og4EEVcO2phVJUYFLtKU-BlVMS-bVEqA80'
 
 // 模板字段 key（按微信公众平台「我的模板 → 详情」实际标识填）
 // 模板名：每日记录提醒
-//   日期(YYYY年M月D日) → 日期型字段
-//   记录内容(Hi，写日记啦) → 文本型字段
-//   已记录天数(数字) → 数字型字段
-//   备注(点击进入一灯记) → 文本型字段
-// 真实 key 以公众平台为准；常见命名 date1/thing1/number1/thing2。
+//   日期(YYYY年M月D日) → date1
+//   记录内容(Hi，写日记啦) → thing1
+//   已记录天数(数字) → number3
+//   备注(点击进入一灯记) → thing2
 const TEMPLATE_FIELDS = {
   date: 'date1',
   content: 'thing1',
-  totalDays: 'number1',
+  totalDays: 'number3',
   remark: 'thing2'
 }
 
