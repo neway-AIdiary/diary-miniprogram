@@ -15,7 +15,7 @@
  *   { success: false, error }                               失败/限流
  *
  * 限流（防费用暴增）：
- *   - 单用户每日上限 5 次（按北京时间自然日），超出返回友好提示
+ *   - 单用户每日上限见 DAILY_LIMIT（10 次，按北京时间自然日），超出返回友好提示
  *   - 单次最多处理 365 篇，超出丢弃最早日记并裁剪
  *   - 拼接日记上下文控制总字符上限，超出自动丢弃最早日记
  *
@@ -36,9 +36,9 @@ const API_PATH = '/chat/completions'
 const MODEL = 'deepseek-chat'
 
 // 限流配置
-const DAILY_LIMIT = 5          // 单用户每日最多 5 次
+const DAILY_LIMIT = 10          // 单用户每日最多次数（按北京时间自然日）
 const MAX_DIARIES = 365        // 单次最多读取 365 篇
-const MAX_CONTEXT_CHARS = 12000 // 拼接日记上下文总字符上限（超出裁剪最早日记）
+const MAX_CONTEXT_CHARS = 50000 // 拼接日记上下文总字符上限（约可容纳一年日记；超出仍裁剪最早日记）
 
 // 微信云函数运行在 UTC+0，统一按北京时间计算
 function getBeijingDateKey() {
@@ -70,9 +70,13 @@ function callDeepSeek(messages) {
       },
       timeout: 60000 // 总结可能耗时较长，放宽到 60s
     }, (res) => {
-      let data = ''
-      res.on('data', (chunk) => { data += chunk })
+      // 关键：按字节块收集，最后一次性整体 UTF-8 解码。
+      // 若写成 data += chunk，会逐块解码，多字节字符（中文 3 字节、emoji 4 字节）
+      // 恰好被切在块边界时会解码失败，变成 U+FFFD 乱码（界面上显示为「♦?」）。
+      const chunks = []
+      res.on('data', (chunk) => { chunks.push(chunk) })
       res.on('end', () => {
+        const data = Buffer.concat(chunks).toString('utf8')
         try {
           resolve({ status: res.statusCode, body: JSON.parse(data) })
         } catch (e) {
@@ -94,8 +98,10 @@ function buildSystemPrompt() {
     '要求：',
     '1. 只用提供的日记内容，不要编造不存在信息；',
     '2. 语言简洁自然，贴合日记风格；',
-    '3. 可以分段，支持简单markdown列表；',
-    '4. 如果信息不足，如实告知用户。'
+    '3. 可以分段，需要罗列时用「- 」开头的简单列表；',
+    '4. 内容有明显分节时（如按主题、按维度分类），用小标题分节：小标题单独占一行，以「## 」开头（只用两个 #，不要用 # 或 ###）；',
+    '5. 不要使用其他 markdown 符号（如加粗 **）和任何 emoji / 表情符号装饰文字；',
+    '6. 如果信息不足，如实告知用户。'
   ].join('\n')
 }
 
@@ -122,6 +128,32 @@ function buildDiaryContext(diaries) {
   }
   blocks.reverse() // 回到升序
   return { text: blocks.join('\n\n'), count: blocks.length }
+}
+
+/**
+ * 正文排版归一化（前端是纯文本展示，不吃 markdown 标记）：
+ *   - 行首的 markdown 标题（# / ## / ###…）统一转成符号行：一级「◆ 标题」、二级及更深「◇ 标题」
+ *   - 小标题前补一个空行，让分段更透气
+ *   - 去掉行内加粗标记 **xxx**（符号已承担强调作用，留着反而会显示成星号）
+ * 说明：模型仍按 markdown 输出（结构化最稳定），由这里翻译成符号，保证
+ *      总结结果页 / 保存后的日记详情 / 分享文案 三处显示一致。
+ */
+function normalizeSummaryText(text) {
+  const lines = String(text || '').replace(/\r\n?/g, '\n').split('\n')
+  const out = []
+  for (const raw of lines) {
+    const line = raw.replace(/\s+$/, '')
+    const m = line.match(/^\s*(#{1,6})\s*(.*)$/)
+    if (m) {
+      const symbol = m[1].length <= 2 ? '◆' : '◇'
+      if (out.length && out[out.length - 1] !== '') out.push('') // 标题前保证空行
+      out.push(symbol + ' ' + m[2].replace(/\*\*/g, '').trim())
+      continue
+    }
+    out.push(line.replace(/\*\*/g, ''))
+  }
+  // 去掉标题后可能出现的连续空行（最多保留一个）
+  return out.join('\n').replace(/\n{3,}/g, '\n\n').trim()
 }
 
 // 限流：单用户每日次数检查 + 计数
@@ -186,7 +218,7 @@ exports.main = async (event) => {
 
     return {
       success: true,
-      summaryText: summaryText.trim(),
+      summaryText: normalizeSummaryText(summaryText),
       diaryCount: ctx.count,
       quotaUsed: quota.used,
       truncated: ctx.count < diaries.length // 是否因超长被裁剪（提示用户日记较多）

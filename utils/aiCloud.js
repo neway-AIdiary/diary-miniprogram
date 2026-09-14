@@ -24,6 +24,8 @@ function stripMoodTail(text) {
  */
 const localAI = require('./ai.js')
 const util = require('./util.js')
+const storage = require('./storage.js')
+const entityClean = require('./entityClean.js')
 
 /**
  * 调用 AI
@@ -368,13 +370,15 @@ function localExtractExplainedEntities(content) {
     }
     desc = cut(desc)
     if (!name || !desc) return
-    // 硬规则：name 必须是 2-4 字的名词；description 必须有实际解释意义
-    if (name.length < 2 || name.length > 4 || desc.length < 4 || desc.length > 30) return
+    // 硬规则：name 必须是 2-6 字的名词；description 必须有实际解释意义
+    if (name.length < 2 || name.length > 6 || desc.length < 4 || desc.length > 30) return
     if (STOP.indexOf(name) !== -1) return
     // 名词不能以指示/人称代词开头（如「这是我的母校」误匹配为名词）
     if (/^[这那他她它们我你您]./.test(name)) return
     // name 里不能出现叙述词/连接词/动词
     if (INVALID_NAME_WORDS.some(w => name.indexOf(w) !== -1)) return
+    // 与页面侧同一道机械校验：排除虚词（分别/一共…）与带助词的短语（的第一天…），并要求原文确有定义句式
+    if (!entityClean.isExplainedNoun(name, text)) return
     // 与已提取结果重叠（同一名词的重复匹配/脏匹配）→ 跳过
     if (results.some(r => name.indexOf(r.name) !== -1 || name.indexOf(r.description) !== -1)) return
     // 解释规范化：「我大学同学」→「我的大学同学」（句中已有"的"则保持原样）
@@ -387,7 +391,7 @@ function localExtractExplainedEntities(content) {
   }
 
   // 模式1：X（，/：）(这是|他是|她是|它是|就是|也是|正是|是|叫|名叫|叫做)解释
-  const re1 = /([\u4e00-\u9fa5A-Za-z0-9·]{2,4})(?:[，,：:]\s*)?(?:这是|他是|她是|它是|就是|也是|正是|是|叫|名叫|叫做)([\u4e00-\u9fa5A-Za-z0-9·]{2,20}(?:的[\u4e00-\u9fa5A-Za-z0-9·]{1,10})?)/g
+  const re1 = /([\u4e00-\u9fa5A-Za-z0-9·]{2,6})(?:[，,：:]\s*)?(?:这是|他是|她是|它是|就是|也是|正是|是|叫|名叫|叫做)([\u4e00-\u9fa5A-Za-z0-9·]{2,20}(?:的[\u4e00-\u9fa5A-Za-z0-9·]{1,10})?)/g
   let m
   while ((m = re1.exec(text)) !== null) {
     // explanation：解释在原文中的逐字片段（名词之后的部分，去掉前导标点）
@@ -406,7 +410,7 @@ function localExtractExplainedEntities(content) {
   }
 
   // 模式2：X，我的xx（逗号后直接以"我的"开头，无"是"引导）
-  const re2 = /([\u4e00-\u9fa5A-Za-z0-9·]{2,4})[，,]\s*(我[的]?[\u4e00-\u9fa5A-Za-z0-9·]{2,18})/g
+  const re2 = /([\u4e00-\u9fa5A-Za-z0-9·]{2,6})[，,]\s*(我[的]?[\u4e00-\u9fa5A-Za-z0-9·]{2,18})/g
   while ((m = re2.exec(text)) !== null) {
     push(m[1], m[2], m[2])
     if (results.length >= 8) return results
@@ -466,14 +470,14 @@ function callAIExtractEntities(content) {
         // 云端旧版未返回 description（云函数未重新部署）→ 本地规则兜底补解释
         const hasDesc = r.entities.some(e => e && e.description)
         if (hasDesc) {
-          // 硬校验：只保留"解释真实存在于原文"且 name 是 2-4 字名词、解释内容 4-30 字的实体（AI 编造/过短/过长/非名词全部过滤）
+          // 硬校验：只保留"解释真实存在于原文"且 name 是 2-6 字名词、解释内容 4-30 字的实体（AI 编造/过短/过长/非名词全部过滤）
           const INVALID_NAME_WORDS = ['是', '去', '上', '让', '带', '做', '吃', '待', '等', '为了', '然后', '又', '还', '也', '就', '和', '跟', '与', '同', '在', '到', '从', '把', '被', '给', '叫', '说', '看', '来', '走', '想', '要', '会', '能', '可以']
           const valid = r.entities.filter(e => {
             if (!e || !e.name || !e.description) return false
             const name = String(e.name).trim()
             const desc = String(e.description).trim()
-            // name 必须是 2-4 字名词；description 必须有实际解释意义
-            if (name.length < 2 || name.length > 4) return false
+            // name 必须是 2-6 字名词；description 必须有实际解释意义
+            if (name.length < 2 || name.length > 6) return false
             if (desc.length < 4 || desc.length > 30) return false
             // name 里不能出现叙述词/连接词/动词
             if (INVALID_NAME_WORDS.some(w => name.indexOf(w) !== -1)) return false
@@ -501,11 +505,11 @@ function callAIExtractEntities(content) {
       console.warn('[aiCloud] AI 提取实体调用失败:', err && err.errMsg)
       finish({ entities: localExtractExplainedEntities(text), from: 'local' })
     })
-    // 保存流程不能卡太久
+    // 保存流程不能卡太久；7 秒先降级本地规则，确保赶在页面等待上限之前返回结果
     const timer = setTimeout(() => {
-      console.warn('[aiCloud] AI 提取实体超时(15s)')
+      console.warn('[aiCloud] AI 提取实体超时(7s)，降级本地规则')
       finish({ entities: localExtractExplainedEntities(text), from: 'local' })
-    }, 15000)
+    }, 7000)
   })
 }
 
@@ -571,4 +575,80 @@ function callAIMergeDiary(oldContent, newContent, opts) {
   })
 }
 
-module.exports = { callAI, callAIParse, callAIExtractMetaBatch, callAITags, callAIOrganizeArchive, callAIExtractEntities, callAIMergeDiary, stripMoodTail }
+/**
+ * 保存后的静默自动分段（异步路线 B：保存永远秒存，分段在后台悄悄完成）
+ *
+ * 触发条件（三条都不满足则直接跳过，一次 AI 调用都不发）：
+ *   1. 正文有效字符 >= 300（短日记不需要分段）
+ *   2. 换行数 < 3（用户已自行分段的不再处理）
+ *   3. 非 AI 总结类产物（总结已有 ◆ 结构，且按规则不参与 AI 处理）
+ *
+ * 安全保障：
+ *   - 云函数 + 前端双重忠实性校验（去空白后逐字一致），AI 擅自改字则丢弃结果
+ *   - 回写前比对存储中内容是否仍是发送时的原文，防止覆盖期间的用户编辑
+ *   - 全程静默：任何失败（网络/超时/校验不过）都保持原文，不影响已保存的日记
+ *
+ * @param {string} diaryId 已保存日记的 id
+ */
+function autoSegmentAfterSave(diaryId) {
+  let content = ''
+  let isSummary = false
+  try {
+    const diary = storage.getDiaryById(diaryId)
+    if (!diary) return
+    content = String(diary.content || '')
+    isSummary = util.isAiSummaryDiary(diary)
+    if (content.replace(/\s+/g, '').length < 300) return       // 太短：不需要分段
+    if ((content.match(/\n/g) || []).length >= 3) return       // 已有分段：不再处理
+    if (isSummary) return                                      // 总结类排除
+  } catch (e) {
+    return
+  }
+
+  // 云环境不可用：与 aiCloud 其他函数同样的降级防护，直接跳过（保持原文）
+  if (!wx.cloud) return
+
+  try {
+    wx.cloud.callFunction({
+      name: 'optimizeDiary',
+      data: { action: 'segment', content: content }
+    }).then(res => {
+    const r = res && res.result
+    if (!r || r.error || !r.segmented) {
+      console.warn('[aiCloud] 自动分段未成功（保持原文）:', (r && r.error) || '无segmented字段')
+      return
+    }
+    const segmented = String(r.segmented)
+    // 前端侧忠实性校验：AI 返回的去空白文本必须与原文逐字一致
+    if (segmented.replace(/\s+/g, '') !== content.replace(/\s+/g, '')) {
+      console.warn('[aiCloud] 自动分段忠实性校验未通过，保持原文')
+      return
+    }
+    // 防覆盖：分段请求期间用户可能又编辑了这篇日记（存储内容已变化），放弃回写
+    const current = storage.getDiaryById(diaryId)
+    if (!current || String(current.content || '') !== content) {
+      console.warn('[aiCloud] 日记在分段期间被修改，放弃回写')
+      return
+    }
+    const upd = storage.updateDiary(diaryId, { content: segmented })
+    if (!upd) return
+    console.log('[aiCloud] 自动分段完成，已原地更新日记', diaryId)
+    // 用户通常正停在这篇日记的详情页：原地刷新显示（编辑中则不打扰）
+    try {
+      const pages = getCurrentPages()
+      const top = pages[pages.length - 1]
+      if (top && top.route && top.route.indexOf('pages/detail/detail') !== -1 &&
+          String(top.data.id) === String(diaryId) && !top.data.editing && top.loadDetail) {
+        top.loadDetail(diaryId)
+      }
+    } catch (e) { /* 刷新失败不影响数据 */ }
+  }).catch(err => {
+    console.warn('[aiCloud] 自动分段调用失败（保持原文）:', err && err.errMsg)
+  })
+  } catch (e) {
+    // callFunction 同步抛错也不允许外泄：本函数在保存跳转链路上，抛错会炸断导航
+    console.warn('[aiCloud] 自动分段发起失败（保持原文）:', e)
+  }
+}
+
+module.exports = { callAI, callAIParse, callAIExtractMetaBatch, callAITags, callAIOrganizeArchive, callAIExtractEntities, callAIMergeDiary, autoSegmentAfterSave, stripMoodTail }

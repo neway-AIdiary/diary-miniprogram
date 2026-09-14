@@ -470,7 +470,7 @@ function buildWordHtml(diaries, imgMap, videoMap) {
     '.diary{border-top:2px solid #E5E5E5;padding:16px 0;page-break-inside:avoid}\n' +
     '.diary h2{font-size:17px;color:#C0773A;margin:0 0 8px}\n' +
     '.meta{font-size:12px;color:#888;margin:0 0 10px}\n' +
-    '.content p{margin:4px 0}\n' +
+    '.content p{margin:4px 0;text-indent:2em}\n' +
     '.media{margin:10px 0}\n' +
     '.media img{max-width:100%;width:100%;border-radius:6px;margin:4px 0;display:block}\n' +
     '.video,.location{font-size:13px;color:#555;margin:6px 0;word-break:break-all}\n' +

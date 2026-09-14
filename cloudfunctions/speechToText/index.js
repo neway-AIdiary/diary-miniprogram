@@ -103,9 +103,11 @@ function recognizeFlash(audioBuffer, format, hotwords) {
         'Content-Length': Buffer.byteLength(body)
       })
     }, (res) => {
-      let data = ''
-      res.on('data', (chunk) => { data += chunk })
+      // 按字节块收集后一次性整体 UTF-8 解码，避免多字节字符被切在块边界时变成乱码
+      const chunks = []
+      res.on('data', (chunk) => { chunks.push(chunk) })
       res.on('end', () => {
+        const data = Buffer.concat(chunks).toString('utf8')
         const code = res.headers['x-api-status-code']
         let json = null
         try { json = JSON.parse(data) } catch (e) {}

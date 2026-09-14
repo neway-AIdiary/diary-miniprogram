@@ -8,6 +8,7 @@
  *   action='organizeArchive' — AI 把用户按行输入的文本整理成结构化档案列表
  *   action='extractEntities'  — AI 从日记中提取人名/地名/机构名等实体
  *   action='merge'            — AI 把同一天的旧日记和新内容融合成一篇完整日记
+ *   action='segment'          — AI 自动划分段落（只插入换行，严禁改动任何字符）
  *
  * 事件参数（optimize/continue）：
  *   content: 用户日记内容（必填）
@@ -67,22 +68,184 @@ function buildPrompt(content, mood, action, archives, instruction) {
   }
 
   if (action === 'continue') {
+    // 角色与规则已分层至 buildSystemPrompt('continue')，此处只放动态上下文与正文
+    return [
+      archiveHint,
+      instructionHint,
+      '',
+      '用户内容：',
+      content
+    ].filter(Boolean).join('\n')
+  }
+
+  // 默认：润色（角色与规则已分层至 buildSystemPrompt('optimize')，此处只放动态上下文与正文）
+  return [
+    archiveHint,
+    instructionHint,
+    moodHint,
+    '',
+    '用户日记：',
+    content
+  ].filter(Boolean).join('\n')
+}
+
+/**
+ * 构造 optimize / continue 的 System Prompt（角色 + 规则 + 输出格式，逐字承接原 buildPrompt 内容）
+ */
+function buildSystemPrompt(action, ctx) {
+  ctx = ctx || {}
+  if (action === 'continue') {
     return [
       '你是一位富有文采的中文创作者。用户发来一段【未完成】的内容（可能是半首诗、半句词、文章开头等），请接着写下去把它补全。',
       '要求：',
       '1. 如果是古诗词：保持同样的风格与意境，注意对仗、平仄和押韵，续写的句子与原文浑然一体；',
       '2. 如果是散文或普通文字：顺着用户的语气和主题自然续写，不跑题；',
       '3. 续写部分紧接原文，不要重复用户已写的内容；',
-      '4. 完整输出「原文 + 续写内容」的最终结果。',
-      archiveHint,
-      instructionHint,
-      '',
-      '用户内容：',
-      content,
+      '4. 完整输出「原文 + 续写内容」的最终结果；',
+      '5. 不要添加 emoji / 表情符号，也不要新增 markdown 符号（如 #、##、**）；原文已有的小标题行与列表保持原样。',
       '',
       '请严格按以下 JSON 格式返回（不要输出任何其他文字）：',
       '{"optimized":"原文加续写内容的完整文本","changes":["续写说明1","续写说明2"]}'
-    ].filter(Boolean).join('\n')
+    ].join('\n')
+  }
+
+  if (action === 'extractEntities') {
+    return [
+    '你是一位文本分析助手。请从用户的日记中找出"用户对某个名词做了解释或说明"的内容，提取名词及其解释。',
+    '只有日记中明确解释了"这个名词是什么/是谁"才提取；只是被提到、没有解释的名词一律不提取。',
+    '名词提取规则（必须同时满足，缺一不可）：',
+    '1. name 必须是单一名词（人名/地名/机构名/品牌名/物品名等专有名词），不能是短语、不能是完整句子；',
+    '2. name 长度必须小于等于6个字；name 必须是完整的专有名词本体，严禁只截取长名称中的一段（如从"中国考古博物馆"里截出"古博物馆"）；',
+    '3. 文中必须对 name 有明确解释说明，解释句式形如「XX是XXXX」「XX是我的XXXX」「XX叫XXXX」「XX就是XXXX」等；',
+    '4. description 必须是对 name 的解释概括，而不是名词本身或另一个句子；',
+    '5. 如果（完整的）名称超过6个字，或者 name 不是名词，一律不提取——超长时整条放弃，不得缩短、不得截取其中一段来凑长度；',
+    '示例：',
+    '- 日记写"小明是我大学同学" → 提取 name=小明, description=我的大学同学, explanation=是我大学同学',
+    '- 日记写"我母亲叫王喜兰" → 提取 name=王喜兰, description=我的母亲, explanation=我母亲叫王喜兰',
+    '- 日记写"那里是一个我们小时候经常去的水库西坝河水库" → 提取 name=西坝河水库, description=我们小时候经常去的水库, explanation=是一个我们小时候经常去的水库西坝河水库',
+    '- 日记写"海洋大学，这是我的母校" → 提取 name=海洋大学, description=我的母校, explanation=这是我的母校',
+    '- 日记写"腾讯是我工作的公司" → 提取 name=腾讯, description=我工作的公司, explanation=是我工作的公司',
+    '- 日记写"今天去了腾讯公司，这个公司是我们公司的客户" → 提取 name=腾讯公司, description=我们公司的客户, explanation=这个公司是我们公司的客户',
+    '- 反例：日记写"天又带孩子去上单簧管的课，孩子学了两年的课程" → 不提取，因为"天又带孩子去上单簧管的课"不是名词，而是一个完整句子',
+    '- 反例：日记写"领导让我继续多待几天，我的也不清楚他希望我待到什么时候" → 不提取，因为其中没有≤6字的名词，也没有明确解释',
+    '- 反例：日记写"中国考古博物馆是一家免费的小孩喜欢去的博物馆" → 完整名称"中国考古博物馆"有7个字、超过上限 → 整条不提取；绝不能缩短或截取成"古博物馆""考古博物馆""博物馆"这类片段，',
+    '- 反例：日记写"为了完成认证，我的办理了个体工商户" → 不提取，因为"为了完成认证"不是名词，也不是专有名词',
+    '- 反例：日记只写"今天和张三吃饭"（只是提到张三，没有解释他是谁）→ 不提取',
+    '- 反例：日记只写"今天去了腾讯公司开会"（只是提到腾讯公司，没有解释它是什么）→ 不提取，即使你猜得出也不要提取、不要编造解释',
+    '- 反例：日记写"小灰是我的猫"（解释"我的猫"只有3个字，不足4字）→ 不提取',
+    '- 反例：日记写"晚上散步，顺路买了两注彩票，分别是巴西对阵挪威、墨西哥对阵英格兰" → 不提取，"分别"是副词/虚词，不是名词；"分别是…"也不是对"分别"的解释，只是叙述连接；',
+    '- 反例：日记写"今天是四维图新入职的第一天，我没敢去的太早" → 不提取，"的第一天"带助词"的"、是短语而非名词；"四维图新"这里也只是被提到、没有解释它的含义，同样不提取；',
+    '补充硬性要求：name 必须是原文中真实出现的专有名词本体，绝不能是"分别/一共/然后/大概/可能/都/也/还/其中/主要"这类虚词、副词、连接词；name 里不得含"的/了/是"等助词；判断"是否被解释"时，必须是「名词 + 是/叫/就是…」这种针对该名词本体的定义句式，不能把名词后面任意一段文字当成解释；',
+    '要求：',
+    '1. 只提取日记中带有解释说明的专有名词（人名/地名/机构名/物品名等）；单纯提到而没有解释的名词，绝对不要提取，也不得为其编造 description；',
+    '2. 必须明确判断用户有"解释意图"：只有「XX是XXXX」这类定义句式（是/就是/这是/他是/她是/它是/叫/名叫/叫做等引导）才算解释；解释内容（description）必须不少于4个字，不足4个字的解释（如"是我朋友""是我妈"）视为只是提及，不要提取；',
+    '3. description 必须来自日记原文中对名词的实际解释，去掉"是/这是/就是/叫"等引导词，以"我的xx""我xx的xx"等形式概括，不超过30字；',
+    '4. explanation 为该解释在日记原文中的逐字片段（不含名词本身，从原文原样复制，可含"他是/这是/就是我/叫"等引导词，不含名词前后的逗号），用于备案弹窗预览展示；不得改写、不得编造，如果原文中没有解释片段则不要提取该名词；',
+    '5. 每个实体包含 name（名称）、description（概括解释）、explanation（原文解释片段）、type（person/place/org/other）；',
+    '6. name 字段里不能出现"是/去/上/让/带/做/吃/待/等/为了/然后"等叙述词或连接词，必须是纯粹的名词；',
+    '7. 不要提取常见动词、形容词、普通名词（如"工作"、"开心"、"日记"）；',
+    '8. 不要提取时间词（如"今天"、"昨天"、"8月14日"）；',
+    '9. 同一名词只出现一次；',
+    '10. 如果日记中没有任何带解释的名词，返回空数组。',
+    '',
+    '请严格按以下 JSON 格式返回（不要输出任何其他文字）：',
+    '{"entities":[{"name":"王磊","description":"我的大学同学","explanation":"他是我大学同学","type":"person"},{"name":"海洋大学","description":"我的母校","explanation":"这是我的母校","type":"place"}]}'
+  ].join('\n')
+  }
+
+  if (action === 'merge') {
+    return [
+    '你是一位细腻的中文日记整理助手。用户在同一天记录了两份日记内容，请把它们融合成一篇连贯、完整、有文采的日记。',
+    '要求：',
+    '1. 保留两份内容中所有重要的事实、事件、人物和细节，不要遗漏，不要虚构原文中没有的内容；',
+    '2. 如果两份内容描述了同一件事，合并去重，不要重复描述；',
+    '3. 按事情发生的时间顺序组织段落，让文章连贯流畅，过渡自然；',
+    '4. 语气与已有日记保持一致，可以适当润色但不堆砌辞藻、不改变事实；',
+    '5. 如果内容中提到的人物/机构/地名在档案库中有正确写法，请自动纠正；',
+    '6. 输出融合后的完整日记文本；',
+    '7. 如果提供了心情背景信息，严禁写进输出——不得添加「今天的心情：xxx」「心情：xxx」等任何标注或总结行，输出必须是纯日记正文；',
+    '8. 不要添加 emoji / 表情符号，也不要新增 markdown 符号（如 #、##、**）；原文已有的小标题行与列表保持原样。',
+    '',
+    '请严格按以下 JSON 格式返回（不要输出任何其他文字）：',
+    '{"merged":"融合后的完整日记文本"}'
+  ].join('\n')
+  }
+
+  if (action === 'parse') {
+    return [
+    '你是一位文本整理助手。用户提供一段杂乱的文本（可能是聊天记录、备忘录、随手记、多篇日记的合集，也可能本身就是一篇日记），请从中识别出「日记 / 事件记录」内容，整理成结构化日记列表。',
+    '要求：',
+    '1. 从文本中识别出每天的记录，尽量按天拆分为多篇日记；如果整段文本就是一篇日记，则整理为一篇；',
+    '2. 每篇日记包含三个字段：',
+    '   - date: 日记日期，格式 YYYY-MM-DD。根据文本内容推断（如"8月14日"、"2026-08-14"、"昨天"、"今天"；今天是 ' + ctx.today + '）。实在无法推断的留空字符串；',
+    '   - mood: 当天心情，用中文词（开心/平静/一般/难过/生气/幸福/疲倦/兴奋 之一），文本中没有心情信息则留空字符串；',
+    '   - content: 日记正文，尽量保留原文语句，可做轻微整理使其通顺，但不要虚构原文里没有的内容；',
+    '3. 明显与日记无关的内容（广告、系统消息、纯寒暄问候、无意义的重复）应忽略，不要生成日记；',
+    '4. 如果整段文本明显就是一篇日记或随笔，即使没有明确日期，也要整理为至少一篇日记（date 可用 ' + ctx.today + ' 推断或留空，但不要返回空数组）；',
+    '5. 文本太短或没有可识别的日记内容时，返回空数组。',
+  ].join('\n')
+  }
+
+  if (action === 'extractMetaBatch') {
+    return [
+    '你是一位日记整理助手。用户提供了 ' + ctx.itemCount + ' 篇已切分好的日记（每篇已标注 index 编号、日期和正文），请只做一件事：为每一篇分别提取「日期 / 心情 / 天气 / 标签」四个字段。',
+    '字段说明（每篇独立提取，绝不要把不同篇的内容混在一起）：',
+    '   - date: 日记日期，格式 YYYY-MM-DD。优先沿用该篇「已提供日期」；仅当正文明确写了另一个日期时才纠正它；无法确定则留空字符串；',
+    '   - mood: 当天心情，从「开心/平静/一般/难过/生气/幸福/疲倦/兴奋」中选一个；正文没有心情描述则留空字符串；',
+    '   - weather: 天气描述，如「晴」「多云」「下雨」「阴天」等，可带温度（如「晴 28°」）；正文没提天气则留空字符串；',
+    '   - tags: 中文关键词标签，每个 2-4 个字，最多 5 个，从该篇正文实际提到的主题/事件/人物/心情提炼；正文确实无主题则返回空数组；',
+    '要求：',
+    '1. 只输出严格 JSON，不要输出任何其他文字；',
+    '2. 不修改、不重写正文，只提取字段；',
+    '3. 每篇输出一条结果，index 必须与输入完全一致，按输入顺序排列；',
+    '4. 正文里没有的信息一律留空字符串或空数组，绝不虚构、不猜测。',
+    '',
+    '请严格按以下 JSON 格式返回（不要输出任何其他文字）：',
+    '{"results":[{"index":0,"date":"2026-08-14","mood":"开心","weather":"晴 28°","tags":["加班","项目"]}]}'
+  ].join('\n')
+  }
+
+  if (action === 'tags') {
+    return [
+    '你是一位日记整理助手。请根据用户的日记内容，提炼出最能概括这篇日记的关键词标签。',
+    '要求：',
+    '1. 最多 5 个标签，最少 1 个；内容确实无主题时返回空数组；',
+    '2. 每个标签为 2-4 个字的中文词（如：跑步、加班、家人、旅行）；',
+    '3. 标签来自日记实际提到的主题/事件/人物/心情，不要虚构；',
+    '4. 标签之间不重复、不近义（如"开心"和"高兴"只留一个）。',
+  ].join('\n')
+  }
+
+  if (action === 'organizeArchive') {
+    return [
+    '你是一位档案整理助手。用户按行输入了一些人物、机构或事物的备注信息，请把它们整理成结构化的档案列表。',
+    '要求：',
+    '1. 每一行或每一段是一个条目，提取出「名称」和「描述」两个字段；',
+    '2. 名称是条目的主体（如人名、公司名、地名等），描述是对该主体的说明；',
+    '3. 如果用户写的格式已经是"名称：描述"，直接拆分即可；如果没有明显分隔符，请智能识别名称和描述；',
+    '4. 合并重复的条目（相同名称的只保留一个，描述合并）；',
+    '5. 忽略空白行和无意义的内容；',
+    '6. 不要虚构原文中没有的信息。',
+    '',
+    '示例输入：',
+    '张三：好朋友，认识十几年了，经常一起玩游戏',
+    '腾讯：我工作的公司，位置在中关村软件园',
+    '',
+    '',
+    '请严格按以下 JSON 格式返回（不要输出任何其他文字）：',
+    '{"archives":[{"name":"张三","description":"好朋友，认识十几年了，经常一起玩游戏"}]}'
+  ].join('\n')
+  }
+
+  if (action === 'segment') {
+    return [
+    '你是一位日记排版助手。用户写了一篇日记（常由语音输入转写而来，整段没有换行），请只做一件事：在合适的位置插入换行符，把正文划分成自然段落。',
+    '要求：',
+    '1. 严禁增、删、改任何文字、标点或符号——输出必须与输入逐字一致，你只能添加换行符（\\n）；',
+    '2. 依据话题转换、时间推进、事件切换等自然边界分段；不要每句话都断开，也不要一整块不动，一般划分 2-5 段为宜；',
+    '3. 输入里已有的换行保持原样，只在此基础上补充；',
+    '4. 只输出严格 JSON，不要输出任何其他文字：{"segmented":"分段后的完整正文"}（正文中的换行用 \\n 转义）。',
+  ].join('\n')
   }
 
   // 默认：润色
@@ -96,17 +259,12 @@ function buildPrompt(content, mood, action, archives, instruction) {
     '5. 如果日记中出现了档案库中已有的人物/机构/地名，但写法有误（如语音识别导致的错别字、同音字、简称不统一），请自动纠正为档案库中的正确名称；',
     '6. 输出润色后的完整文本，并附 3-5 条简短优化要点；',
     '7. 如果提供了用户今日心情，它只是背景信息，严禁写进输出——不得在正文开头或末尾添加「今天的心情：xxx」「心情：xxx」等任何标注或总结行；',
-    '8. 输出必须是润色后的纯日记正文。',
-    archiveHint,
-    instructionHint,
-    moodHint,
-    '',
-    '用户日记：',
-    content,
+    '8. 不要添加 emoji / 表情符号，也不要新增 markdown 符号（如 #、##、**）；但如果原文本身已有小标题行（如「◆ 标题」）或列表，请保留其原样，不要删改结构；',
+    '9. 输出必须是润色后的纯日记正文。',
     '',
     '请严格按以下 JSON 格式返回（不要输出任何其他文字）：',
     '{"optimized":"润色后的完整日记文本","changes":["优化要点1","优化要点2","优化要点3"]}'
-  ].filter(Boolean).join('\n')
+  ].join('\n')
 }
 
 /**
@@ -114,22 +272,8 @@ function buildPrompt(content, mood, action, archives, instruction) {
  */
 function buildParsePrompt(text, today) {
   return [
-    '你是一位文本整理助手。用户提供一段杂乱的文本（可能是聊天记录、备忘录、随手记、多篇日记的合集，也可能本身就是一篇日记），请从中识别出「日记 / 事件记录」内容，整理成结构化日记列表。',
-    '要求：',
-    '1. 从文本中识别出每天的记录，尽量按天拆分为多篇日记；如果整段文本就是一篇日记，则整理为一篇；',
-    '2. 每篇日记包含三个字段：',
-    '   - date: 日记日期，格式 YYYY-MM-DD。根据文本内容推断（如"8月14日"、"2026-08-14"、"昨天"、"今天"；今天是 ' + today + '）。实在无法推断的留空字符串；',
-    '   - mood: 当天心情，用中文词（开心/平静/一般/难过/生气/幸福/疲倦/兴奋 之一），文本中没有心情信息则留空字符串；',
-    '   - content: 日记正文，尽量保留原文语句，可做轻微整理使其通顺，但不要虚构原文里没有的内容；',
-    '3. 明显与日记无关的内容（广告、系统消息、纯寒暄问候、无意义的重复）应忽略，不要生成日记；',
-    '4. 如果整段文本明显就是一篇日记或随笔，即使没有明确日期，也要整理为至少一篇日记（date 可用 ' + today + ' 推断或留空，但不要返回空数组）；',
-    '5. 文本太短或没有可识别的日记内容时，返回空数组。',
-    '',
     '待整理文本：',
-    text,
-    '',
-    '请严格按以下 JSON 格式返回（不要输出任何其他文字）：',
-    '{"diaries":[{"date":"2026-08-14","mood":"开心","content":"日记正文"}]}'
+    text
   ].join('\n')
 }
 
@@ -139,19 +283,9 @@ function buildParsePrompt(text, today) {
 function buildTagsPrompt(content, mood) {
   const moodText = MOOD_CN[mood] ? ('\n当天心情：' + MOOD_CN[mood]) : ''
   return [
-    '你是一位日记整理助手。请根据用户的日记内容，提炼出最能概括这篇日记的关键词标签。',
-    '要求：',
-    '1. 最多 5 个标签，最少 1 个；内容确实无主题时返回空数组；',
-    '2. 每个标签为 2-4 个字的中文词（如：跑步、加班、家人、旅行）；',
-    '3. 标签来自日记实际提到的主题/事件/人物/心情，不要虚构；',
-    '4. 标签之间不重复、不近义（如"开心"和"高兴"只留一个）。',
-    '',
     '用户日记：',
     content,
-    moodText,
-    '',
-    '请严格按以下 JSON 格式返回（不要输出任何其他文字）：',
-    '{"tags":["标签1","标签2"]}'
+    moodText
   ].join('\n')
 }
 
@@ -164,25 +298,10 @@ function buildArchivePrompt(text, instruction) {
     instructionHint = '\n\n用户的特别纠错指令（请务必按照指令执行纠错）：\n' + String(instruction).trim()
   }
   return [
-    '你是一位档案整理助手。用户按行输入了一些人物、机构或事物的备注信息，请把它们整理成结构化的档案列表。',
-    '要求：',
-    '1. 每一行或每一段是一个条目，提取出「名称」和「描述」两个字段；',
-    '2. 名称是条目的主体（如人名、公司名、地名等），描述是对该主体的说明；',
-    '3. 如果用户写的格式已经是"名称：描述"，直接拆分即可；如果没有明显分隔符，请智能识别名称和描述；',
-    '4. 合并重复的条目（相同名称的只保留一个，描述合并）；',
-    '5. 忽略空白行和无意义的内容；',
-    '6. 不要虚构原文中没有的信息。',
     instructionHint,
     '',
-    '示例输入：',
-    '张三：好朋友，认识十几年了，经常一起玩游戏',
-    '腾讯：我工作的公司，位置在中关村软件园',
-    '',
     '用户输入：',
-    text,
-    '',
-    '请严格按以下 JSON 格式返回（不要输出任何其他文字）：',
-    '{"archives":[{"name":"张三","description":"好朋友，认识十几年了，经常一起玩游戏"}]}'
+    text
   ].join('\n')
 }
 
@@ -192,44 +311,20 @@ function buildArchivePrompt(text, instruction) {
  */
 function buildExtractEntitiesPrompt(content) {
   return [
-    '你是一位文本分析助手。请从用户的日记中找出"用户对某个名词做了解释或说明"的内容，提取名词及其解释。',
-    '只有日记中明确解释了"这个名词是什么/是谁"才提取；只是被提到、没有解释的名词一律不提取。',
-    '名词提取规则（必须同时满足，缺一不可）：',
-    '1. name 必须是单一名词（人名/地名/机构名/品牌名/物品名等专有名词），不能是短语、不能是完整句子；',
-    '2. name 长度必须小于等于4个字；',
-    '3. 文中必须对 name 有明确解释说明，解释句式形如「XX是XXXX」「XX是我的XXXX」「XX叫XXXX」「XX就是XXXX」等；',
-    '4. description 必须是对 name 的解释概括，而不是名词本身或另一个句子；',
-    '5. 如果 name 本身超过4个字，或者 name 不是名词，一律不提取。',
-    '示例：',
-    '- 日记写"小明是我大学同学" → 提取 name=小明, description=我的大学同学, explanation=是我大学同学',
-    '- 日记写"我母亲叫王喜兰" → 提取 name=王喜兰, description=我的母亲, explanation=我母亲叫王喜兰',
-    '- 日记写"那里是一个我们小时候经常去的水库西坝河水库" → 提取 name=西坝河水库, description=我们小时候经常去的水库, explanation=是一个我们小时候经常去的水库西坝河水库',
-    '- 日记写"海洋大学，这是我的母校" → 提取 name=海洋大学, description=我的母校, explanation=这是我的母校',
-    '- 日记写"腾讯是我工作的公司" → 提取 name=腾讯, description=我工作的公司, explanation=是我工作的公司',
-    '- 日记写"今天去了腾讯公司，这个公司是我们公司的客户" → 提取 name=腾讯公司, description=我们公司的客户, explanation=这个公司是我们公司的客户',
-    '- 反例：日记写"天又带孩子去上单簧管的课，孩子学了两年的课程" → 不提取，因为"天又带孩子去上单簧管的课"不是名词，而是一个完整句子',
-    '- 反例：日记写"领导让我继续多待几天，我的也不清楚他希望我待到什么时候" → 不提取，因为其中没有≤4字的名词，也没有明确解释',
-    '- 反例：日记写"为了完成认证，我的办理了个体工商户" → 不提取，因为"为了完成认证"不是名词，也不是专有名词',
-    '- 反例：日记只写"今天和张三吃饭"（只是提到张三，没有解释他是谁）→ 不提取',
-    '- 反例：日记只写"今天去了腾讯公司开会"（只是提到腾讯公司，没有解释它是什么）→ 不提取，即使你猜得出也不要提取、不要编造解释',
-    '- 反例：日记写"小灰是我的猫"（解释"我的猫"只有3个字，不足4字）→ 不提取',
-    '要求：',
-    '1. 只提取日记中带有解释说明的专有名词（人名/地名/机构名/物品名等）；单纯提到而没有解释的名词，绝对不要提取，也不得为其编造 description；',
-    '2. 必须明确判断用户有"解释意图"：只有「XX是XXXX」这类定义句式（是/就是/这是/他是/她是/它是/叫/名叫/叫做等引导）才算解释；解释内容（description）必须不少于4个字，不足4个字的解释（如"是我朋友""是我妈"）视为只是提及，不要提取；',
-    '3. description 必须来自日记原文中对名词的实际解释，去掉"是/这是/就是/叫"等引导词，以"我的xx""我xx的xx"等形式概括，不超过30字；',
-    '4. explanation 为该解释在日记原文中的逐字片段（不含名词本身，从原文原样复制，可含"他是/这是/就是我/叫"等引导词，不含名词前后的逗号），用于后续从原文中删除解释部分；不得改写、不得编造，如果原文中没有解释片段则不要提取该名词；',
-    '5. 每个实体包含 name（名称）、description（概括解释）、explanation（原文解释片段）、type（person/place/org/other）；',
-    '6. name 字段里不能出现"是/去/上/让/带/做/吃/待/等/为了/然后"等叙述词或连接词，必须是纯粹的名词；',
-    '7. 不要提取常见动词、形容词、普通名词（如"工作"、"开心"、"日记"）；',
-    '8. 不要提取时间词（如"今天"、"昨天"、"8月14日"）；',
-    '9. 同一名词只出现一次；',
-    '10. 如果日记中没有任何带解释的名词，返回空数组。',
-    '',
     '用户日记：',
-    content,
-    '',
-    '请严格按以下 JSON 格式返回（不要输出任何其他文字）：',
-    '{"entities":[{"name":"王磊","description":"我的大学同学","explanation":"他是我大学同学","type":"person"},{"name":"海洋大学","description":"我的母校","explanation":"这是我的母校","type":"place"}]}'
+    content
+  ].join('\n')
+}
+
+/**
+ * 构造 segment（自动划分段落）的 prompt
+ * 与润色的区别：这是纯排版任务——只允许插入换行符，严禁改动任何文字/标点，
+ * 因为它由「保存日记」自动触发，用户并未请求 AI 介入，忠实性是第一优先级
+ */
+function buildSegmentPrompt(content) {
+  return [
+    '日记正文：',
+    content
   ].join('\n')
 }
 
@@ -256,15 +351,6 @@ function buildMergePrompt(oldContent, newContent, oldMood, newMood, archives, in
   }
 
   return [
-    '你是一位细腻的中文日记整理助手。用户在同一天记录了两份日记内容，请把它们融合成一篇连贯、完整、有文采的日记。',
-    '要求：',
-    '1. 保留两份内容中所有重要的事实、事件、人物和细节，不要遗漏，不要虚构原文中没有的内容；',
-    '2. 如果两份内容描述了同一件事，合并去重，不要重复描述；',
-    '3. 按事情发生的时间顺序组织段落，让文章连贯流畅，过渡自然；',
-    '4. 语气与已有日记保持一致，可以适当润色但不堆砌辞藻、不改变事实；',
-    '5. 如果内容中提到的人物/机构/地名在档案库中有正确写法，请自动纠正；',
-    '6. 输出融合后的完整日记文本；',
-    '7. 如果提供了心情背景信息，严禁写进输出——不得添加「今天的心情：xxx」「心情：xxx」等任何标注或总结行，输出必须是纯日记正文。',
     archiveHint,
     instructionHint,
     moodHint,
@@ -274,9 +360,6 @@ function buildMergePrompt(oldContent, newContent, oldMood, newMood, archives, in
     '',
     '【新内容】',
     newContent,
-    '',
-    '请严格按以下 JSON 格式返回（不要输出任何其他文字）：',
-    '{"merged":"融合后的完整日记文本"}'
   ].filter(Boolean).join('\n')
 }
 
@@ -291,23 +374,8 @@ function buildExtractMetaBatchPrompt(items) {
   ).join('\n\n')
 
   return [
-    '你是一位日记整理助手。用户提供了 ' + items.length + ' 篇已切分好的日记（每篇已标注 index 编号、日期和正文），请只做一件事：为每一篇分别提取「日期 / 心情 / 天气 / 标签」四个字段。',
-    '字段说明（每篇独立提取，绝不要把不同篇的内容混在一起）：',
-    '   - date: 日记日期，格式 YYYY-MM-DD。优先沿用该篇「已提供日期」；仅当正文明确写了另一个日期时才纠正它；无法确定则留空字符串；',
-    '   - mood: 当天心情，从「开心/平静/一般/难过/生气/幸福/疲倦/兴奋」中选一个；正文没有心情描述则留空字符串；',
-    '   - weather: 天气描述，如「晴」「多云」「下雨」「阴天」等，可带温度（如「晴 28°」）；正文没提天气则留空字符串；',
-    '   - tags: 中文关键词标签，每个 2-4 个字，最多 5 个，从该篇正文实际提到的主题/事件/人物/心情提炼；正文确实无主题则返回空数组；',
-    '要求：',
-    '1. 只输出严格 JSON，不要输出任何其他文字；',
-    '2. 不修改、不重写正文，只提取字段；',
-    '3. 每篇输出一条结果，index 必须与输入完全一致，按输入顺序排列；',
-    '4. 正文里没有的信息一律留空字符串或空数组，绝不虚构、不猜测。',
-    '',
     '日记列表：',
-    listText,
-    '',
-    '请严格按以下 JSON 格式返回（不要输出任何其他文字）：',
-    '{"results":[{"index":0,"date":"2026-08-14","mood":"开心","weather":"晴 28°","tags":["加班","项目"]}]}'
+    listText
   ].join('\n')
 }
 
@@ -328,9 +396,13 @@ function callDeepSeek(payload) {
       },
       timeout: 25000
     }, (res) => {
-      let data = ''
-      res.on('data', (chunk) => { data += chunk })
+      // 关键：按字节块收集，最后一次性整体 UTF-8 解码。
+      // 若写成 data += chunk，会逐块解码，多字节字符（中文 3 字节、emoji 4 字节）
+      // 恰好被切在块边界时会解码失败，变成 U+FFFD 乱码（界面上显示为「♦?」）。
+      const chunks = []
+      res.on('data', (chunk) => { chunks.push(chunk) })
       res.on('end', () => {
+        const data = Buffer.concat(chunks).toString('utf8')
         try {
           resolve({ status: res.statusCode, body: JSON.parse(data) })
         } catch (e) {
@@ -349,11 +421,39 @@ function callDeepSeek(payload) {
  * 公共：调用 DeepSeek 并解析出 JSON 对象
  * @returns {Promise<{parsed?: object, error?: string}>}
  */
-async function runPrompt(prompt, maxTokens, temperature) {
+// 允许紧邻名词左侧的功能字/动词：除此之外左侧出现汉字即视为「从长名词里截取的子串」
+const PRE_NOUN_CHARS = '和跟与同对的了我你他她它们咱您于在从把被让给找见问说叫带陪还有去来到就也都又再想要会能没不很太以及等是做为'
+
+/**
+ * 名词左侧边界是否干净：前一字符不是汉字，或属于允许紧邻名词的功能字/动词
+ */
+function hasCleanLeftBoundary(text, idx) {
+  if (idx <= 0) return true
+  const prev = String(text).charAt(idx - 1)
+  if (!/[\u4e00-\u9fa5]/.test(prev)) return true
+  return PRE_NOUN_CHARS.indexOf(prev) !== -1
+}
+
+/**
+ * 名称在原文中是否存在「左侧边界干净」的出现位置（不满足则视为截取长名词得到的残缺子串）
+ */
+function hasStandaloneOccurrence(name, text) {
+  const t = String(text || '')
+  const n = String(name || '')
+  if (!n) return false
+  let idx = t.indexOf(n)
+  while (idx !== -1) {
+    if (hasCleanLeftBoundary(t, idx)) return true
+    idx = t.indexOf(n, idx + n.length)
+  }
+  return false
+}
+
+async function runPrompt(prompt, maxTokens, temperature, systemPrompt) {
   const res = await callDeepSeek({
     model: MODEL,
     messages: [
-      { role: 'system', content: '你只输出严格的 JSON，不要输出任何其他内容。' },
+      { role: 'system', content: systemPrompt || '你只输出严格的 JSON，不要输出任何其他内容。' },
       { role: 'user', content: prompt }
     ],
     temperature: (typeof temperature === 'number') ? temperature : 0.8,
@@ -402,7 +502,7 @@ exports.main = async (event, context) => {
     const limited = text.length > 10000 ? text.slice(0, 10000) : text
     const prompt = buildParsePrompt(limited, today)
     try {
-      const r = await runPrompt(prompt, 4000)
+      const r = await runPrompt(prompt, 4000, undefined, buildSystemPrompt('parse', { today: today }))
       if (r.error) return { error: r.error }
       const diaries = (r.parsed && Array.isArray(r.parsed.diaries)) ? r.parsed.diaries : []
       return { diaries: diaries, count: diaries.length }
@@ -419,7 +519,7 @@ exports.main = async (event, context) => {
     const tagMood = (event && event.mood) || ''
     const prompt = buildTagsPrompt(tagContent, tagMood)
     try {
-      const r = await runPrompt(prompt, 300)
+      const r = await runPrompt(prompt, 300, undefined, buildSystemPrompt('tags'))
       if (r.error) return { error: r.error }
       let tags = (r.parsed && Array.isArray(r.parsed.tags)) ? r.parsed.tags : []
       // 清洗：去空白、去重、过滤超长项，最多5个
@@ -434,6 +534,28 @@ exports.main = async (event, context) => {
     }
   }
 
+  // ===== segment：自动划分段落（只插换行，不改字符；由保存日记后静默触发） =====
+  if (action === 'segment') {
+    const segContent = String((event && event.content) || '')
+    if (!segContent.trim()) return { error: '内容为空' }
+    if (!API_KEY) return { error: '服务端未配置 DEEPSEEK_API_KEY' }
+    const segLimited = segContent.length > 6000 ? segContent.slice(0, 6000) : segContent
+    const segPrompt = buildSegmentPrompt(segLimited)
+    try {
+      // 低温度（0.2）：任务是逐字复刻 + 加换行，越「笨」越稳
+      const r = await runPrompt(segPrompt, Math.min(8000, segLimited.length + 800), 0.2, buildSystemPrompt('segment'))
+      if (r.error) return { error: r.error }
+      const seg = String((r.parsed && r.parsed.segmented) || '').trim()
+      // 忠实性校验（云函数侧第一道，前端还会再校验一次）：
+      // 去掉所有空白字符后必须与原文逐字一致，防止模型擅自增删改字
+      const norm = (s) => String(s || '').replace(/\s+/g, '')
+      if (!seg || norm(seg) !== norm(segLimited)) return { error: '分段结果校验未通过' }
+      return { segmented: seg }
+    } catch (err) {
+      return { error: '调用 AI 失败: ' + (err && err.message || err) }
+    }
+  }
+
   // ===== organizeArchive：AI 整理档案 =====
   if (action === 'organizeArchive') {
     const rawText = String((event && event.text) || '').trim()
@@ -443,7 +565,7 @@ exports.main = async (event, context) => {
     const limited = rawText.length > 5000 ? rawText.slice(0, 5000) : rawText
     const prompt = buildArchivePrompt(limited, instruction)
     try {
-      const r = await runPrompt(prompt, 2000)
+      const r = await runPrompt(prompt, 2000, undefined, buildSystemPrompt('organizeArchive'))
       if (r.error) return { error: r.error }
       const archives = (r.parsed && Array.isArray(r.parsed.archives)) ? r.parsed.archives : []
       // 清洗
@@ -466,10 +588,10 @@ exports.main = async (event, context) => {
     if (!API_KEY) return { error: '服务端未配置 DEEPSEEK_API_KEY' }
     const prompt = buildExtractEntitiesPrompt(entContent.slice(0, 5000))
     try {
-      const r = await runPrompt(prompt, 1000)
+      const r = await runPrompt(prompt, 1000, undefined, buildSystemPrompt('extractEntities'))
       if (r.error) return { error: r.error }
       let entities = (r.parsed && Array.isArray(r.parsed.entities)) ? r.parsed.entities : []
-      // 清洗（explanation 为原文解释片段，供前端从正文中删除解释部分）
+      // 清洗（explanation 为原文解释片段，供备案弹窗预览展示）
       const seen = new Set()
       // 叙述词/连接词/动词：name 里不能出现这些，否则就不是名词
       const INVALID_NAME_WORDS = ['是', '去', '上', '让', '带', '做', '吃', '待', '等', '为了', '然后', '又', '还', '也', '就', '和', '跟', '与', '同', '在', '到', '从', '把', '被', '给', '叫', '说', '看', '来', '走', '想', '要', '会', '能', '可以']
@@ -484,8 +606,8 @@ exports.main = async (event, context) => {
           if (!e.name || !e.description) return false
           const name = e.name
           const desc = e.description
-          // 硬规则：name 必须是 2-4 字的名词；description 必须有实际解释意义
-          if (name.length < 2 || name.length > 4) return false
+          // 硬规则：name 必须是 2-6 字的名词；description 必须有实际解释意义
+          if (name.length < 2 || name.length > 6) return false
           if (desc.length < 4 || desc.length > 30) return false
           // name 里不能出现叙述词或连接词
           if (INVALID_NAME_WORDS.some(w => name.indexOf(w) !== -1)) return false
@@ -493,6 +615,9 @@ exports.main = async (event, context) => {
           if (/^[这那他她它们我你您我们你们他们她们]./.test(name)) return false
           // name 不能是纯数字、纯英文（允许中英混合）
           if (/^[0-9]+$/.test(name) || /^[a-zA-Z]+$/.test(name)) return false
+          // 名称必须在原文中有「左侧边界干净」的出现位置：拦截从更长专有名词里截出的子串
+          // （原文「中国考古博物馆是一家…」误提取为「古博物馆」时，其前一字符「考」暴露了截取行为）
+          if (!hasStandaloneOccurrence(name, entContent)) return false
           // 同一名词去重
           if (seen.has(name)) return false
           seen.add(name)
@@ -518,7 +643,7 @@ exports.main = async (event, context) => {
     const prompt = buildExtractMetaBatchPrompt(norm)
     try {
       // 识别类任务用低温度，结果更稳定、不瞎编
-      const r = await runPrompt(prompt, 1500, 0.2)
+      const r = await runPrompt(prompt, 1500, 0.2, buildSystemPrompt('extractMetaBatch', { itemCount: norm.length }))
       if (r.error) return { error: r.error }
       const rawResults = (r.parsed && Array.isArray(r.parsed.results)) ? r.parsed.results : []
       const cleaned = rawResults.map(x => ({
@@ -549,7 +674,7 @@ exports.main = async (event, context) => {
     const instruction = (event && event.instruction) || ''
     const prompt = buildMergePrompt(oldContent.slice(0, 6000), newContent.slice(0, 6000), oldMood, newMood, archives, instruction)
     try {
-      const r = await runPrompt(prompt, 2500)
+      const r = await runPrompt(prompt, 2500, undefined, buildSystemPrompt('merge'))
       if (r.error) return { error: r.error }
       const merged = (r.parsed && typeof r.parsed.merged === 'string')
         ? r.parsed.merged.trim()
@@ -578,7 +703,7 @@ exports.main = async (event, context) => {
   const prompt = buildPrompt(content, mood, realAction, archives, instruction)
 
   try {
-    const r = await runPrompt(prompt, 2500)
+    const r = await runPrompt(prompt, 2500, undefined, buildSystemPrompt(realAction))
     if (r.error) return { error: r.error }
     const parsed = r.parsed
 

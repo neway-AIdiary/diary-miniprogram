@@ -15,24 +15,24 @@
     </view>
   </view>
 
+  <!-- 日期（可选择）+ 心情（可选择）+ 定位城市天气（纯展示）：固定在导航栏下方，不随正文滚动 -->
+  <view class="date-wrap">
+    <view class="date-left">
+      <view class="date-pill" hover-class="pill-hover" bindtap="toggleDatePicker">📅 {{dateLabel}}</view>
+      <view class="mood-pill" style="color:{{moodColor || '#999999'}};background:{{moodBg || 'rgba(0,0,0,0.06)'}};" bindtap="toggleMoodPicker">
+        <text>{{moodLabel ? moodLabel : '心情'}}</text>
+      </view>
+    </view>
+    <view class="weather-chip" wx:if="{{weatherInfo}}">
+      <text class="weather-icon">{{weatherInfo.icon}}</text>
+      <text class="weather-city" wx:if="{{weatherInfo.city}}">{{weatherInfo.city}}</text>
+      <text class="weather-temp">{{weatherInfo.temp}}°</text>
+    </view>
+  </view>
+
   <!-- 主内容区 -->
   <scroll-view class="content-scroll" scroll-y enhanced show-scrollbar="{{false}}">
     <view class="content-inner">
-      <!-- 日期（可选择）+ 心情（可选择）+ 定位城市天气（纯展示） -->
-      <view class="date-wrap">
-        <view class="date-left">
-          <view class="date-pill" hover-class="pill-hover" bindtap="toggleDatePicker">📅 {{dateLabel}}</view>
-          <view class="mood-pill" style="color:{{moodColor || '#999999'}};background:{{moodBg || 'rgba(0,0,0,0.06)'}};" bindtap="toggleMoodPicker">
-            <text>{{moodLabel ? moodLabel : '心情'}}</text>
-          </view>
-        </view>
-        <view class="weather-chip" wx:if="{{weatherInfo}}">
-          <text class="weather-icon">{{weatherInfo.icon}}</text>
-          <text class="weather-city" wx:if="{{weatherInfo.city}}">{{weatherInfo.city}}</text>
-          <text class="weather-temp">{{weatherInfo.temp}}°</text>
-        </view>
-      </view>
-
       <!-- 日记正文：展示 + 编辑框 -->
       <view class="diary-card">
         <!-- 修改指令执行结果：高亮展示增删改的部分 -->
@@ -364,42 +364,51 @@
     </view>
   </view>
 
-  <!-- AI优化结果（全屏覆盖，顶部避开状态栏/刘海/灵动岛） -->
+  <!-- AI优化结果（全屏覆盖；导航条规格对齐自绘导航栏：左返回 / 中标题，右上角留空避开小程序胶囊） -->
   <view
     class="optimize-result"
     wx:if="{{showOptimizeResult}}"
-    style="padding-top: {{safeAreaTop + 8}}px;"
+    style="padding-top: {{safeAreaTop}}px;"
   >
-    <view class="opt-result-header">
-      <view class="opt-result-badge">AI 优化建议</view>
-      <text class="opt-action-btn" bindtap="reOptimize">重新优化</text>
+    <!-- 面板导航条：返回 = 放弃优化稿，回到编辑 -->
+    <view class="opt-nav">
+      <view class="opt-nav-left" hover-class="nav-btn-hover" bindtap="discardOptimize">
+        <view class="opt-nav-back"></view>
+      </view>
+      <view class="opt-nav-title">AI优化</view>
+      <view class="opt-nav-right"></view>
     </view>
 
-    <view class="opt-points" wx:if="{{optimizeChanges.length > 0}}">
-      <view class="opt-points-title">优化要点</view>
-      <view class="opt-point" wx:for="{{optimizeChanges}}" wx:key="*this">• {{item}}</view>
-    </view>
+    <view class="opt-content">
+      <view class="opt-points" wx:if="{{optimizeChanges.length > 0}}">
+        <view class="opt-points-title">优化要点</view>
+        <view class="opt-point" wx:for="{{optimizeChanges}}" wx:key="*this">• {{item}}</view>
+      </view>
 
-    <view class="opt-original-toggle" bindtap="toggleOriginal">
-      查看原文 {{showOriginal ? '▲' : '▼'}}
-    </view>
-    <view class="opt-original-content" wx:if="{{showOriginal}}">{{originalContent}}</view>
+      <view class="opt-original-toggle" bindtap="toggleOriginal">
+        查看原文 {{showOriginal ? '▲' : '▼'}}
+      </view>
+      <view class="opt-original-content" wx:if="{{showOriginal}}">{{originalContent}}</view>
 
-    <view class="opt-label">优化稿（可直接修改）</view>
-    <view class="section">
-      <textarea
-        class="textarea-field opt-textarea"
-        value="{{optimizedContent}}"
-        bindinput="onOptimizedInput"
-        maxlength="-1"
-        auto-height
-        show-confirm-bar="{{false}}"
-      />
-    </view>
+      <view class="opt-label">优化稿（可直接修改）</view>
+      <!-- 文本框占满「优化稿」标题到按钮之间的剩余空间，内容多时框内上下滚动 -->
+      <view class="opt-input-wrap">
+        <textarea
+          class="textarea-field opt-textarea"
+          value="{{optimizedContent}}"
+          bindinput="onOptimizedInput"
+          maxlength="-1"
+          show-confirm-bar="{{false}}"
+          adjust-position="{{true}}"
+          cursor-spacing="16"
+        />
+      </view>
 
-    <view class="opt-btns">
-      <button class="btn-secondary" bindtap="discardOptimize">放弃</button>
-      <button class="btn-primary" bindtap="applyOptimize">使用优化稿</button>
+      <view class="opt-btns">
+        <button class="btn-secondary" bindtap="discardOptimize">放弃</button>
+        <button class="btn-secondary" bindtap="reOptimize">重新优化</button>
+        <button class="btn-primary" bindtap="applyOptimize">采用</button>
+      </view>
     </view>
   </view>
 
@@ -407,7 +416,7 @@
   <view class="entity-mask" wx:if="{{showEntityPrompt}}" catchtouchmove="true">
     <view class="entity-modal">
       <view class="entity-title">发现名词解释</view>
-      <view class="entity-desc">你在日记中解释了以下名词，是否备案到档案？备案后日记中只保留名词，解释部分自动移除。</view>
+      <view class="entity-desc">你在日记中解释了以下名词，是否备案到档案？日记原文保持不变。</view>
       <view class="entity-list">
         <view
           class="entity-item {{item.checked ? 'checked' : ''}}"

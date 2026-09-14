@@ -1,0 +1,52 @@
+<!-- 总结结果页：显示框架复用日记详情（卡片 + 标题 + meta + 独立滚动正文），
+     差异：标题「X月X日 AI总结」/ 正文顶部先给「总结需求 + 数据范围」/ 底部三按钮 分享·编辑·保存 -->
+<view class="page">
+  <!-- 阅读模式 -->
+  <view class="detail-card">
+    <!-- 固定区：标题 + 日期/标签（不随内容滚动） -->
+    <view class="detail-title">{{title}}</view>
+
+    <view class="detail-meta">
+      <text class="detail-date">{{createdAt}}</text>
+      <view class="detail-tags">
+        <text class="tag-chip">AI总结</text>
+      </view>
+    </view>
+
+    <!-- 可滚动区：总结说明 + 正文 -->
+    <scroll-view class="detail-scroll" scroll-y enhanced show-scrollbar="{{false}}">
+      <view class="detail-scroll-inner">
+        <!-- 本次总结说明：需求 + 覆盖的日记范围 -->
+        <view class="sr-brief">
+          <view class="sr-brief-prompt">
+            <text class="sr-brief-label">总结需求</text>
+            <text class="sr-brief-value">{{prompt}}</text>
+          </view>
+          <view class="sr-brief-meta">共读取{{rangeText}} {{diaryCount}} 篇日记进行分析{{truncated ? '（日记较多，已选取最近部分）' : ''}}</view>
+          <!-- 临时内容提示：避免用户误以为自动保存 -->
+          <view class="sr-temp-hint">本次总结为临时内容，点击【保存】才会存入日记本</view>
+        </view>
+
+        <!-- 正文（JS 侧拆行：小标题行 ◆/◇ 加粗，其余常规字重） -->
+        <view class="detail-content">
+          <view wx:for="{{contentBlocks}}" wx:key="k" class="content-line {{item.heading ? 'content-line-heading' : ''}}">{{item.text}}</view>
+        </view>
+      </view>
+    </scroll-view>
+  </view>
+
+  <!-- 操作按钮：分享 / 编辑 / 保存（busy 时全部置灰，防重复落库） -->
+  <view class="detail-actions">
+    <button class="btn-secondary" disabled="{{busy}}" bindtap="openSharePanel">分享</button>
+    <button class="btn-secondary" disabled="{{busy}}" bindtap="onEdit">编辑</button>
+    <button class="btn-primary" disabled="{{busy}}" bindtap="onSave">保存</button>
+  </view>
+
+  <!-- 分享弹窗：与日记详情页共用同一组件 -->
+  <share-sheet
+    visible="{{showSharePanel}}"
+    diary="{{shareDiary}}"
+    sheet-title="分享我的 AI 总结"
+    bind:close="closeSharePanel"
+  />
+</view>

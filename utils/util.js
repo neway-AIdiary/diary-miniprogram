@@ -99,6 +99,43 @@ function getDateKey(date) {
   return y + '-' + m + '-' + day
 }
 
+/**
+ * 正文拆行（详情页 / 总结结果页逐行渲染用）：
+ * 把纯文本正文拆成 [{k, text, heading}] 数组，wxml 用 wx:for 渲染，
+ * 小标题行（◆ / ◇ 开头）单独加粗（不上色）。
+ *
+ * 兼容两种数据：
+ *   1. aiSummary 已归一化的新总结（行首已是 ◆ / ◇）；
+ *   2. 历史遗留的 markdown（行首 ## / ###）——这里就地转符号、去掉行内 **。
+ * 注意：放在 JS 逻辑层而不是 WXS——WXS 环境限制多（不支持正则字面量、
+ *       String() 等全局存疑），且视图层运行时报错不打进 Console，排查困难。
+ */
+function buildContentLines(text) {
+  const raw = text === null || text === undefined ? '' : String(text)
+  return raw.replace(/\r\n?/g, '\n').split('\n').map((line, k) => {
+    let t = line.replace(/^\s+/, '')
+    const m = t.match(/^(#{1,6})\s*(.*)$/)
+    if (m) t = (m[1].length <= 2 ? '◆ ' : '◇ ') + m[2].replace(/\*\*/g, '')
+    t = t.replace(/\*\*/g, '')
+    const c = t.charAt(0)
+    return { k: k, text: t, heading: c === '◆' || c === '◇' || c === '▍' }
+  })
+}
+
+/**
+ * 是否为「AI 总结」生成的日记（产出物判据，多处共用）：
+ *   - 不参与后续 AI 总结（避免上一轮结论被再次汇总形成自我循环）
+ *   - 不参与同日融合（新写的日记不合并进总结里）
+ * 注意：不能用 source === 'ai' 判断——「AI 优化日记」也用该值，会误伤
+ */
+function isAiSummaryDiary(d) {
+  if (!d) return false
+  if (d.entryType === 'summary') return true
+  const tags = Array.isArray(d.tags) ? d.tags : []
+  if (tags.indexOf('AI总结') !== -1) return true
+  return /【AI总结】/.test(String(d.title || ''))
+}
+
 module.exports = {
   MOOD_MAP,
   getMoodLabel,
@@ -110,5 +147,7 @@ module.exports = {
   getDefaultTitle,
   stripDiaryTitleSuffix,
   getCurrentTimeText,
-  getDateKey
+  getDateKey,
+  buildContentLines,
+  isAiSummaryDiary
 }

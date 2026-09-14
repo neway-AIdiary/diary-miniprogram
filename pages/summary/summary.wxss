@@ -1,10 +1,23 @@
 /* 智能总结页 —— 复用全局 design tokens，极简琥珀编辑风 */
 
 .page {
-  min-height: 100vh;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
   background: var(--bg);
-  padding: var(--sp-md) var(--sp-lg) 80rpx;
+  overflow: hidden;
+}
+
+/* ===== 中部滚动区 ===== */
+.content-scroll {
+  flex: 1;
+  min-height: 0;
+  padding: 0 24rpx;
   box-sizing: border-box;
+}
+
+.content-inner {
+  padding: var(--sp-md) 0 var(--sp-lg);
 }
 
 /* ===== 筛选区（参考写日记主页左上角日期胶囊）===== */
@@ -180,17 +193,27 @@
   color: var(--ink);
 }
 
-.input-actions {
-  display: flex;
-  align-items: center;
-  margin-top: var(--sp-sm);
+/* ===== 底部固定底栏（与写日记主页 / 详情编辑页 / 档案页一致）===== */
+.input-bar-wrap {
+  flex-shrink: 0;
+  z-index: 20;
 }
 
-/* 中间区：与写日记主页底栏结构一致 */
+.input-bar {
+  flex-shrink: 0;
+  display: flex;
+  align-items: flex-end;
+  background: rgba(248, 244, 238, 0.95);
+  border-top: 1rpx solid var(--line-soft);
+  padding: 12rpx 16rpx 22rpx;
+  z-index: 20;
+}
+
+/* 中间区：flex:1 撑满左侧剩余空间（与写日记主页 / 详情编辑页 / 档案页完全一致） */
 .input-middle {
   flex: 1;
   min-width: 0;
-  margin-right: 12rpx;
+  margin: 0 12rpx;
 }
 
 /* 按住说话：尺寸/圆角/底色与写日记主页底栏完全一致 */
@@ -216,8 +239,9 @@
 }
 
 .generate-btn {
-  width: 176rpx;
+  width: 160rpx;
   height: 80rpx;
+  box-sizing: border-box;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -229,6 +253,7 @@
   font-weight: 500;
   line-height: 1;
   padding: 0;
+  flex-shrink: 0;
   box-shadow: var(--shadow-brand);
   margin: 0;
 }

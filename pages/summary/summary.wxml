@@ -1,32 +1,80 @@
 <!-- 智能总结页 -->
 <view class="page">
 
-  <!-- 筛选区：时间范围（单胶囊，点击在弹层内选择） -->
-  <view class="filter-row">
-    <view class="range-pill" hover-class="pill-hover" bindtap="openRangePicker">
-      <text>📅 {{rangeLabel}}</text>
-      <text class="chip-arrow">▾</text>
-    </view>
-    <text class="range-detail" wx:if="{{range === 'custom' && customStart && customEnd}}">{{customStart}} 至 {{customEnd}}</text>
-  </view>
+  <!-- 中部滚动区：时间范围 + 需求输入 + 快捷模板 + 结果 -->
+  <scroll-view class="content-scroll" scroll-y enhanced show-scrollbar="{{false}}">
+    <view class="content-inner">
 
-  <!-- 提问输入区 -->
-  <view class="input-card">
-    <view class="input-placeholder" wx:if="{{!prompt}}">
-      <view>输入或说出你的总结需求</view>
-      <view class="placeholder-sub">例：汇总本月情绪变化、统计所有通勤相关日记</view>
+      <!-- 筛选区：时间范围（单胶囊，点击在弹层内选择） -->
+      <view class="filter-row">
+        <view class="range-pill" hover-class="pill-hover" bindtap="openRangePicker">
+          <text>📅 {{rangeLabel}}</text>
+          <text class="chip-arrow">▾</text>
+        </view>
+        <text class="range-detail" wx:if="{{range === 'custom' && customStart && customEnd}}">{{customStart}} 至 {{customEnd}}</text>
+      </view>
+
+      <!-- 需求输入区 -->
+      <view class="input-card">
+        <view class="input-placeholder" wx:if="{{!prompt}}">
+          <view>输入或说出你的总结需求</view>
+          <view class="placeholder-sub">例：汇总本月情绪变化、统计所有通勤相关日记</view>
+        </view>
+        <textarea
+          class="prompt-textarea"
+          value="{{prompt}}"
+          bindinput="onPromptInput"
+          maxlength="-1"
+          auto-height
+          show-confirm-bar="{{false}}"
+          cursor-spacing="20"
+        />
+      </view>
+
+      <!-- 快捷模板标签栏（竖向分行列表） -->
+      <view class="shortcuts">
+        <view
+          class="shortcut"
+          wx:for="{{shortcuts}}"
+          wx:key="label"
+          bindtap="onShortcut"
+          data-fill="{{item.fill}}"
+        >{{item.label}}</view>
+      </view>
+
+      <!-- AI 结果展示区 -->
+      <view class="result-area">
+        <!-- 初始状态 -->
+        <view class="result-placeholder" wx:if="{{!loading && !error && !hasResult}}">
+          <view class="placeholder-icon">✨</view>
+          <view class="placeholder-text">提交需求后，AI 将基于你的日记生成总结</view>
+        </view>
+
+        <!-- Loading -->
+        <view class="result-loading" wx:if="{{loading}}">
+          <view class="gen-dots">
+            <view class="dot dot1"></view>
+            <view class="dot dot2"></view>
+            <view class="dot dot3"></view>
+          </view>
+          <view class="loading-text">正在读取日记，AI 正在分析，请稍候…</view>
+        </view>
+
+        <!-- 错误 -->
+        <view class="result-error" wx:if="{{error && !loading}}">
+          <text>{{error}}</text>
+        </view>
+
+        <!-- 成功结果不再在本页展示：生成成功后直接跳「总结结果」页（pages/summary-result） -->
+      </view>
+
     </view>
-    <textarea
-      class="prompt-textarea"
-      value="{{prompt}}"
-      bindinput="onPromptInput"
-      maxlength="-1"
-      auto-height
-      show-confirm-bar="{{false}}"
-      cursor-spacing="20"
-    />
-    <!-- 底栏：与写日记主页底栏一致（无表情 / 无加号） -->
-    <view class="input-actions">
+  </scroll-view>
+
+  <!-- 底部固定底栏（与写日记主页 / 详情编辑页 / 档案页结构一致） -->
+  <view class="input-bar-wrap">
+    <view class="input-bar" style="padding-bottom: calc(22rpx + {{safeAreaBottom}}px);">
+      <!-- 中间区：按住说话（默认语音输入） -->
       <view class="input-middle">
         <view
           class="hold-talk {{recording ? 'recording' : ''}} {{connecting ? 'connecting' : ''}}"
@@ -35,73 +83,10 @@
           bindtouchcancel="onHoldEnd"
         >{{recording ? '松开 结束' : (connecting ? '连接中…' : '按住 说话')}}</view>
       </view>
-      <button class="generate-btn {{prompt ? '' : 'disabled'}}" disabled="{{!prompt || loading}}" bindtap="onGenerate">{{loading ? '生成中…' : '生成总结'}}</button>
+
+      <!-- 右侧：生成总结 -->
+      <button class="generate-btn {{prompt ? '' : 'disabled'}}" disabled="{{!prompt || loading}}" bindtap="onGenerate">{{loading ? '…' : '生成总结'}}</button>
     </view>
-  </view>
-
-  <!-- 快捷模板标签栏（竖向分行列表） -->
-  <view class="shortcuts">
-    <view
-      class="shortcut"
-      wx:for="{{shortcuts}}"
-      wx:key="label"
-      bindtap="onShortcut"
-      data-fill="{{item.fill}}"
-    >{{item.label}}</view>
-  </view>
-
-  <!-- AI 结果展示区 -->
-  <view class="result-area">
-    <!-- 初始状态 -->
-    <view class="result-placeholder" wx:if="{{!loading && !error && !hasResult}}">
-      <view class="placeholder-icon">✨</view>
-      <view class="placeholder-text">提交需求后，AI 将基于你的日记生成总结</view>
-    </view>
-
-    <!-- Loading -->
-    <view class="result-loading" wx:if="{{loading}}">
-      <view class="gen-dots">
-        <view class="dot dot1"></view>
-        <view class="dot dot2"></view>
-        <view class="dot dot3"></view>
-      </view>
-      <view class="loading-text">正在读取日记，AI 正在分析，请稍候…</view>
-    </view>
-
-    <!-- 错误 -->
-    <view class="result-error" wx:if="{{error && !loading}}">
-      <text>{{error}}</text>
-    </view>
-
-    <!-- 成功结果 -->
-    <block wx:if="{{hasResult && !loading}}">
-      <view class="result-card">
-        <view class="result-header">
-          <view class="result-title">你的需求</view>
-          <view class="result-prompt">{{prompt}}</view>
-        </view>
-        <view class="result-meta" wx:if="{{diaryCount > 0}}">共读取 {{diaryCount}} 篇日记进行分析{{truncated ? '（日记较多，已选取最近部分）' : ''}}</view>
-        <scroll-view class="result-scroll" scroll-y enhanced show-scrollbar="{{false}}">
-          <rich-text class="result-content" nodes="{{resultHtml}}"></rich-text>
-        </scroll-view>
-      </view>
-
-      <!-- 结果操作按钮 -->
-      <view class="result-actions">
-        <view class="action-btn" bindtap="onCopy">
-          <text class="action-icon">📋</text>
-          <text class="action-text">复制总结</text>
-        </view>
-        <view class="action-btn" bindtap="onSave">
-          <text class="action-icon">💾</text>
-          <text class="action-text">保存为日记</text>
-        </view>
-        <view class="action-btn" bindtap="onReset">
-          <text class="action-icon">🔄</text>
-          <text class="action-text">重新提问</text>
-        </view>
-      </view>
-    </block>
   </view>
 
   <!-- 时间范围选择弹层 -->

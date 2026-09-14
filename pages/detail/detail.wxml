@@ -15,15 +15,17 @@
         <view class="detail-tags">
           <text wx:if="{{diary.isAIOptimized}}" class="tag-ai">AI 优化</text>
           <text wx:if="{{diary.moodText}}" class="tag-mood" style="color:{{diary.moodColor}};background:{{diary.moodBg}}">{{diary.moodText}}</text>
-          <text wx:for="{{diary.tags}}" wx:for-item="tag" wx:key="*this" class="tag-chip">#{{tag}}</text>
+          <text wx:for="{{diary.tags}}" wx:for-item="tag" wx:key="*this" class="tag-chip">{{tag}}</text>
         </view>
       </view>
 
       <!-- 可滚动区：正文/位置/媒体，长内容时独立滚动 -->
       <scroll-view class="detail-scroll" scroll-y enhanced show-scrollbar="{{false}}">
         <view class="detail-scroll-inner">
-          <!-- 正文 -->
-          <view class="detail-content">{{diary.content}}</view>
+          <!-- 正文（JS 侧拆行：小标题行 ◆/◇ 加粗，其余常规字重） -->
+          <view class="detail-content">
+            <view wx:for="{{contentBlocks}}" wx:key="k" class="content-line {{item.heading ? 'content-line-heading' : ''}}">{{item.text}}</view>
+          </view>
 
           <!-- 位置 & 天气 -->
           <view class="detail-meta-row" wx:if="{{diary.locationText || diary.weatherText}}">
@@ -290,82 +292,11 @@
     </view>
   </block>
 
-  <!-- ===== 分享弹窗（半屏面板） ===== -->
-  <view class="share-mask" wx:if="{{showSharePanel}}" bindtap="closeSharePanel" catchtouchmove="preventTouchMove"></view>
-  <view class="share-sheet" wx:if="{{showSharePanel}}">
-    <view class="share-grab"></view>
-    <scroll-view scroll-y class="share-scroll" show-scrollbar="{{false}}">
-      <view class="share-title">分享我的日记</view>
-
-      <!-- 私密分享 -->
-      <view class="share-sec-head">
-        <text class="share-sec-title">🔒 私密分享</text>
-        <text class="share-sec-sub">仅微信好友可见完整内容</text>
-      </view>
-      <button class="share-row share-row-plain" open-type="share">
-        <view class="share-row-icon share-row-icon-chat">
-          <image class="share-icon-wechat" src="/pages/detail/images/wechat.png" mode="aspectFit" />
-        </view>
-        <view class="share-row-main">
-          <text class="share-row-name">以卡片形式直接发送</text>
-        </view>
-      </button>
-
-      <!-- 公开分享 -->
-      <view class="share-sec-head share-sec-head-gap">
-        <text class="share-sec-title">🌐 公开分享</text>
-        <text class="share-sec-sub">生成海报，可发朋友圈/小红书/微博等</text>
-      </view>
-      <view class="share-row {{shareAction === 'poster' ? 'active' : ''}}" bindtap="selectShareAction" data-action="poster">
-        <view class="share-row-icon share-row-icon-poster">
-          <image class="share-icon-img" src="/pages/detail/images/poster.png" mode="aspectFit" />
-        </view>
-        <view class="share-row-main">
-          <text class="share-row-name">保存分享海报</text>
-          <text class="share-row-desc">图文卡片，保存到相册</text>
-        </view>
-      </view>
-      <view class="share-row {{shareAction === 'text' ? 'active' : ''}}" bindtap="selectShareAction" data-action="text">
-        <view class="share-row-icon share-row-icon-text">📝</view>
-        <view class="share-row-main">
-          <text class="share-row-name">复制精简文字</text>
-          <text class="share-row-desc">已脱敏，适配各平台粘贴</text>
-        </view>
-      </view>
-
-      <!-- 自定义展示开关（公开海报专属，横排精简） -->
-      <view class="share-sec-head share-sec-head-gap">
-        <text class="share-sec-title">自定义展示开关</text>
-        <text class="share-sec-sub">公开海报专属</text>
-      </view>
-      <view class="share-sw-grid">
-        <view class="share-sw-item">
-          <text class="share-sw-label">天气</text>
-          <switch checked="{{shareSw.weather}}" color="#C0773A" data-key="weather" bindchange="toggleShareSwitch" />
-        </view>
-        <view class="share-sw-item">
-          <text class="share-sw-label">心情</text>
-          <switch checked="{{shareSw.mood}}" color="#C0773A" data-key="mood" bindchange="toggleShareSwitch" />
-        </view>
-        <view class="share-sw-item">
-          <text class="share-sw-label">标签</text>
-          <switch checked="{{shareSw.tags}}" color="#C0773A" data-key="tags" bindchange="toggleShareSwitch" />
-        </view>
-        <view class="share-sw-item">
-          <text class="share-sw-label">图片</text>
-          <switch checked="{{shareSw.images}}" color="#C0773A" data-key="images" bindchange="toggleShareSwitch" />
-        </view>
-      </view>
-
-      <view class="share-disclaimer">公开分享的隐私细节已隐藏，但对外分享前还需您再次确认</view>
-    </scroll-view>
-
-    <view class="share-btns" style="padding-bottom: {{safeAreaBottom + 8}}px;">
-      <button class="share-btn-cancel" bindtap="closeSharePanel">取消</button>
-      <button class="share-btn-ok" bindtap="confirmShare">确认分享</button>
-    </view>
-  </view>
-
-  <!-- 海报画布（离屏，2d） -->
-  <canvas type="2d" id="sharePosterCanvas" class="share-poster-canvas"></canvas>
+  <!-- ===== 分享弹窗（半屏面板）：与总结结果页共用同一组件，逻辑见 components/share-sheet ===== -->
+  <share-sheet
+    visible="{{showSharePanel}}"
+    diary="{{diary}}"
+    wxacode-id="{{id}}"
+    bind:close="closeSharePanel"
+  />
 </view>

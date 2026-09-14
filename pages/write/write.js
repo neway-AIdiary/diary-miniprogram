@@ -1201,6 +1201,7 @@ Page({
   // ===== 保存 =====
   onSave() {
     const { content, mood, optimized, diaryDate } = this.data
+    this._navigated = false // 本次保存的跳转尚未发生（防重入标记复位）
 
     if (!content.trim()) {
       wx.showToast({ title: '请输入日记内容', icon: 'none' })
@@ -1234,9 +1235,18 @@ Page({
     this._savingMedia = true // 保存进行中：onUnload 不清理会话上传，等本流程出口决定
     const savedContent = content.trim()
 
+    // 【并行优化】点保存即发起实体识别：与标签生成/同日融合/落库并行跑，
+    // 避免「落库 + AI」串行叠加后吃掉等待上限，导致识别结果回来时已被放弃
+    this._pendingEntityCheck = {
+      content: savedContent,
+      promise: aiCloud.callAIExtractEntities(savedContent)
+    }
+
     // 检查日记本中是否已有同一天的日记：有则 AI 融合成一篇
+    // 必须排除「AI 总结」类产物：总结是产出物，既不能被融合改写，也不能作为融合底稿
+    // （否则新日记会并进总结；更糟的是其他普通日记可能被当孤儿删掉）
     const sameDayDiaries = storage.getAllDiaries().filter(d =>
-      util.getDateKey(new Date(d.created_at)) === diaryDate
+      util.getDateKey(new Date(d.created_at)) === diaryDate && !util.isAiSummaryDiary(d)
     )
 
     if (sameDayDiaries.length === 0) {
@@ -1270,6 +1280,7 @@ Page({
     const todayWeather = (diaryDate === util.getDateKey() && this.data.weatherInfo)
       ? { ...this.data.weatherInfo }
       : null
+    let savedOk = false // 落库成功标记：之后的异常（实体识别/自动分段等）不属于「保存失败」
     aiCloud.callAITags(savedContent, mood).then(tagResult => {
       const finalTags = (tagResult.tags || []).slice(0, 5)
       // 先算好保存媒体与被移除文件：保存成功才清理本会话上传但未保留的云文件
@@ -1293,6 +1304,7 @@ Page({
         this.setData({ saving: false }) // 存储已满：复位按钮状态（提示已在 storage 弹窗）
         return
       }
+      savedOk = true // 日记已安全写入本地：之后任何异常都不应报「保存失败」
 
       this._sessionUploaded = []
       if (removed.length) {
@@ -1307,16 +1319,25 @@ Page({
 
       this.resetAfterSave(diaryDate)
       wx.showToast({ title: '保存成功', icon: 'success' })
+      console.log('[write] 落库成功, id =', saved.id, '，进入实体识别')
 
       // 上报「今天已写」（闹钟判断依据），失败静默
       reminder.callMarkWritten(diaryDate)
 
       // 保存后检测新实体，检测完再跳转详情
       this.checkNewEntities(savedContent)
-    }).catch(() => {
-      // AI 标签获取失败（网络/云函数异常）：复位按钮，内容保留在输入框可重试
+    }).catch((err) => {
       this._savingMedia = false
       this.setData({ saving: false })
+      if (savedOk) {
+        // 日记已安全落库：实体识别/自动分段等增强步骤的异常不应报「保存失败」吓用户，
+        // 但导航可能还没发生——兜底补跳详情页（afterSaveNavigate 内部有防重入保护）
+        console.error('[write] 日记已保存，但后续步骤异常（已兜底补跳详情页）:', err)
+        this.afterSaveNavigate()
+        return
+      }
+      // 真正的保存失败（落库前）：AI 标签获取异常/网络问题，内容保留在输入框可重试
+      console.error('[write] 保存失败（未落库）:', err)
       wx.showToast({ title: '保存失败，请重试', icon: 'none' })
     })
   },
@@ -1326,6 +1347,7 @@ Page({
     const oldContent = sameDayDiaries.map(d => d.content).join('\n\n')
     const archives = storage.getArchives().map(a => ({ name: a.name, description: a.description }))
 
+    let savedOk = false // 落库成功标记：之后的异常（实体识别/自动分段等）不属于「保存失败」
     aiCloud.callAIMergeDiary(oldContent, savedContent, {
       oldMood: base.mood || '',
       newMood: mood || '',
@@ -1359,6 +1381,7 @@ Page({
           this.setData({ saving: false }) // 存储已满：复位按钮状态（提示已在 storage 弹窗）
           return
         }
+        savedOk = true // 日记已安全写入本地：之后任何异常都不应报「保存失败」
 
         this._sessionUploaded = []
         if (removed.length) {
@@ -1388,16 +1411,29 @@ Page({
 
         // 只对「本次新增的内容」识别名词备案，旧日记里已存在的名词不再重复提示
         this.checkNewEntities(savedContent)
-      }).catch(() => {
-        // AI 标签获取失败：复位按钮，内容保留可重试
+      }).catch((err) => {
         this._savingMedia = false
         this.setData({ saving: false })
+        if (savedOk) {
+          // 日记已安全落库：后续步骤异常不报「保存失败」，并兜底补跳详情页（防重入）
+          console.error('[write] 融合已保存，但后续步骤异常（已兜底补跳详情页）:', err)
+          this.afterSaveNavigate()
+          return
+        }
+        // AI 标签获取失败（落库前）：内容保留在输入框可重试
+        console.error('[write] 融合保存失败（未落库）:', err)
         wx.showToast({ title: '保存失败，请重试', icon: 'none' })
       })
-    }).catch(() => {
-      // AI 融合失败：复位按钮，内容保留可重试
+    }).catch((err) => {
       this._savingMedia = false
       this.setData({ saving: false })
+      if (savedOk) {
+        // 同上：融合结果已落库，后续异常不影响数据
+        console.error('[write] 融合已保存，但后续步骤异常（不影响数据）:', err)
+        return
+      }
+      // AI 融合失败（落库前）：内容保留在输入框可重试
+      console.error('[write] AI 融合失败（未落库）:', err)
       wx.showToast({ title: '保存失败，请重试', icon: 'none' })
     })
   },
@@ -1433,18 +1469,28 @@ Page({
 
   // ===== 实体备案 =====
   checkNewEntities(content) {
+    console.log('[write] checkNewEntities 开始（AI 实体识别中，最多等 8 秒）')
     let resolved = false
     const finish = () => {
       if (resolved) return
       resolved = true
+      console.log('[write] 实体识别结束, showEntityPrompt =', this.data.showEntityPrompt, '，准备跳转')
       if (!this.data.showEntityPrompt) {
         this.afterSaveNavigate()
       }
     }
 
-    const timeout = setTimeout(finish, 5000)
+    // 上限 8 秒：识别与保存并行后通常 2-4 秒即返回，这里只兜极端慢的情况
+    const timeout = setTimeout(finish, 8000)
 
-    aiCloud.callAIExtractEntities(content).then(result => {
+    // 复用 onSave 里已并行发起的识别请求（内容一致时），否则当场发起
+    const pending = this._pendingEntityCheck
+    this._pendingEntityCheck = null
+    const req = (pending && pending.content === content)
+      ? pending.promise
+      : aiCloud.callAIExtractEntities(content)
+
+    req.then(result => {
       clearTimeout(timeout)
       if (resolved) return
 
@@ -1453,11 +1499,15 @@ Page({
         return
       }
 
-      // 所有带解释的名词都纳入正文清理（弹窗与否都会清掉解释部分，只留名词）
-      // 再过滤一次：name 必须是 2-4 字名词，description 必须有实际解释意义
+      // 正文始终保持原样（不删除解释部分），这里只负责筛选出可备案的名词
+      // 过滤：① name 必须是 2-6 字名词、description 有实际解释意义
+      //      ② 机械校验（entityClean.isExplainedNoun）：原文里必须真实存在「名词 + 定义句式」，
+      //         排除 AI 误报的虚词（如「分别」）、带助词的短语（如「的第一天」），
+      //         以及从更长专有名词里截出的子串（如「中国考古博物馆」→「古博物馆」）
       const existing = new Map(storage.getArchives().map(a => [a.name, a]))
       const all = result.entities
-        .filter(e => e.name && e.description && e.name.length >= 2 && e.name.length <= 4 && e.description.length >= 4)
+        .filter(e => e.name && e.description && e.name.length >= 2 && e.name.length <= 6 && e.description.length >= 4)
+        .filter(e => entityClean.isExplainedNoun(e.name, content))
         .map(e => {
           const old = existing.get(e.name)
           return {
@@ -1465,7 +1515,7 @@ Page({
             description: e.description,
             explanation: e.explanation || '',
             type: e.type || 'other',
-            // 已备案的名词不再提醒存档（二次编辑保存也不重复提示），仅静默清理正文解释
+            // 已备案的名词不再提醒存档（二次编辑保存也不重复提示）
             exists: !!old,
             checked: true
           }
@@ -1476,12 +1526,10 @@ Page({
         return
       }
 
-      // 已备案的名词：不再弹窗提醒存档（避免重复打扰），仅静默清理正文中的解释部分
+      // 已备案的名词：不再弹窗提醒存档（避免重复打扰）
       const promptEntities = all.filter(e => !e.exists)
-      this._pendingEntities = all
 
       if (promptEntities.length === 0) {
-        this.cleanSavedDiary()
         finish()
         return
       }
@@ -1493,26 +1541,41 @@ Page({
     })
   },
 
-  /**
-   * 弹窗关闭后清理已保存日记中的解释部分：解释过的名词只留名词本身
-   * 如「我今天和王磊，他是我大学同学一起吃的饭」→「我今天和王磊一起吃的饭」
-   */
-  cleanSavedDiary() {
-    const entities = this._pendingEntities
-    this._pendingEntities = null
-    if (!entities || entities.length === 0 || !this._lastSavedId) return
-    const diary = storage.getDiaryById(this._lastSavedId)
-    if (!diary || !diary.content) return
-    const r = entityClean.removeExplanations(diary.content, entities)
-    if (r.changed) {
-      storage.updateDiary(this._lastSavedId, { content: r.content })
-    }
-  },
-
   // 保存后跳转到刚保存的日记详情
   afterSaveNavigate() {
+    if (this._navigated) return // 防重入：兜底路径和正常路径只会跳一次
+    this._navigated = true
+    console.log('[write] afterSaveNavigate 进入, id =', this._lastSavedId)
     if (this._lastSavedId) {
-      wx.navigateTo({ url: '/pages/detail/detail?id=' + this._lastSavedId })
+      const navUrl = '/pages/detail/detail?id=' + this._lastSavedId
+      // 先跳转：自动分段是后台增强功能，永远不允许挡在导航前面
+      wx.navigateTo({
+        url: navUrl,
+        success: () => console.log('[write] navigateTo 详情页成功'),
+        fail: (err) => {
+          console.error('[write] navigateTo 失败，尝试 redirectTo 兜底:', err)
+          // 兜底一：navigateTo 失败（页面栈异常等）时，用 redirectTo 替换当前页进入详情
+          wx.redirectTo({
+            url: navUrl,
+            success: () => console.log('[write] redirectTo 兜底成功'),
+            fail: (err2) => {
+              console.error('[write] redirectTo 也失败:', err2)
+              // 兜底二：屏幕上直接弹出失败原因（不依赖 Console，真机也能看到）
+              wx.showToast({
+                title: '跳转失败: ' + ((err2 && err2.errMsg) || (err && err.errMsg) || '未知'),
+                icon: 'none',
+                duration: 4000
+              })
+            }
+          })
+        }
+      })
+      // 静默自动分段：长且无换行的日记，后台调 AI 划分段落后原地更新（失败/校验不过保持原文）
+      try {
+        aiCloud.autoSegmentAfterSave(this._lastSavedId)
+      } catch (e) {
+        console.error('[write] 自动分段发起异常（不影响已保存日记）:', e)
+      }
     }
   },
 
@@ -1525,8 +1588,7 @@ Page({
 
   confirmAddEntities() {
     const selected = this.data.newEntities.filter(e => e.checked)
-    // 无论备案与否，日记正文都清理解释部分（只保留名词）
-    this.cleanSavedDiary()
+    // 日记正文保持原样，不删除解释部分
     if (selected.length === 0) {
       this.setData({ showEntityPrompt: false, newEntities: [] })
       this.afterSaveNavigate()
@@ -1548,7 +1610,6 @@ Page({
   },
 
   skipEntities() {
-    this.cleanSavedDiary()
     this.setData({ showEntityPrompt: false, newEntities: [] })
     this.afterSaveNavigate()
   },

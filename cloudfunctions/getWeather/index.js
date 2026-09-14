@@ -15,9 +15,11 @@ const https = require('https')
 function requestJson(url, timeoutMs) {
   return new Promise((resolve) => {
     const req = https.get(url, { timeout: timeoutMs || 8000 }, (res) => {
-      let data = ''
-      res.on('data', (chunk) => { data += chunk })
+      // 按字节块收集后一次性整体 UTF-8 解码，避免多字节字符被切在块边界时变成乱码
+      const chunks = []
+      res.on('data', (chunk) => { chunks.push(chunk) })
       res.on('end', () => {
+        const data = Buffer.concat(chunks).toString('utf8')
         try {
           resolve(JSON.parse(data))
         } catch (e) {

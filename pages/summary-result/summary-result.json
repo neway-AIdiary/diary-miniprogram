@@ -2,5 +2,5 @@
   "usingComponents": {
     "share-sheet": "/components/share-sheet/share-sheet"
   },
-  "navigationBarTitleText": "日记详情"
+  "navigationBarTitleText": "总结结果"
 }

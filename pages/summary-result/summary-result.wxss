@@ -1,0 +1,153 @@
+/* ===== 总结结果页：与日记详情页同一套阅读框架（卡片 + 固定标题 + 独立滚动正文） ===== */
+.page {
+  height: 100vh;
+  overflow: hidden;
+  background: var(--bg);
+  padding: 24rpx;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+}
+
+.detail-card {
+  background: var(--surface);
+  border-radius: 16rpx;
+  padding: 48rpx 36rpx 40rpx;
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.detail-title {
+  font-size: 40rpx;
+  font-weight: 600;
+  color: var(--ink);
+  line-height: 1.5;
+  margin-bottom: 24rpx;
+  flex-shrink: 0;
+}
+
+.detail-meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 32rpx;
+  padding-bottom: 24rpx;
+  border-bottom: 1rpx solid var(--line);
+  flex-shrink: 0;
+}
+
+.detail-date {
+  font-size: 24rpx;
+  color: var(--ink-soft);
+}
+
+.detail-tags {
+  display: flex;
+  gap: 12rpx;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+
+.tag-chip {
+  font-size: 20rpx;
+  color: var(--ink-mid);
+  background: var(--bg-soft);
+  border: 1rpx solid var(--line);
+  padding: 4rpx 16rpx;
+  border-radius: 40rpx;
+}
+
+.detail-scroll {
+  display: block;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.detail-scroll-inner {
+  display: block;
+  padding-bottom: 24rpx;
+}
+
+/* 总结说明区：本次需求 + 数据范围（正文之前） */
+.sr-brief {
+  background: var(--brand-tint-08);
+  border: 1rpx solid var(--brand-tint-25);
+  border-radius: 16rpx;
+  padding: 24rpx 26rpx;
+  margin-bottom: 32rpx;
+}
+
+.sr-brief-prompt {
+  display: flex;
+  align-items: flex-start;
+  gap: 14rpx;
+}
+
+.sr-brief-label {
+  font-size: 24rpx;
+  color: var(--brand);
+  font-weight: 500;
+  flex-shrink: 0;
+  line-height: 1.8;
+}
+
+.sr-brief-value {
+  font-size: 28rpx;
+  color: var(--ink);
+  line-height: 1.8;
+  flex: 1;
+  word-break: break-word;
+}
+
+.sr-brief-meta {
+  font-size: 24rpx;
+  color: var(--ink-soft);
+  line-height: 1.8;
+  margin-top: 10rpx;
+}
+
+/* 临时内容提示小字：比说明卡再淡一号，不抢视觉 */
+.sr-temp-hint {
+  font-size: 20rpx;
+  color: var(--ink-mid);
+  line-height: 1.6;
+  margin-top: 10rpx;
+}
+
+.detail-content {
+  font-size: 30rpx;
+  color: var(--ink);
+  line-height: 2;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+}
+
+/* 逐行渲染：空行保留一行高度；小标题行（◆/◇）只加粗、不上色 */
+.content-line {
+  min-height: 60rpx;
+  text-indent: 2em;   /* 段首缩进两格（中文排版习惯） */
+}
+.content-line-heading {
+  font-weight: bold;
+  text-indent: 0;     /* 小标题不缩进 */
+}
+
+/* 操作按钮 */
+.detail-actions {
+  display: flex;  gap: 16rpx;
+  margin-top: 32rpx;
+  padding-bottom: 24rpx;
+  flex-shrink: 0;
+}
+
+.detail-actions button {
+  flex: 1;
+}
+
+/* 落库进行中（busy）：按钮置灰且不可点，防止连点产生重复日记/草稿 */
+.detail-actions button[disabled] {
+  opacity: 0.45;
+}

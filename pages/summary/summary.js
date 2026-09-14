@@ -1,12 +1,11 @@
 /**
  * 智能总结页 pages/summary
  * 全局批量日记分析：文字/语音输入需求 → 前端本地读日记按时间筛选 → 云函数 aiSummary 调大模型 → 生成总结
- * 支持：时间范围筛选、快捷模板、复制结果、保存为日记、重新提问
+ * 生成成功后跳「总结结果」页（pages/summary-result）显示 / 分享 / 编辑 / 保存，本页只负责生成
  */
 const storage = require('../../utils/storage.js')
 const util = require('../../utils/util.js')
 const voice = require('../../utils/voice.js')
-const reminder = require('../../utils/reminder.js')
 const app = getApp()
 
 // 时间范围选项（弹层内选择，选择「自定义起止日期」时再展开两个日期 picker）
@@ -28,33 +27,15 @@ const SHORTCUTS = [
   { label: '🔍 提取所有运动记录', fill: '提取我所有的运动记录' }
 ]
 
-// 轻量 markdown → HTML（支持换行分段、- 列表、**加粗**）
-function markdownToHtml(text) {
-  const escape = s => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
-  const lines = String(text || '').split('\n')
-  let html = ''
-  let inList = false
-  for (const raw of lines) {
-    const t = raw.trim()
-    if (!t) {
-      if (inList) { html += '</ul>'; inList = false }
-      continue
-    }
-    let body = escape(t).replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
-    if (/^[-•*]\s+/.test(t)) {
-      if (!inList) { html += '<ul>'; inList = true }
-      html += '<li>' + body.replace(/^[-•*]\s+/, '') + '</li>'
-    } else {
-      if (inList) { html += '</ul>'; inList = false }
-      html += '<p>' + body + '</p>'
-    }
-  }
-  if (inList) html += '</ul>'
-  return html
-}
+// 是否为「AI 总结」生成的日记：共用判据在 utils/util.js（isAiSummaryDiary），
+// 同日融合、自动分段等处使用同一套规则，避免各写一份后口径漂移
+
+// 注：结果的 markdown 渲染/复制/保存已移至 pages/summary-result（本页只负责调用 AI 生成）
 
 Page({
   data: {
+    // 底部安全区适配
+    safeAreaBottom: 0,
     rangeList: RANGE_LIST,
     range: 'all',           // all | month | lastMonth | week7 | custom
     rangeLabel: '全部时间',
@@ -79,6 +60,12 @@ Page({
   },
 
   onLoad() {
+    // 底部安全区适配（与写日记主页 / 详情编辑页 / 档案页一致）
+    const win = wx.getWindowInfo ? wx.getWindowInfo() : wx.getSystemInfoSync()
+    this.setData({
+      safeAreaBottom: (win.safeArea && win.screenHeight - win.safeArea.bottom) || 0
+    })
+
     // 订阅全局录音状态
     this._offVoiceState = voice.onStateChange((s) => {
       this.setData({
@@ -245,18 +232,30 @@ Page({
 
     // 读本地日记 + 按时间筛选
     const all = storage.getAllDiaries()
-    const filtered = this.filterDiaries(all)
+    // 静默排除「AI 总结」生成的日记：总结结果是产出物，不再作为下一轮总结的输入
+    const sourceList = all.filter(d => !util.isAiSummaryDiary(d))
+    const filtered = this.filterDiaries(sourceList)
     if (!filtered.length) {
       this.setData({ error: '所选时间段暂无日记，请更换时间范围或去写日记', hasResult: false, result: '' })
       return
     }
 
-    // 组装 diaries（新的在前，控制总字符量避免 callFunction 参数过大）
-    const MAX_SEND = 15000
+    // 组装 diaries（新的在前；总量上限与云函数 MAX_CONTEXT_CHARS=50000 对齐，
+    // 日记多时自动缩小每篇正文配额，尽量把整段时间的日记都带上）
+    const MAX_SEND = 50000        // 发送给云函数的日记文本总量上限（字符）
+    const PER_DIARY_MAX = 1500    // 单篇正文常规上限
+    const PER_DIARY_MIN = 80      // 日记极多时的单篇正文下限（只保留开头，避免整段被丢弃）
+    const OVERHEAD = 24           // 每篇日期/心情/分隔符等额外开销估算
+
+    const totalCount = filtered.length
+    let perDiary = Math.floor((MAX_SEND - totalCount * OVERHEAD) / totalCount)
+    perDiary = Math.max(PER_DIARY_MIN, Math.min(PER_DIARY_MAX, perDiary))
+
     const diaries = []
     let total = 0
     for (const d of filtered) {
-      const content = String(d.content || '').slice(0, 1500)
+      const raw = String(d.content || '').trim()
+      const content = raw.length > perDiary ? raw.slice(0, perDiary) + '…' : raw
       const date = util.getDateKey(new Date(d.created_at))
       const mood = util.getMoodLabel(d.mood) || ''
       const piece = date + content + mood
@@ -264,6 +263,9 @@ Page({
       diaries.push({ date: date, content: content, mood: mood })
       total += piece.length
     }
+    // 发送量超限导致有日记没带上时，页面上给出「已选取最近部分」提示
+    const frontTruncated = diaries.length < totalCount
+    this.setData({ truncated: frontTruncated })
     if (!diaries.length) {
       this.setData({ error: '所选时间段暂无日记', hasResult: false, result: '' })
       return
@@ -291,13 +293,25 @@ Page({
     }).then(res => {
       const r = res && res.result
       if (r && r.success && r.summaryText) {
-        this.setData({
-          loading: false,
-          hasResult: true,
-          result: r.summaryText,
-          resultHtml: markdownToHtml(r.summaryText),
+        // 生成成功：结果交给「总结结果」页显示（本页不再就地展示），通过 eventChannel 传递
+        const payload = {
+          content: r.summaryText,
+          prompt: prompt,
+          rangeText: this.getRangeText(),
           diaryCount: r.diaryCount || diaries.length,
-          truncated: !!r.truncated
+          truncated: !!r.truncated || frontTruncated
+        }
+        app.globalData.summaryResult = payload // 兜底：eventChannel 未命中时结果页读全局
+        // 本页回到初始态（保留输入的需求方便继续提问），避免返回时残留 loading / 旧结果
+        this.setData({ loading: false, hasResult: false, result: '', resultHtml: '', diaryCount: 0, truncated: false })
+        wx.navigateTo({
+          url: '/pages/summary-result/summary-result',
+          success: (nav) => {
+            if (nav && nav.eventChannel) nav.eventChannel.emit('summaryResult', payload)
+          },
+          fail: () => {
+            this.setData({ error: '结果页打开失败，请重试' })
+          }
         })
       } else {
         this.setData({
@@ -307,11 +321,14 @@ Page({
         })
       }
     }).catch(err => {
-      console.warn('[summary] aiSummary 调用失败:', err && err.errMsg)
+      // 暴露真实错误（网络异常 / 云函数失败 / 模块找不到 都会反映在 err.errMsg / err.result）
+      const r = err && err.result
+      const detail = (r && r.errorMessage) || (err && (err.errMsg || err.message)) || ''
+      console.warn('[summary] aiSummary 调用失败:', err, 'detail:', detail)
       this.setData({
         loading: false,
         hasResult: false,
-        error: '网络异常，请稍后重试'
+        error: 'AI 调用失败：' + (detail || '网络异常') + '\n（请把错误文案发给 AI 助手定位）'
       })
     })
   },
@@ -337,59 +354,32 @@ Page({
     return { start: '', end: '' }
   },
 
-  // ===== 结果操作 =====
-  onCopy() {
-    if (!this.data.result) return
-    wx.setClipboardData({
-      data: this.data.result,
-      success: () => wx.showToast({ title: '复制成功', icon: 'success' })
-    })
+  // 数据范围文案（总结结果页展示用，如「本月 / 上月 / 近 7 天 / 全部时间 / 9月1日 至 9月11日」）
+  getRangeText() {
+    const range = this.data.range
+    if (range === 'month') return '本月'
+    if (range === 'lastMonth') return '上月'
+    if (range === 'week7') return '近 7 天'
+    if (range === 'custom') {
+      const cn = (s) => {
+        const d = new Date(s + 'T00:00:00')
+        if (isNaN(d.getTime())) return ''
+        return (d.getMonth() + 1) + '月' + d.getDate() + '日'
+      }
+      const a = cn(this.data.customStart)
+      const b = cn(this.data.customEnd)
+      if (a && b) return a + ' 至 ' + b
+      return '所选时间段'
+    }
+    return '全部时间'
   },
 
-  onSave() {
-    const content = this.data.result
-    if (!content) return
-    const todayKey = util.getDateKey()
-    const saved = storage.saveDiary({
-      title: util.getDefaultTitle(todayKey) + '【AI总结】',
-      content: content,
-      mood: 'neutral',
-      source: 'ai',
-      tags: ['AI总结'],
-      location: null,
-      media: [],
-      weather: null,
-      created_at: new Date().toISOString()
-    })
-    if (!saved) {
-      wx.showToast({ title: '保存失败', icon: 'none' })
-      return
-    }
-    app.globalData.needRefresh = true
-    // 上报今天已写（AI 总结也视为当天有日记，避免闹钟误提醒）
-    reminder.callMarkWritten(todayKey)
-    wx.showModal({
-      title: '已保存到你的日记',
-      content: '是否去查看？',
-      confirmText: '去查看',
-      cancelText: '继续提问',
-      success: (res) => {
-        if (res.confirm) {
-          wx.navigateTo({ url: '/pages/detail/detail?id=' + saved.id })
-        }
-      }
-    })
-  },
+  // 结果展示/复制/保存已移至「总结结果」页（pages/summary-result），本页只负责生成
 
   onReset() {
     this.setData({
       prompt: '',
-      hasResult: false,
-      error: '',
-      result: '',
-      resultHtml: '',
-      diaryCount: 0,
-      truncated: false
+      error: ''
     })
   }
 })

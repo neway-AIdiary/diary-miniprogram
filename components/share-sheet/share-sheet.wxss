@@ -1,0 +1,296 @@
+/* ===== 分享弹窗（半屏面板）：日记详情页 / 总结结果页共用 ===== */
+.share-mask {
+  position: fixed;
+  left: 0;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.45);
+  z-index: 200;
+}
+
+.share-sheet {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 201;
+  background: var(--surface);
+  border-radius: 32rpx 32rpx 0 0;
+  display: flex;
+  flex-direction: column;
+  max-height: 84vh;
+  animation: shareSheetUp 0.22s ease-out;
+}
+
+@keyframes shareSheetUp {
+  from { transform: translateY(60rpx); opacity: 0.4; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+.share-grab {
+  width: 72rpx;
+  height: 8rpx;
+  border-radius: 8rpx;
+  background: var(--line);
+  margin: 16rpx auto 4rpx;
+  flex-shrink: 0;
+}
+
+.share-scroll {
+  padding: 12rpx 36rpx 0;
+  flex: 1;
+  min-height: 0;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.share-title {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 34rpx;
+  font-weight: 600;
+  color: var(--ink);
+  text-align: center;
+  margin-top: 8rpx;
+}
+
+.share-sec-head {
+  display: flex;
+  align-items: center;
+  margin: 28rpx 0 16rpx;
+}
+
+.share-sec-head-gap {
+  margin-top: 8rpx;
+}
+
+.share-sec-title {
+  font-size: 28rpx;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.share-sec-sub {
+  font-size: 22rpx;
+  color: var(--ink-soft);
+  margin-left: 14rpx;
+  flex: 1;
+}
+
+/* 分享渠道行 */
+.share-row {
+  display: flex;
+  align-items: center;
+  background: var(--bg-soft);
+  border: 2rpx solid var(--line-soft);
+  border-radius: 20rpx;
+  padding: 18rpx 20rpx;
+  margin-bottom: 14rpx;
+  text-align: left;
+  line-height: 1.4;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+/* button 元素自带默认内边距/宽度/行高，关键布局属性全部 !important 接管，
+   确保图标位置与下方公开分享行严格对齐、文字不换行 */
+.share-row-plain {
+  font-size: 28rpx;
+  background: var(--bg-soft);
+  display: flex !important;
+  align-items: center;
+  width: 100% !important;
+  margin: 0 0 14rpx !important;
+  padding: 18rpx 20rpx !important;
+  box-sizing: border-box;
+  border-radius: 20rpx;
+  line-height: 1.4;
+  text-align: left;
+  font-weight: normal;
+}
+
+.share-row-plain .share-row-main {
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+.share-row-plain .share-row-name {
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.share-row-plain::after {
+  border: none;
+}
+
+.share-row.active {
+  background: var(--brand-soft);
+  border-color: var(--brand-bright);
+}
+
+.share-row-icon {
+  width: 68rpx;
+  height: 68rpx;
+  border-radius: 18rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 36rpx;
+  flex-shrink: 0;
+  margin-right: 20rpx;
+}
+
+.share-row-icon-chat {
+  background: transparent;
+}
+
+.share-icon-wechat {
+  width: 68rpx;
+  height: 68rpx;
+  display: block;
+}
+
+.share-icon-img {
+  width: 68rpx;
+  height: 68rpx;
+  display: block;
+}
+
+.share-row-icon-poster {
+  background: transparent;
+}
+
+.share-row-icon-text {
+  background: var(--brand-soft);
+}
+
+.share-row-main {
+  flex: 1;
+  min-width: 0;
+}
+
+.share-row-name,
+.share-row-desc {
+  display: block;
+  width: 100%;
+  white-space: normal;
+  word-break: break-word;
+}
+
+.share-row-name {
+  font-size: 28rpx;
+  font-weight: 500;
+  color: var(--ink);
+}
+
+.share-row-desc {
+  font-size: 22rpx;
+  color: var(--ink-soft);
+  margin-top: 2rpx;
+}
+
+.share-row-arrow {
+  font-size: 36rpx;
+  color: var(--ink-faint);
+  margin-left: 12rpx;
+  flex-shrink: 0;
+}
+
+/* 展示开关（横排：天气/心情/标签/图片 各带迷你开关） */
+.share-sw-grid {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  box-sizing: border-box;
+  padding: 10rpx 4rpx 6rpx;
+}
+
+.share-sw-item {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.share-sw-label {
+  font-size: 26rpx;
+  color: var(--ink);
+  margin-right: 8rpx;
+  flex-shrink: 0;
+}
+
+.share-sw-item switch {
+  transform: scale(0.7);
+  flex: 0 0 auto;
+}
+
+.share-disclaimer {
+  font-size: 22rpx;
+  color: var(--ink-faint);
+  line-height: 1.7;
+  padding: 24rpx 0 8rpx;
+}
+
+/* 底部按钮 */
+.share-btns {
+  display: flex;
+  gap: 20rpx;
+  padding: 20rpx 36rpx 0;
+  flex-shrink: 0;
+  background: var(--surface);
+}
+
+.share-btn-cancel {
+  flex: 1;
+  background: var(--line-soft);
+  color: var(--ink-mid);
+  border: none;
+  border-radius: 48rpx;
+  font-size: 30rpx;
+  font-weight: 500;
+  line-height: 1.5;
+  padding: 20rpx 0;
+  text-align: center;
+}
+
+.share-btn-cancel::after {
+  border: none;
+}
+
+.share-btn-cancel:active {
+  background: var(--line-soft);
+}
+
+.share-btn-ok {
+  flex: 1.4;
+  background: linear-gradient(135deg, var(--brand-bright) 0%, var(--brand-deep) 100%);
+  color: var(--surface);
+  border: none;
+  border-radius: 48rpx;
+  font-size: 30rpx;
+  font-weight: 500;
+  line-height: 1.5;
+  padding: 20rpx 0;
+  text-align: center;
+  box-shadow: 0 10rpx 24rpx var(--brand-shadow-22);
+}
+
+.share-btn-ok::after {
+  border: none;
+}
+
+.share-btn-ok:active {
+  background: linear-gradient(135deg, var(--brand-deep) 0%, var(--brand-deep) 100%);
+}
+
+/* 离屏海报画布 */
+.share-poster-canvas {
+  position: fixed;
+  left: -2000px;
+  top: 0;
+  width: 600px;
+  height: 800px;
+  background: transparent;
+}

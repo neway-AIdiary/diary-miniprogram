@@ -591,7 +591,7 @@ function start(opts) {
     if (stream) {
       // 火山流式要求 pcm；frameSize 触发 onFrameRecorded（握手期间帧先进缓存）
       recorderManager.start({
-        duration: 60000,
+        duration: 600000,
         sampleRate: 16000,
         numberOfChannels: 1,
         encodeBitRate: 48000,
@@ -601,7 +601,7 @@ function start(opts) {
     } else {
       // iOS 等回退链路：整段录音，松手后 wav 上传识别
       recorderManager.start({
-        duration: 60000,
+        duration: 600000,
         sampleRate: 16000,
         numberOfChannels: 1,
         encodeBitRate: 48000,
