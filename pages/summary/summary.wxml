@@ -8,8 +8,8 @@
       <!-- 筛选区：时间范围（单胶囊，点击在弹层内选择） -->
       <view class="filter-row">
         <view class="range-pill" hover-class="pill-hover" bindtap="openRangePicker">
-          <text>📅 {{rangeLabel}}</text>
-          <text class="chip-arrow">▾</text>
+          <text><text class="ri ri-calendar-line"></text> {{rangeLabel}}</text>
+          <text class="chip-arrow ri ri-arrow-down-s-line"></text>
         </view>
         <text class="range-detail" wx:if="{{range === 'custom' && customStart && customEnd}}">{{customStart}} 至 {{customEnd}}</text>
       </view>
@@ -39,15 +39,18 @@
           wx:key="label"
           bindtap="onShortcut"
           data-fill="{{item.fill}}"
-        >{{item.label}}</view>
+        >
+          <text class="ri {{item.icon}}"></text>
+          <text class="shortcut-text">{{item.label}}</text>
+        </view>
       </view>
 
       <!-- AI 结果展示区 -->
       <view class="result-area">
         <!-- 初始状态 -->
         <view class="result-placeholder" wx:if="{{!loading && !error && !hasResult}}">
-          <image class="placeholder-icon" src="/images/ai-summary.png" mode="aspectFit" />
-          <view class="placeholder-text">提交需求后，AI 将基于你的日记生成总结</view>
+          <text class="ri ri-quill-pen-line placeholder-icon"></text>
+          <view class="placeholder-text">AI将根据您的指示生成总结</view>
         </view>
 
         <!-- Loading -->
@@ -85,7 +88,7 @@
       </view>
 
       <!-- 右侧：生成总结 -->
-      <button class="generate-btn {{prompt ? '' : 'disabled'}}" disabled="{{!prompt || loading}}" bindtap="onGenerate">{{loading ? '…' : '生成总结'}}</button>
+      <button class="generate-btn {{prompt ? '' : 'disabled'}}" disabled="{{!prompt || loading}}" bindtap="onGenerate">{{loading ? '分析中' : '生成总结'}}</button>
     </view>
   </view>
 
@@ -103,7 +106,7 @@
         bindtap="selectRange"
       >
         <text>{{item.label}}</text>
-        <text class="option-check" wx:if="{{range === item.key}}">✓</text>
+        <text class="option-check ri ri-check-line" wx:if="{{range === item.key}}"></text>
       </view>
     </view>
 

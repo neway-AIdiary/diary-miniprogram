@@ -538,6 +538,7 @@ function buildWordBlock(d, withYear, imgMap, videoMap) {
   // 隐藏 JSON 数据块（导入时完整还原）
   const data = {
     id: d.id, title: d.title, content: d.content, mood: d.mood, source: d.source,
+    entryType: d.entryType || null,
     tags: d.tags || [], location: d.location || null, media: media,
     weather: d.weather || null,
     created_at: d.created_at, updated_at: d.updated_at
@@ -704,6 +705,7 @@ function buildDocx(diaries, imgBin, videoMap) {
     // 隐藏 JSON（导入完整还原：id/心情/天气/媒体 fileID/位置等）
     const data = {
       id: d.id, title: d.title, content: d.content, mood: d.mood, source: d.source,
+      entryType: d.entryType || null,
       tags: d.tags || [], location: d.location || null, media: d.media || [],
       weather: d.weather || null,
       created_at: d.created_at, updated_at: d.updated_at
@@ -813,6 +815,7 @@ function parseDocxXml(xml) {
           content: obj.content,
           mood: obj.mood || '',
           source: obj.source || 'manual',
+          entryType: obj.entryType || null,
           tags: Array.isArray(obj.tags) ? obj.tags : [],
           location: obj.location || null,
           media: Array.isArray(obj.media) ? obj.media : [],
@@ -976,6 +979,7 @@ function parseWordHtml(text) {
           content: obj.content,
           mood: obj.mood || '',
           source: obj.source || 'manual',
+          entryType: obj.entryType || null,
           tags: Array.isArray(obj.tags) ? obj.tags : [],
           location: obj.location || null,
           media: Array.isArray(obj.media) ? obj.media : [],

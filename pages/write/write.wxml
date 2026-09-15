@@ -18,7 +18,7 @@
   <!-- 日期（可选择）+ 心情（可选择）+ 定位城市天气（纯展示）：固定在导航栏下方，不随正文滚动 -->
   <view class="date-wrap">
     <view class="date-left">
-      <view class="date-pill" hover-class="pill-hover" bindtap="toggleDatePicker">📅 {{dateLabel}}</view>
+      <view class="date-pill" hover-class="pill-hover" bindtap="toggleDatePicker"><text class="ri ri-calendar-line"></text> {{dateLabel}}</view>
       <view class="mood-pill" style="color:{{moodColor || '#999999'}};background:{{moodBg || 'rgba(0,0,0,0.06)'}};" bindtap="toggleMoodPicker">
         <text>{{moodLabel ? moodLabel : '心情'}}</text>
       </view>
@@ -47,7 +47,7 @@
             <block wx:if="{{highlight.active}}">
               <view class="hl-header">
                 <view class="hl-badge">{{highlight.title}}</view>
-                <view class="hl-close" bindtap="dismissHighlight">✕</view>
+                <view class="hl-close ri ri-close-line" bindtap="dismissHighlight"></view>
               </view>
               <rich-text class="hl-content" nodes="{{highlight.nodes}}" bindtap="dismissHighlight"></rich-text>
               <view class="hl-footer">{{highlight.count ? highlight.count + ' 处修改已高亮 · ' : ''}}点击返回编辑</view>
@@ -77,16 +77,12 @@
 
             <!-- 位置（与正文同属卡片，一起在卡片内滚动） -->
             <view class="loc-card" wx:if="{{location}}">
-              <view class="loc-icon">
-                <view class="pin-ball"></view>
-                <view class="pin-hole"></view>
-                <view class="pin-tip"></view>
-              </view>
+              <view class="loc-icon"><text class="ri ri-map-pin-2-line"></text></view>
               <view class="loc-info">
                 <text class="loc-name">{{location.name}}</text>
                 <text class="loc-addr" wx:if="{{location.address}}">{{location.address}}</text>
               </view>
-              <view class="loc-clear" catchtap="clearLocation">✕</view>
+              <view class="loc-clear ri ri-close-line" catchtap="clearLocation"></view>
             </view>
 
             <!-- 图片/视频缩略图（与正文同属卡片，一起在卡片内滚动） -->
@@ -94,7 +90,7 @@
               <view class="media-item" wx:for="{{media}}" wx:key="fileID">
                 <image class="media-img" src="{{item.thumb}}" mode="aspectFill" bindtap="previewMedia" data-index="{{index}}" />
                 <view wx:if="{{item.type === 'video'}}" class="media-video-badge">▶ {{item.duration}}s</view>
-                <view class="media-remove" catchtap="removeMedia" data-index="{{index}}">✕</view>
+                <view class="media-remove ri ri-close-line" catchtap="removeMedia" data-index="{{index}}"></view>
               </view>
             </view>
           </view>
@@ -123,9 +119,9 @@
   <view class="date-picker-mask" wx:if="{{showDatePicker}}" bindtap="closeDatePicker"></view>
   <view class="date-picker" wx:if="{{showDatePicker}}">
     <view class="cal-header">
-      <view class="cal-nav" bindtap="prevMonth">‹</view>
+      <view class="cal-nav ri ri-arrow-left-s-line" bindtap="prevMonth"></view>
       <view class="cal-title">{{calTitle}}</view>
-      <view class="cal-nav" bindtap="nextMonth">›</view>
+      <view class="cal-nav ri ri-arrow-right-s-line" bindtap="nextMonth"></view>
     </view>
     <view class="cal-week-row">
       <view class="cal-week">日</view>
@@ -234,19 +230,19 @@
   <view class="sidebar-mask" wx:if="{{showSidebar}}" bindtap="closeSidebar"></view>
   <view class="sidebar {{showSidebar ? 'open' : ''}}" style="padding-top: {{statusBarHeight}}px;">
     <view class="sidebar-header">
-      <view class="sidebar-close" bindtap="closeSidebar">✕</view>
+      <view class="sidebar-close ri ri-close-line" bindtap="closeSidebar"></view>
       <view class="sidebar-title">AI日记</view>
     </view>
 
     <!-- 用户登录：侧栏最上方 -->
     <view class="sidebar-user-top" bindtap="getUserProfile" hover-class="sidebar-user-top-hover">
-      <image wx:if="{{hasUserInfo}}" class="s-avatar" src="{{userInfo.avatarUrl}}" mode="aspectFill" />
-      <view wx:else class="s-avatar-default">👤</view>
+      <image wx:if="{{hasUserInfo && userInfo.nickName && userInfo.nickName !== '微信用户'}}" class="s-avatar" src="{{userInfo.avatarUrl}}" mode="aspectFill" />
+      <view wx:else class="s-avatar-default ri ri-user-3-line"></view>
       <view class="s-user-info">
         <view class="s-user-name">{{hasUserInfo ? userInfo.nickName : '点击登录'}}</view>
         <view class="s-user-desc">{{hasUserInfo ? '一灯照隅' : '授权后展示头像昵称'}}</view>
       </view>
-      <text class="s-arrow">›</text>
+      <text class="s-arrow ri ri-arrow-right-s-line"></text>
     </view>
 
     <scroll-view class="sidebar-scroll" scroll-y>
@@ -270,12 +266,12 @@
         <view class="sidebar-search">
           <input
             class="s-search-input"
-            placeholder="搜索日记"
+            placeholder="{{sidebarEmpty ? '打开日记本导入您之前的日记' : '搜索日记'}}"
             value="{{sidebarKeyword}}"
             bindinput="onSidebarSearch"
             confirm-type="search"
           />
-          <text wx:if="{{sidebarKeyword}}" class="s-search-clear" bindtap="clearSidebarSearch">✕</text>
+          <text wx:if="{{sidebarKeyword}}" class="s-search-clear ri ri-close-line" bindtap="clearSidebarSearch"></text>
         </view>
         <view class="sidebar-diary-list" wx:if="{{sidebarDiaries.length > 0}}">
           <view class="s-diary" wx:for="{{sidebarDiaries}}" wx:key="id" bindtap="openDiary" data-id="{{item.id}}">
@@ -285,7 +281,7 @@
           </view>
         </view>
         <view class="sidebar-empty" wx:else>暂无日记，写下第一篇吧</view>
-        <view class="sidebar-more" bindtap="goToIndex">查看全部 ›</view>
+        <view class="sidebar-more" bindtap="goToIndex">打开日记本 <text class="ri ri-login-box-line"></text></view>
       </view>
 
       <!-- 我的模块 -->
@@ -293,45 +289,29 @@
         <view class="sidebar-section-title">我的</view>
         <view class="s-menu">
           <view class="s-menu-item" bindtap="goToArchive">
-            <view class="s-menu-icon icon-archive"></view>
+            <view class="s-menu-icon ri ri-archive-line"></view>
             <text class="s-menu-text">档案</text>
-            <text class="s-arrow">›</text>
-          </view>
-          <view class="s-menu-item" bindtap="exportDiaries">
-            <view class="s-menu-icon icon-export">
-              <view class="i-arrow-up"></view>
-              <view class="i-tray"></view>
-            </view>
-            <text class="s-menu-text">导出日记</text>
-            <text class="s-arrow">›</text>
-          </view>
-          <view class="s-menu-item" bindtap="importDiaries">
-            <view class="s-menu-icon icon-import">
-              <view class="i-arrow-down"></view>
-              <view class="i-tray"></view>
-            </view>
-            <text class="s-menu-text">导入日记</text>
-            <text class="s-arrow">›</text>
+            <text class="s-arrow ri ri-arrow-right-s-line"></text>
           </view>
           <view class="s-menu-item" bindtap="goBackup">
-            <view class="s-menu-icon icon-backup"><view class="i-arrow-up"></view></view>
+            <view class="s-menu-icon ri ri-cloud-line"></view>
             <text class="s-menu-text">云端备份</text>
-            <text class="s-arrow">›</text>
+            <text class="s-arrow ri ri-arrow-right-s-line"></text>
           </view>
-          <view class="s-menu-item" bindtap="goToSummary">
-            <view class="s-menu-icon icon-summary"></view>
+          <view class="s-menu-item s-menu-item-ai" bindtap="goToSummary">
+            <view class="s-menu-icon ri ri-quill-pen-line"></view>
             <text class="s-menu-text">智能总结</text>
-            <text class="s-arrow">›</text>
+            <text class="s-arrow ri ri-arrow-right-s-line"></text>
           </view>
           <view class="s-menu-item" bindtap="goToSetting">
-            <view class="s-menu-icon icon-setting"></view>
+            <view class="s-menu-icon ri ri-settings-3-line"></view>
             <text class="s-menu-text">设置</text>
-            <text class="s-arrow">›</text>
+            <text class="s-arrow ri ri-arrow-right-s-line"></text>
           </view>
           <view class="s-menu-item danger" bindtap="clearAllDiaries">
-            <view class="s-menu-icon icon-clear"></view>
+            <view class="s-menu-icon ri ri-delete-bin-line"></view>
             <text class="s-menu-text">清除所有日记</text>
-            <text class="s-arrow">›</text>
+            <text class="s-arrow ri ri-arrow-right-s-line"></text>
           </view>
         </view>
       </view>
@@ -404,7 +384,7 @@
       </view>
 
       <view class="opt-original-toggle" bindtap="toggleOriginal">
-        查看原文 {{showOriginal ? '▲' : '▼'}}
+        查看原文 <text class="ri {{showOriginal ? 'ri-arrow-up-s-line' : 'ri-arrow-down-s-line'}}"></text>
       </view>
       <view class="opt-original-content" wx:if="{{showOriginal}}">{{originalContent}}</view>
 
@@ -443,7 +423,7 @@
           data-index="{{index}}"
           bindtap="toggleEntity"
         >
-          <view class="entity-checkbox">{{item.checked ? '✓' : ''}}</view>
+          <view class="entity-checkbox {{item.checked ? 'ri ri-check-line' : ''}}"></view>
           <view class="entity-info">
             <view class="entity-name-row">
               <text class="entity-name">{{item.name}}</text>

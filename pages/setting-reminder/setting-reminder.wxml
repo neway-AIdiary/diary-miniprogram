@@ -18,7 +18,7 @@
         <text class="field-label">提醒时间</text>
         <view class="field-value-wrap">
           <text class="field-value">{{time}}</text>
-          <text class="field-arrow">›</text>
+          <text class="field-arrow ri ri-arrow-right-s-line"></text>
         </view>
       </view>
     </picker>

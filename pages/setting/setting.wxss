@@ -42,6 +42,18 @@
   background: var(--surface-press);
 }
 
+.menu-icon {
+  font-size: 40rpx;
+  line-height: 1;
+  color: var(--ink);
+  margin-right: 16rpx;
+  flex-shrink: 0;
+}
+
+.menu-item-ai .menu-icon {
+  color: var(--ai);
+}
+
 .menu-text {
   flex: 1;
   font-size: 30rpx;

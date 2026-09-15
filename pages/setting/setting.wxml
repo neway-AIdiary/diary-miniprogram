@@ -4,24 +4,24 @@
     <view class="menu-title">设置</view>
     <view class="menu-card">
       <view class="menu-item" bindtap="onComingSoon" data-name="主题">
-        <text class="menu-text">主题</text>
-        <text class="menu-arrow">›</text>
+        <text class="menu-icon ri ri-palette-line"></text><text class="menu-text">主题</text>
+        <text class="menu-arrow ri ri-arrow-right-s-line"></text>
       </view>
       <view class="menu-item" bindtap="onComingSoon" data-name="日记字体">
-        <text class="menu-text">日记字体</text>
-        <text class="menu-arrow">›</text>
+        <text class="menu-icon ri ri-font-size-line"></text><text class="menu-text">日记字体</text>
+        <text class="menu-arrow ri ri-arrow-right-s-line"></text>
       </view>
       <view class="menu-item" bindtap="goToReminder">
-        <text class="menu-text">闹钟</text>
-        <text class="menu-arrow">›</text>
+        <text class="menu-icon ri ri-alarm-line"></text><text class="menu-text">闹钟</text>
+        <text class="menu-arrow ri ri-arrow-right-s-line"></text>
       </view>
-      <view class="menu-item" bindtap="onComingSoon" data-name="AI模型">
-        <text class="menu-text">AI模型</text>
-        <text class="menu-arrow">›</text>
+      <view class="menu-item menu-item-ai" bindtap="onComingSoon" data-name="AI模型">
+        <text class="menu-icon ri ri-quill-pen-line"></text><text class="menu-text">AI模型</text>
+        <text class="menu-arrow ri ri-arrow-right-s-line"></text>
       </view>
       <view class="menu-item" bindtap="showAbout">
-        <text class="menu-text">关于</text>
-        <text class="menu-arrow">›</text>
+        <text class="menu-icon ri ri-information-line"></text><text class="menu-text">关于</text>
+        <text class="menu-arrow ri ri-arrow-right-s-line"></text>
       </view>
     </view>
   </view>

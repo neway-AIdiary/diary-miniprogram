@@ -1,6 +1,6 @@
 /**
  * utils/transfer.js
- * 日记导入/导出的共用流程，供「写日记」侧边栏与「我的」页复用：
+ * 日记导入/导出的共用流程，供「日记本」页与「我的」页复用：
  *   - exportToWord(): 导出全部日记为标准 Word（.docx，OOXML），微信/WPS/Word 全平台可打开
  *   - exportToClipboard(): 导出为纯文本，复制到剪贴板（备用）
  *   - importFromFile(opts): 选择文件 → 解析（.docx / 旧版 .doc / JSON / 纯文本 / AI 智能识别兜底）→ 导入
@@ -13,10 +13,12 @@ const util = require('./util.js')
  * 导出所有日记为标准 Word 文件（.docx）
  * 文件名按日期范围命名，如「7月1日-8月30日日记.docx」
  * @param {function} onEmpty 无日记可导出时回调
+ * @param {Array} [list] 可选，指定导出的日记子集（如搜索结果）；不传则导出全部
  * @returns {boolean} 是否开始导出
  */
-function exportToWord(onEmpty) {
-  const list = storage.getAllDiaries()
+function exportToWord(onEmpty, list) {
+  // list 可选：传入子集（如日记本搜索结果）时仅导出该子集；不传则全量导出
+  if (!Array.isArray(list)) list = storage.getAllDiaries()
   if (!list.length) {
     if (onEmpty) onEmpty()
     return false

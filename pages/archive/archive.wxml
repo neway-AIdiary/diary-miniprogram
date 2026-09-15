@@ -4,6 +4,7 @@
   <!-- 提示栏 -->
   <view class="hint-bar">
     <text class="hint-text">您可以语音或手动添加和补充档案，如：杨志伟是我的好朋友</text>
+    <view class="hint-text">添加了档案后，语音语义的识别会更精准</view>
   </view>
 
   <!-- 档案列表（滚动区） -->
@@ -24,9 +25,9 @@
 
     <!-- 空状态 -->
     <view class="empty-state" wx:else>
-      <view class="empty-icon">📋</view>
+      <view class="empty-icon ri ri-archive-line"></view>
       <view class="empty-text">还没有档案</view>
-      <view class="empty-hint">在底部输入或语音添加人物、机构等备注信息</view>
+      <view class="empty-hint">点击+或语音添加人物、机构等备注信息</view>
     </view>
 
     <view class="content-bottom-space"></view>

@@ -4,7 +4,6 @@ const aiCloud = require('../../utils/aiCloud.js')
 const aiEdit = require('../../utils/aiEdit.js')
 const nameMatch = require('../../utils/nameMatch.js')
 const entityClean = require('../../utils/entityClean.js')
-const transfer = require('../../utils/transfer.js')
 const voice = require('../../utils/voice.js')
 const weather = require('../../utils/weather.js')
 const mediaGuard = require('../../utils/mediaGuard.js')
@@ -144,7 +143,9 @@ Page({
         recordSeconds: s.seconds,
         liveText: s.liveText || '',
         liveRemoved: s.liveRemoved || 0,
-        liveScrollTop: ((s.liveText || '').length) * 2
+        // 滚动跟随：按行数估算内容高度（每行约 18 字、行高 48rpx），
+        // 取值恒不小于最大可滚动距离 → 始终贴底；超过 10 行后旧文字滚出视野（沿用原隐藏逻辑）
+        liveScrollTop: Math.ceil(((s.liveText || '').length) / 18) * 48
       })
     })
   },
@@ -896,6 +897,7 @@ Page({
     this.setData({
       stats: { total: stats.total, monthCount: stats.monthCount, streak: stats.streak },
       allSidebarDiaries: list,
+      sidebarEmpty: list.length === 0,
       sidebarDiaries: this.applySidebarSearch(this.data.sidebarKeyword, list),
       userInfo: userInfo,
       hasUserInfo: !!userInfo
@@ -975,36 +977,6 @@ Page({
       },
       fail: () => {
         wx.showToast({ title: '已取消授权', icon: 'none' })
-      }
-    })
-  },
-
-  exportDiaries() {
-    transfer.exportToWord(() => {
-      wx.showToast({ title: '暂无日记可导出', icon: 'none' })
-    })
-  },
-
-  importDiaries() {
-    const self = this
-    transfer.importFromFile({
-      onFinish: (added, toast) => {
-        app.globalData.needRefresh = true
-        wx.showModal({
-          title: added === -1 ? '导入失败' : (added > 0 ? '导入成功' : '导入提示'),
-          content: toast,
-          showCancel: false,
-          confirmText: '知道了'
-        })
-        self.refreshSidebar()
-      },
-      onError: (msg) => {
-        wx.showModal({
-          title: '导入不成功',
-          content: msg,
-          showCancel: false,
-          confirmText: '知道了'
-        })
       }
     })
   },

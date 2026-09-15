@@ -54,9 +54,12 @@
 /* ---------- 搜索栏：暖灰槽 ---------- */
 .search-bar {
   padding: 24rpx 24rpx 8rpx;
+  display: flex;
+  align-items: center;
 }
 
 .search-box {
+  flex: 1;
   display: flex;
   align-items: center;
   background: var(--bg-soft);
@@ -76,6 +79,15 @@
   font-size: 28rpx;
   color: var(--ink);
 }
+
+/* 搜索栏右侧：导出 / 导入图标按钮 */
+.search-action { width: 72rpx; height: 72rpx; border-radius: 50%; background: var(--bg-soft); display: flex; align-items: center; justify-content: center; flex-shrink: 0; margin-left: 16rpx; }
+.search-action .ri { font-size: 32rpx; color: var(--ink-soft); }
+.search-action-hover { opacity: 0.6; }
+
+/* 空日记本下的导入入口 */
+.empty-import { margin-top: 24rpx; font-size: 26rpx; color: var(--brand); display: flex; align-items: center; padding-bottom: 4rpx; }
+.empty-import .ri { font-size: 28rpx; margin-right: 6rpx; }
 
 .search-clear {
   font-size: 28rpx;
@@ -170,8 +182,8 @@
 /* AI 优化标签：琥珀描边小签 */
 .tag-ai {
   font-size: 20rpx;
-  color: var(--brand);
-  background: var(--brand-tint-12);
+  color: var(--ai-deep);
+  background: var(--ai-soft);
   padding: 6rpx 16rpx;
   border-radius: var(--r-sm);
   flex-shrink: 0;
@@ -287,11 +299,17 @@
   margin-left: 24rpx;
 }
 
-/* #标签：琥珀弱化色 */
+/* #标签（AI 自动生成）→ AI 语义蓝 chip；
+   尺寸/圆角与同卡片的心情 pill（.tag-mood）、AI 优化标签（.tag-ai）一致 */
 .tag-item {
   font-size: 22rpx;
-  color: var(--brand-mute);
+  color: var(--ai-deep);
+  background: var(--ai-soft);
+  border: 1rpx solid var(--ai-tint-25);
+  padding: 4rpx 16rpx;
+  border-radius: var(--r-sm);
   margin-right: 12rpx;
+  margin-bottom: 4rpx;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -331,19 +349,20 @@
   align-items: center;
   gap: 10rpx;
   padding: 22rpx 32rpx;
-  background: linear-gradient(135deg, var(--brand-bright) 0%, var(--brand) 55%, var(--brand-deep) 100%);
+  background: linear-gradient(135deg, var(--ai) 0%, var(--ai-deep) 60%);
   border-radius: var(--r-pill);
-  box-shadow: var(--shadow-brand);
+  box-shadow: 0 8rpx 24rpx var(--ai-shadow-25);
 }
 
 .summary-fab:active {
   transform: translateY(2rpx);
-  box-shadow: 0 6rpx 14rpx var(--brand-shadow-22);
+  box-shadow: 0 6rpx 14rpx var(--ai-shadow-25);
 }
 
 .summary-fab-icon {
   font-size: 32rpx;
   line-height: 1;
+  color: var(--ink-invert);
 }
 
 .summary-fab-text {

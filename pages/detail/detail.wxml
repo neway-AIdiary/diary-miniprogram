@@ -29,7 +29,7 @@
 
           <!-- 位置 & 天气 -->
           <view class="detail-meta-row" wx:if="{{diary.locationText || diary.weatherText}}">
-            <text class="detail-location" wx:if="{{diary.locationText}}">📍 {{diary.locationText}}</text>
+            <text class="detail-location" wx:if="{{diary.locationText}}"><text class="ri ri-map-pin-2-line"></text> {{diary.locationText}}</text>
             <text class="detail-weather" wx:if="{{diary.weatherText}}">{{diary.weatherIcon}} {{diary.weatherText}}</text>
           </view>
 
@@ -69,7 +69,7 @@
   <!-- 跨设备分享占位（好友点卡片但本机无数据 / 云端通道未开通时展示） -->
   <view class="share-missing" wx:if="{{shareMissing}}">
     <view class="share-missing-card">
-      <view class="share-missing-icon">🔒</view>
+      <view class="share-missing-icon ri ri-lock-line"></view>
       <view class="share-missing-title">日记内容暂不可见</view>
       <view class="share-missing-desc">跨设备查看分享日记的功能即将上线，敬请期待</view>
       <button class="btn-secondary" bindtap="goBackHome">返回</button>
@@ -98,7 +98,7 @@
           <view class="mood-bar" bindtap="toggleMoodPicker" hover-class="mood-bar-hover">
             <text class="mood-label">心情</text>
             <text class="mood-value {{moodLabel ? '' : 'placeholder'}}">{{moodLabel || '可选，点击选择'}}</text>
-            <text class="mood-arrow">›</text>
+            <text class="mood-arrow ri ri-arrow-right-s-line"></text>
           </view>
           <view class="mood-options" wx:if="{{showMoodPicker}}">
             <view
@@ -135,16 +135,12 @@
             <!-- 位置（编辑）：带入原位置，可更换/清除 -->
             <view class="section" wx:if="{{editLocation}}">
               <view class="loc-card">
-                <view class="loc-icon">
-                  <view class="pin-ball"></view>
-                  <view class="pin-hole"></view>
-                  <view class="pin-tip"></view>
-                </view>
+                <view class="loc-icon"><text class="ri ri-map-pin-2-line"></text></view>
                 <view class="loc-info">
                   <text class="loc-name">{{editLocation.name}}</text>
                   <text class="loc-addr" wx:if="{{editLocation.address}}">{{editLocation.address}}</text>
                 </view>
-                <view class="loc-clear" catchtap="clearEditLocation">✕</view>
+                <view class="loc-clear ri ri-close-line" catchtap="clearEditLocation"></view>
               </view>
             </view>
 
@@ -182,7 +178,7 @@
                     />
                     <text class="edit-media-dur">{{item.duration || 0}}s</text>
                   </view>
-                  <view class="edit-media-remove" catchtap="removeEditMedia" data-index="{{index}}">✕</view>
+                  <view class="edit-media-remove ri ri-close-line" catchtap="removeEditMedia" data-index="{{index}}"></view>
                 </view>
               </view>
               <view class="edit-media-tip" wx:if="{{editMedia.length > 0}}">长按图片或视频可拖动排序</view>

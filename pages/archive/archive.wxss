@@ -158,7 +158,7 @@
 
 .hold-talk {
   height: 80rpx;
-  background: var(--line-soft);
+  background: var(--bg-soft);
   border-radius: 40rpx;
   display: flex;
   align-items: center;
@@ -169,7 +169,7 @@
 
 .hold-talk:active,
 .hold-talk.recording {
-  background: var(--line);
+  background: var(--line-strong);
   color: var(--brand);
 }
 
@@ -182,7 +182,7 @@
 .input-text {
   width: 100%;
   box-sizing: border-box;
-  background: var(--line-soft);
+  background: var(--bg-soft);
   border-radius: 40rpx;
   padding: 16rpx 24rpx;
   font-size: 28rpx;
@@ -231,7 +231,7 @@
 }
 
 .icon-plus {
-  background-image: url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCI+PHBhdGggZmlsbD0iIzJCMkIyQiIgZD0iTTExIDRoMnY3aDd2MmgtN3Y3aC0ydi03SDR2LTJoN1Y0eiIvPjwvc3ZnPg==");
+  background-image: url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCI+PHBhdGggZmlsbD0iIzVBNTI0NyIgZD0iTTExIDExVjVIMTNWMTFIMTlWMTNIMTNWMTlIMTFWMTNINVYxMUgxMVoiLz48L3N2Zz4=");
 }
 
 .icon-smiley {
@@ -673,5 +673,6 @@
 }
 
 .organize-loading {
-  color: var(--brand);
+  color: var(--ai);
 }
+

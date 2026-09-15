@@ -20,58 +20,25 @@
   height: 72rpx;
   border-radius: 50%;
   background: var(--line-soft);
-  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   flex-shrink: 0;
   margin-right: 24rpx;
 }
 
-/* 关闭状态：云朵轮廓（灰） */
-.status-icon::before {
-  content: '';
-  position: absolute;
-  left: 14rpx;
-  top: 24rpx;
-  width: 40rpx;
-  height: 20rpx;
-  border: 4rpx solid var(--ink-faint);
-  border-radius: 12rpx;
+.status-icon .ri {
+  font-size: 36rpx;
+  color: var(--ink-faint);
 }
 
-.status-icon::after {
-  content: '';
-  position: absolute;
-  left: 22rpx;
-  top: 14rpx;
-  width: 20rpx;
-  height: 20rpx;
-  border: 4rpx solid var(--ink-faint);
-  border-bottom: none;
-  border-radius: 12rpx 12rpx 0 0;
-}
-
-/* 开启状态：绿色实心云 + 白色对勾 */
+/* 开启状态：琥珀浅底 + 棕色实心云（与侧栏菜单同款字形） */
 .status-icon.on {
-  background: var(--brand);
+  background: var(--brand-tint-08);
 }
 
-.status-icon.on::before {
-  border-color: var(--surface);
-  left: 16rpx;
-  top: 28rpx;
-  width: 36rpx;
-  height: 16rpx;
-}
-
-.status-icon.on::after {
-  border: none;
-  left: 24rpx;
-  top: 26rpx;
-  width: 20rpx;
-  height: 12rpx;
-  border-left: 4rpx solid var(--surface);
-  border-bottom: 4rpx solid var(--surface);
-  border-radius: 0;
-  transform: rotate(-45deg);
+.status-icon.on .ri {
+  color: var(--brand);
 }
 
 .status-info {
@@ -214,6 +181,10 @@
   color: var(--ink-soft);
   line-height: 1.7;
   margin-bottom: 24rpx;
+}
+
+.backup-desc-warn {
+  color: var(--danger);
 }
 
 .backup-input {

@@ -23,12 +23,18 @@
     <view class="search-box">
       <input
         class="search-input"
-        placeholder="搜索标题、内容、位置或天气"
+        placeholder="{{isEmpty ? '请导入您之前的日记' : '搜索标题、内容、位置等关键字'}}"
         value="{{searchKeyword}}"
         bindinput="onSearchInput"
         confirm-type="search"
       />
-      <text wx:if="{{searchKeyword}}" class="search-clear" bindtap="clearSearch">✕</text>
+      <text wx:if="{{searchKeyword}}" class="search-clear ri ri-close-line" bindtap="clearSearch"></text>
+    </view>
+    <view class="search-action" hover-class="search-action-hover" bindtap="onExportDiaries">
+      <text class="ri ri-upload-2-line"></text>
+    </view>
+    <view class="search-action" hover-class="search-action-hover" bindtap="onImportDiaries">
+      <text class="ri ri-download-2-line"></text>
     </view>
   </view>
 
@@ -70,7 +76,7 @@
           </view>
         </view>
         <view class="diary-location" wx:if="{{item.locationText || item.weatherText}}">
-          <text wx:if="{{item.locationText}}">📍 {{item.locationText}}</text>
+          <text wx:if="{{item.locationText}}"><text class="ri ri-map-pin-2-line"></text> {{item.locationText}}</text>
           <text wx:if="{{item.weatherText}}" class="diary-weather">{{item.weatherIcon}} {{item.weatherText}}</text>
         </view>
         <view class="diary-card-footer">
@@ -96,11 +102,12 @@
   <view class="empty-state" wx:if="{{isEmpty && !loading}}">
     <view class="empty-text">还没有日记，写下第一篇吧</view>
     <view class="btn-primary empty-btn" bindtap="goToWrite">写日记</view>
+    <view class="empty-import" bindtap="onImportDiaries"><text class="ri ri-download-2-line"></text>导入日记</view>
   </view>
 
   <!-- 智能总结悬浮按钮 -->
   <view class="summary-fab" bindtap="goToSummary">
-    <text class="summary-fab-icon">✨</text>
+    <text class="summary-fab-icon ri ri-quill-pen-line"></text>
     <text class="summary-fab-text">智能总结</text>
   </view>
 </view>

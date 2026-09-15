@@ -1,3 +1,5 @@
+/* 自定义组件默认样式隔离，app.wxss 不生效：需在此单独引入字体图标 */
+@import "../../icon.wxss";
 /* ===== 分享弹窗（半屏面板）：日记详情页 / 总结结果页共用 ===== */
 .share-mask {
   position: fixed;
@@ -83,7 +85,7 @@
 .share-row {
   display: flex;
   align-items: center;
-  background: var(--bg-soft);
+  background: var(--surface-soft);
   border: 2rpx solid var(--line-soft);
   border-radius: 20rpx;
   padding: 18rpx 20rpx;
@@ -164,6 +166,7 @@
 
 .share-row-icon-text {
   background: var(--brand-soft);
+  color: var(--brand);
 }
 
 .share-row-main {

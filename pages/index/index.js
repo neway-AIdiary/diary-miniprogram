@@ -1,5 +1,6 @@
 const storage = require('../../utils/storage.js')
 const util = require('../../utils/util.js')
+const transfer = require('../../utils/transfer.js')
 const app = getApp()
 
 Page({
@@ -119,12 +120,79 @@ Page({
       // 天气也可搜索（如搜「雨」「晴」找到对应天气的日记）
       const weatherMatch = (d.weatherText || '').toLowerCase().indexOf(kw) !== -1 ||
         (d.locationText || '').toLowerCase().indexOf(kw) !== -1
-      return titleMatch || contentMatch || weatherMatch
+      // 心情也可搜索（如搜「开心」「happy」找到对应心情的日记）
+      const moodMatch = (d.moodText || '').toLowerCase().indexOf(kw) !== -1 ||
+        (d.mood || '').toLowerCase().indexOf(kw) !== -1
+      // 标签也可搜索（命中任意一个标签即算匹配）
+      const tagMatch = (d.tags || []).some(t => (t || '').toLowerCase().indexOf(kw) !== -1)
+      return titleMatch || contentMatch || weatherMatch || moodMatch || tagMatch
     })
     this.setData({
       diaries: filtered,
       isSearching: true,
       searchCount: filtered.length
+    })
+  },
+
+
+  // ===== 导出 / 导入（自侧栏迁移到日记本）=====
+  onExportDiaries() {
+    const searching = this.data.isSearching && this.data.searchKeyword
+    if (searching && this.data.searchCount === 0) {
+      wx.showToast({ title: '当前搜索无结果，无可导出', icon: 'none' })
+      return
+    }
+    if (searching) {
+      // 搜索态：只导出当前搜索结果（diaries 即全量过滤集，本页无分页）
+      const list = this.data.diaries
+      wx.showModal({
+        title: '导出搜索结果',
+        content: '将导出搜索结果 ' + list.length + ' 篇日记',
+        success: (res) => {
+          if (res.confirm) transfer.exportToWord(null, list)
+        }
+      })
+      return
+    }
+    const total = this.data.allDiaries.length
+    if (!total) {
+      wx.showToast({ title: '暂无日记可导出', icon: 'none' })
+      return
+    }
+    wx.showModal({
+      title: '导出全部日记',
+      content: '将导出全部 ' + total + ' 篇日记',
+      success: (res) => {
+        if (res.confirm) {
+          transfer.exportToWord(() => {
+            wx.showToast({ title: '暂无日记可导出', icon: 'none' })
+          })
+        }
+      }
+    })
+  },
+
+  onImportDiaries() {
+    transfer.importFromFile({
+      onFinish: (added, toast) => {
+        // 导入成功后先清空搜索态再刷新，避免新日记被搜索条件挡住看不见
+        this.setData({ searchKeyword: '', isSearching: false, searchCount: 0 })
+        this.loadData()
+        wx.showModal({
+          title: added === -1 ? '导入失败' : (added > 0 ? '导入成功' : '导入提示'),
+          content: toast,
+          showCancel: false,
+          confirmText: '知道了'
+        })
+      },
+      onError: (msg) => {
+        wx.showModal({
+          title: '导入不成功',
+          content: msg,
+          showCancel: false,
+          confirmText: '知道了'
+        })
+      }
     })
   },
 

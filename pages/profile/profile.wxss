@@ -240,6 +240,10 @@
   margin-bottom: 24rpx;
 }
 
+.backup-desc-warn {
+  color: var(--danger);
+}
+
 .backup-input {
   width: 100%;
   box-sizing: border-box;

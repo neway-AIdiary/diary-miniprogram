@@ -10,7 +10,7 @@
       </view>
     </block>
     <view class="user-login" wx:else bindtap="getUserProfile">
-      <view class="user-avatar-default">👤</view>
+      <view class="user-avatar-default ri ri-user-3-line"></view>
       <view class="user-login-text">点击登录 / 授权</view>
     </view>
   </view>
@@ -48,23 +48,23 @@
     <view class="menu-card">
       <view class="menu-item" bindtap="goToIndex">
         <view class="menu-text">我的日记</view>
-        <view class="menu-arrow">›</view>
+        <view class="menu-arrow ri ri-arrow-right-s-line"></view>
       </view>
       <view class="menu-item" bindtap="goToWrite">
         <view class="menu-text">写日记</view>
-        <view class="menu-arrow">›</view>
+        <view class="menu-arrow ri ri-arrow-right-s-line"></view>
       </view>
       <view class="menu-item" bindtap="goToArchive">
         <view class="menu-text">档案</view>
-        <view class="menu-arrow">›</view>
+        <view class="menu-arrow ri ri-arrow-right-s-line"></view>
       </view>
       <view class="menu-item" bindtap="exportDiaries">
         <view class="menu-text">导出日记</view>
-        <view class="menu-arrow">›</view>
+        <view class="menu-arrow ri ri-arrow-right-s-line"></view>
       </view>
       <view class="menu-item" bindtap="importDiaries">
         <view class="menu-text">导入日记</view>
-        <view class="menu-arrow">›</view>
+        <view class="menu-arrow ri ri-arrow-right-s-line"></view>
       </view>
     </view>
   </view>
@@ -75,24 +75,24 @@
     <view class="menu-card">
       <view class="menu-item" wx:if="{{!backupEnabled}}" bindtap="openEnableBackup">
         <view class="menu-text">开启云端备份（加密）</view>
-        <view class="menu-arrow">›</view>
+        <view class="menu-arrow ri ri-arrow-right-s-line"></view>
       </view>
       <block wx:else>
         <view class="menu-item" bindtap="backupNow">
           <view class="menu-text">立即备份到云端</view>
-          <view class="menu-arrow">›</view>
+          <view class="menu-arrow ri ri-arrow-right-s-line"></view>
         </view>
         <view class="menu-item" bindtap="restoreFromCloud">
           <view class="menu-text">从云端恢复</view>
-          <view class="menu-arrow">›</view>
+          <view class="menu-arrow ri ri-arrow-right-s-line"></view>
         </view>
         <view class="menu-item" bindtap="clearCloudBackup">
           <view class="menu-text">清空云端备份</view>
-          <view class="menu-arrow">›</view>
+          <view class="menu-arrow ri ri-arrow-right-s-line"></view>
         </view>
         <view class="menu-item" bindtap="disableBackup">
           <view class="menu-text">关闭云端备份</view>
-          <view class="menu-arrow">›</view>
+          <view class="menu-arrow ri ri-arrow-right-s-line"></view>
         </view>
       </block>
     </view>
@@ -105,11 +105,11 @@
     <view class="menu-card">
       <view class="menu-item" bindtap="showAbout">
         <view class="menu-text">关于</view>
-        <view class="menu-arrow">›</view>
+        <view class="menu-arrow ri ri-arrow-right-s-line"></view>
       </view>
       <view class="menu-item" bindtap="clearAllDiaries">
         <view class="menu-text danger">清除所有日记</view>
-        <view class="menu-arrow">›</view>
+        <view class="menu-arrow ri ri-arrow-right-s-line"></view>
       </view>
     </view>
   </view>
@@ -126,7 +126,7 @@
   <view class="backup-mask" bindtap="closeBackupModal"></view>
   <view class="backup-card">
     <view class="backup-title">{{backupMode === 'enable' ? '开启云端备份' : '从云端恢复'}}</view>
-    <view class="backup-desc" wx:if="{{backupMode === 'enable'}}">开启后，日记先在本机用 AES-256 加密再上传，服务器只存密文、无法看到任何内容。备份密码用于换手机时解密恢复，请牢记（忘记将无法恢复云端备份）。</view>
+    <view class="backup-desc" wx:if="{{backupMode === 'enable'}}">开启后，日记先在本机用 AES-256 加密再上传，服务器只存密文、无法看到任何内容。备份密码用于换手机时解密恢复，<text class="backup-desc-warn">请牢记（忘记将无法恢复云端备份）</text>。</view>
     <view class="backup-desc" wx:else>输入备份密码，从云端拉取加密备份并在本机解密恢复。密码不会上传。</view>
     <input class="backup-input" password type="text" placeholder="{{backupMode === 'restore' ? '输入备份密码' : (reenableMode ? '输入原备份密码以重新开启' : '备份密码（至少 6 位）')}}" value="{{pwd1}}" bindinput="onPwd1Input" />
     <input class="backup-input" password type="text" wx:if="{{backupMode === 'enable' && !reenableMode}}" placeholder="再次输入备份密码" value="{{pwd2}}" bindinput="onPwd2Input" />

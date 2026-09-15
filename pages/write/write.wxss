@@ -120,6 +120,11 @@
   color: var(--ink-soft);
 }
 
+/* 图标与日期文字间距（原仅靠空格 ≈6rpx，太贴） */
+.date-pill .ri {
+  margin-right: 10rpx;
+}
+
 /* 日期/心情胶囊按压反馈 */
 .pill-hover {
   opacity: 0.65;
@@ -499,10 +504,13 @@
 /* 地图选点同款大头针（红色圆头+白孔+尖角）；腿长 15→30rpx 延长一倍，容器加高并整体下移居中 */
 .loc-icon {
   position: relative;
-  width: 36rpx;
-  height: 54rpx;
+  width: 40rpx;
+  height: 40rpx;
   margin-right: 20rpx;
   flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 /* 红色圆头（略带球面高光与投影） */
@@ -650,20 +658,20 @@
 }
 
 .optimize-btn {
-  background: linear-gradient(135deg, var(--brand-bright) 0%, var(--brand) 100%);
+  background: linear-gradient(135deg, var(--ai) 0%, var(--ai-deep) 60%);
   color: var(--surface);
   border: none;
   font-weight: 500;
-  box-shadow: 0 8rpx 20rpx var(--brand-shadow-28);
+  box-shadow: 0 8rpx 20rpx var(--ai-shadow-25);
 }
 
 .optimize-btn:active {
-  background: linear-gradient(135deg, var(--brand) 0%, var(--brand) 100%);
+  background: var(--ai-deep);
 }
 
 .optimize-btn.disabled {
-  background: var(--brand-soft);
-  color: var(--brand-mute);
+  background: var(--ai-soft);
+  color: var(--ai-deep);
   box-shadow: none;
   font-weight: normal;
 }
@@ -774,7 +782,7 @@
 /* 按住说话（豆包同款圆角/底色） */
 .hold-talk {
   height: 80rpx;
-  background: var(--line-soft);
+  background: var(--bg-soft);
   border-radius: 40rpx;
   display: flex;
   align-items: center;
@@ -785,7 +793,7 @@
 
 .hold-talk:active,
 .hold-talk.recording {
-  background: var(--line);
+  background: var(--line-strong);
   color: var(--brand);
 }
 
@@ -798,7 +806,7 @@
 .input-text {
   width: 100%;
   box-sizing: border-box;
-  background: var(--line-soft);
+  background: var(--bg-soft);
   border-radius: 40rpx;
   padding: 16rpx 24rpx;
   font-size: 28rpx;
@@ -857,7 +865,7 @@
 }
 
 .icon-plus {
-  background-image: url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCI+PHBhdGggZmlsbD0iIzJCMkIyQiIgZD0iTTExIDRoMnY3aDd2MmgtN3Y3aC0ydi03SDR2LTJoN1Y0eiIvPjwvc3ZnPg==");
+  background-image: url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCI+PHBhdGggZmlsbD0iIzVBNTI0NyIgZD0iTTExIDExVjVIMTNWMTFIMTlWMTNIMTNWMTlIMTFWMTNINVYxMUgxMVoiLz48L3N2Zz4=");
 }
 
 .icon-smiley {
@@ -937,7 +945,7 @@
 
 /* 添加面板 */
 .panel-add {
-  padding: 32rpx 24rpx;
+  padding: 20rpx 24rpx;
 }
 
 .add-grid {
@@ -950,7 +958,7 @@
   flex-direction: column;
   align-items: center;
   width: 140rpx;
-  padding: 16rpx 0;
+  padding: 10rpx 0;
 }
 
 .add-item:active {
@@ -958,32 +966,32 @@
 }
 
 .add-icon {
-  width: 104rpx;
-  height: 104rpx;
+  width: 88rpx;
+  height: 88rpx;
   border-radius: 22rpx;
   background-color: var(--line-soft);
   background-repeat: no-repeat;
   background-position: center;
-  background-size: 58rpx 58rpx;
+  background-size: 48rpx 48rpx;
 }
 
 /* 闲鱼同款「+」面板图标：浅灰圆角方块 + 深灰细线条 */
 .add-icon-photo {
-  background-image: url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjNEE0QTRBIiBzdHJva2Utd2lkdGg9IjEuNyIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIj48Y2lyY2xlIGN4PSIxNi44IiBjeT0iNy4yIiByPSIxLjkiLz48cGF0aCBkPSJNMyAxOS41aDE4TDE1LjIgOS44bC00LjYgNi40LTIuOS0zLjh6Ii8+PC9zdmc+");
+  background-image: url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCI+PHBhdGggZmlsbD0iIzVBNTI0NyIgZD0iTTIuOTkxOCAyMUMyLjQ0NDA1IDIxIDIgMjAuNTU1MSAyIDIwLjAwNjZWMy45OTM0QzIgMy40NDQ3NiAyLjQ1NTMxIDMgMi45OTE4IDNIMjEuMDA4MkMyMS41NTYgMyAyMiAzLjQ0NDk1IDIyIDMuOTkzNFYyMC4wMDY2QzIyIDIwLjU1NTIgMjEuNTQ0NyAyMSAyMS4wMDgyIDIxSDIuOTkxOFpNMjAgMTVWNUg0VjE5TDE0IDlMMjAgMTVaTTIwIDE3LjgyODRMMTQgMTEuODI4NEw2LjgyODQzIDE5SDIwVjE3LjgyODRaTTggMTFDNi44OTU0MyAxMSA2IDEwLjEwNDYgNiA5QzYgNy44OTU0MyA2Ljg5NTQzIDcgOCA3QzkuMTA0NTcgNyAxMCA3Ljg5NTQzIDEwIDlDMTAgMTAuMTA0NiA5LjEwNDU3IDExIDggMTFaIi8+PC9zdmc+");
 }
 
 .add-icon-video {
-  background-image: url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjNEE0QTRBIiBzdHJva2Utd2lkdGg9IjEuNyIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIj48cGF0aCBkPSJNMy41IDcuOGgyLjlsMS45LTIuNmg3LjRsMS45IDIuNmgyLjlhMSAxIDAgMCAxIDEgMXYxMC4yYTEgMSAwIDAgMS0xIDFoLTE3YTEgMSAwIDAgMS0xLTFWOC44YTEgMSAwIDAgMSAxLTF6Ii8+PGNpcmNsZSBjeD0iMTIiIGN5PSIxMy40IiByPSIzLjMiLz48L3N2Zz4=");
+  background-image: url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCI+PHBhdGggZmlsbD0iIzVBNTI0NyIgZD0iTTE3IDkuMkwyMi4yMTMzIDUuNTUwNzFDMjIuNDM5NSA1LjM5MjM1IDIyLjc1MTMgNS40NDczNyAyMi45MDk2IDUuNjczNkMyMi45Njg0IDUuNzU3NjQgMjMgNS44NTc3NCAyMyA1Ljk2MDMzVjE4LjAzOTdDMjMgMTguMzE1OCAyMi43NzYxIDE4LjUzOTcgMjIuNSAxOC41Mzk3QzIyLjM5NzQgMTguNTM5NyAyMi4yOTczIDE4LjUwODEgMjIuMjEzMyAxOC40NDkzTDE3IDE0LjhWMTlDMTcgMTkuNTUyMyAxNi41NTIzIDIwIDE2IDIwSDJDMS40NDc3MiAyMCAxIDE5LjU1MjMgMSAxOVY1QzEgNC40NDc3MiAxLjQ0NzcyIDQgMiA0SDE2QzE2LjU1MjMgNCAxNyA0LjQ0NzcyIDE3IDVWOS4yWk0xNyAxMi4zNTg3TDIxIDE1LjE1ODdWOC44NDEzMUwxNyAxMS42NDEzVjEyLjM1ODdaTTMgNlYxOEgxNVY2SDNaTTUgOEg3VjEwSDVWOFoiLz48L3N2Zz4=");
 }
 
 .add-icon-location {
-  background-image: url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjNEE0QTRBIiBzdHJva2Utd2lkdGg9IjEuNyIgc3Ryb2tlLWxpbmVqb2luPSJyb3VuZCIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIj48cGF0aCBkPSJNMTIgMi4yYTYuOCA2LjggMCAwIDEgNi44IDYuOGMwIDUtNi44IDEyLjgtNi44IDEyLjhTNS4yIDE0IDUuMiA5QTYuOCA2LjggMCAwIDEgMTIgMi4yeiIvPjxjaXJjbGUgY3g9IjEyIiBjeT0iOSIgcj0iMi41Ii8+PC9zdmc+");
+  background-image: url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCI+PHBhdGggZmlsbD0iIzVBNTI0NyIgZD0iTTEyIDIzLjcyNzlMNS42MzYwNCAxNy4zNjRDMi4xMjEzMiAxMy44NDkyIDIuMTIxMzIgOC4xNTA3NiA1LjYzNjA0IDQuNjM2MDRDOS4xNTA3NiAxLjEyMTMyIDE0Ljg0OTIgMS4xMjEzMiAxOC4zNjQgNC42MzYwNEMyMS44Nzg3IDguMTUwNzYgMjEuODc4NyAxMy44NDkyIDE4LjM2NCAxNy4zNjRMMTIgMjMuNzI3OVpNMTYuOTQ5NyAxNS45NDk3QzE5LjY4MzQgMTMuMjE2MSAxOS42ODM0IDguNzgzOTIgMTYuOTQ5NyA2LjA1MDI1QzE0LjIxNjEgMy4zMTY1OCA5Ljc4MzkyIDMuMzE2NTggNy4wNTAyNSA2LjA1MDI1QzQuMzE2NTggOC43ODM5MiA0LjMxNjU4IDEzLjIxNjEgNy4wNTAyNSAxNS45NDk3TDEyIDIwLjg5OTVMMTYuOTQ5NyAxNS45NDk3Wk0xMiAxM0MxMC44OTU0IDEzIDEwIDEyLjEwNDYgMTAgMTFDMTAgOS44OTU0MyAxMC44OTU0IDkgMTIgOUMxMy4xMDQ2IDkgMTQgOS44OTU0MyAxNCAxMUMxNCAxMi4xMDQ2IDEzLjEwNDYgMTMgMTIgMTNaIi8+PC9zdmc+");
 }
 
 .add-text {
   font-size: 24rpx;
   color: var(--ink);
-  margin-top: 12rpx;
+  margin-top: 8rpx;
 }
 
 /* ===== 侧边栏 ===== */
@@ -1175,13 +1183,16 @@
 }
 
 /* AI 概括的关键字（最多4字，AI 概括不出则不显示）
-   跟在标题后约 3 个空格，左对齐、自适应宽度，三行纵向对齐 */
+   跟在标题后约 3 个空格，左对齐、自适应宽度，三行纵向对齐
+   数据源 d.tags 由 callAITags 生成 → AI 产物，用 AI 语义蓝
+   （与详情页「AI 优化」、总结页「AI总结」同款） */
 .s-diary-keyword {
   flex-shrink: 0;
   margin-left: 40rpx;
   font-size: 20rpx;
-  color: var(--brand);
-  background: var(--brand-tint-08);
+  color: var(--ai-deep);
+  background: var(--ai-soft);
+  border: 1rpx solid var(--ai-tint-25);
   padding: 4rpx 12rpx;
   border-radius: 6rpx;
   max-width: 130rpx;
@@ -1206,7 +1217,7 @@
 
 .sidebar-more {
   text-align: center;
-  font-size: 26rpx;
+  font-size: 28rpx;
   color: var(--brand);
   padding: 24rpx 0 8rpx;
 }
@@ -1301,8 +1312,19 @@
   color: var(--ink);
 }
 
+/* 侧栏菜单图标：统一使用 yl-icon 字体图标（.ri 与 .s-menu-icon 同元素，颜色随容器继承） */
+.s-menu-icon.ri {
+  font-size: 40rpx;
+  line-height: 1;
+}
+
 .s-menu-item.danger .s-menu-icon {
   color: var(--danger);
+}
+
+/* 侧栏「智能总结」：AI 语义，图标走 AI 蓝（识别符 = 蓝 + 羽毛笔） */
+.s-menu-item.s-menu-item-ai .s-menu-icon {
+  color: var(--ai);
 }
 
 .s-menu-text {
@@ -1318,14 +1340,6 @@
 .s-arrow {
   font-size: 30rpx;
   color: var(--ink-faint);
-}
-
-/* ===== 侧栏线性图标（参考图风格：细线、圆角、居中） ===== */
-.s-menu-icon::before,
-.s-menu-icon::after {
-  content: '';
-  position: absolute;
-  box-sizing: border-box;
 }
 
 /* 档案：文档 */
@@ -1516,21 +1530,25 @@
   left: 0;
   right: 0;
   bottom: 0;
-  height: 25%;
+  height: auto;
   z-index: 1000;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: 28rpx 48rpx calc(28rpx + constant(safe-area-inset-bottom));
+  /* 底边位置复原：旧布局内容在 25% 面板盒里垂直居中，这里把那段「下半空白」补进底内边距，
+     12.5vh = 旧面板盒（25vh）的一半；120rpx = 半个旧内容高（卡片 2 行 176 + 波形 64）；安全区同样只折半 */
   padding: 28rpx 48rpx calc(28rpx + env(safe-area-inset-bottom));
+  padding: 28rpx 48rpx calc(12.5vh - 120rpx + constant(safe-area-inset-bottom) / 2);
+  padding: 28rpx 48rpx calc(12.5vh - 120rpx + env(safe-area-inset-bottom) / 2);
   box-sizing: border-box;
   animation: voiceSheetIn 0.25s ease-out;
 }
 
 .voice-modal-mask {
   position: absolute;
-  top: -300%;
+  /* 面板改为内容自适应高度后，遮罩偏移不能再按面板高度百分比算，直接用视口高度铺满全屏 */
+  top: -100vh;
   left: 0;
   right: 0;
   bottom: 0;
@@ -1596,8 +1614,9 @@
   color: var(--ink);
 }
 
+/* 实时文字框：可见上限 10 行（30rpx × 1.6 = 48rpx/行）；超出部分由 scroll-top 跟随滚出视野 */
 .voice-card-scroll {
-  max-height: 100rpx;
+  max-height: 480rpx;
   width: 100%;
 }
 
@@ -1708,7 +1727,7 @@
   width: 12rpx;
   height: 12rpx;
   border-radius: 50%;
-  background: var(--brand);
+  background: var(--ai);
   animation: bounce 1.4s ease-in-out infinite;
 }
 
@@ -2116,4 +2135,11 @@
 
 .emoji-item:active {
   background: var(--surface-press);
+}
+
+/* 位置卡：统一使用 yl-icon 定位图标（与列表/详情 📍 同一枚字形） */
+.loc-icon .ri {
+  font-size: 40rpx;
+  line-height: 1;
+  color: var(--brand);
 }

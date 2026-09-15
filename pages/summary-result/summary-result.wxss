@@ -51,11 +51,12 @@
   justify-content: flex-end;
 }
 
+/* 本页 .tag-chip 仅用于「AI总结」标识，直接染 AI 蓝（用户自定义标签在详情页，不受影响） */
 .tag-chip {
   font-size: 20rpx;
-  color: var(--ink-mid);
-  background: var(--bg-soft);
-  border: 1rpx solid var(--line);
+  color: var(--ai-deep);
+  background: var(--ai-soft);
+  border: 1rpx solid var(--ai-tint-25);
   padding: 4rpx 16rpx;
   border-radius: 40rpx;
 }

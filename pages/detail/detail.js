@@ -108,7 +108,9 @@ Page({
         recordSeconds: s.seconds,
         liveText: s.liveText || '',
         liveRemoved: s.liveRemoved || 0,
-        liveScrollTop: ((s.liveText || '').length) * 2
+        // 滚动跟随：按行数估算内容高度（每行约 18 字、行高 48rpx），
+        // 取值恒不小于最大可滚动距离 → 始终贴底；超过 10 行后旧文字滚出视野（沿用原隐藏逻辑）
+        liveScrollTop: Math.ceil(((s.liveText || '').length) / 18) * 48
       })
     })
     // 扫小程序码进入：scene 形如 "id=d_1693xxxx_ab"，支持 URL 编码

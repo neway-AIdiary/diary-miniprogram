@@ -19,12 +19,12 @@ const RANGE_LIST = [
 
 // 快捷模板（点击自动填充输入框）
 const SHORTCUTS = [
-  { label: '📅 本月日记整体回顾', fill: '帮我回顾一下这段时间的日记，做个整体总结' },
-  { label: '😊 分析这段时间情绪变化', fill: '帮我分析所选时间段内我的情绪变化，简单总结' },
-  { label: '🏷️ 按标签汇总日记内容', fill: '按标签汇总我的日记内容' },
-  { label: '📊 统计工作相关记录', fill: '统计这段时间里工作相关的记录' },
-  { label: '📖 生成年度简短回顾', fill: '生成一段简短的年度回顾' },
-  { label: '🔍 提取所有运动记录', fill: '提取我所有的运动记录' }
+  { icon: 'ri-calendar-line', label: '本月日记整体回顾', fill: '帮我回顾一下这段时间的日记，做个整体总结' },
+  { icon: 'ri-emotion-line', label: '分析这段时间情绪变化', fill: '帮我分析所选时间段内我的情绪变化，简单总结' },
+  { icon: 'ri-price-tag-3-line', label: '按标签汇总日记内容', fill: '按标签汇总我的日记内容' },
+  { icon: 'ri-bar-chart-2-line', label: '统计工作相关记录', fill: '统计这段时间里工作相关的记录' },
+  { icon: 'ri-book-open-line', label: '生成年度简短回顾', fill: '生成一段简短的年度回顾' },
+  { icon: 'ri-search-line', label: '提取所有运动记录', fill: '提取我所有的运动记录' }
 ]
 
 // 是否为「AI 总结」生成的日记：共用判据在 utils/util.js（isAiSummaryDiary），
