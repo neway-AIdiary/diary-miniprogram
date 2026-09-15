@@ -106,7 +106,7 @@ function getDateKey(date) {
  *
  * 兼容两种数据：
  *   1. aiSummary 已归一化的新总结（行首已是 ◆ / ◇）；
- *   2. 历史遗留的 markdown（行首 ## / ###）——这里就地转符号、去掉行内 **。
+ *   2. 历史遗留的 markdown（行首 ## / ### 或列表符号 - / * / +）——这里就地转符号、去掉行内 **。
  * 注意：放在 JS 逻辑层而不是 WXS——WXS 环境限制多（不支持正则字面量、
  *       String() 等全局存疑），且视图层运行时报错不打进 Console，排查困难。
  */
@@ -115,7 +115,16 @@ function buildContentLines(text) {
   return raw.replace(/\r\n?/g, '\n').split('\n').map((line, k) => {
     let t = line.replace(/^\s+/, '')
     const m = t.match(/^(#{1,6})\s*(.*)$/)
-    if (m) t = (m[1].length <= 2 ? '◆ ' : '◇ ') + m[2].replace(/\*\*/g, '')
+    if (m) {
+      t = (m[1].length <= 2 ? '◆ ' : '◇ ') + m[2].replace(/\*\*/g, '')
+    } else {
+      // 列表符号 - / * / + → 「· 」（纯符号行如 "- - -" 保持原样）
+      const li = t.match(/^[-*+]\s+(.*)$/)
+      if (li) {
+        const body = li[1].replace(/\*\*/g, '').trim()
+        if (body && !/^[-*+\s]+$/.test(body)) t = '· ' + body
+      }
+    }
     t = t.replace(/\*\*/g, '')
     const c = t.charAt(0)
     return { k: k, text: t, heading: c === '◆' || c === '◇' || c === '▍' }

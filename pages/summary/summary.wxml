@@ -46,7 +46,7 @@
       <view class="result-area">
         <!-- 初始状态 -->
         <view class="result-placeholder" wx:if="{{!loading && !error && !hasResult}}">
-          <view class="placeholder-icon">✨</view>
+          <image class="placeholder-icon" src="/images/ai-summary.png" mode="aspectFit" />
           <view class="placeholder-text">提交需求后，AI 将基于你的日记生成总结</view>
         </view>
 

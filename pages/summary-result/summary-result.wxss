@@ -128,7 +128,7 @@
 /* 逐行渲染：空行保留一行高度；小标题行（◆/◇）只加粗、不上色 */
 .content-line {
   min-height: 60rpx;
-  text-indent: 2em;   /* 段首缩进两格（中文排版习惯） */
+  text-indent: 1em;   /* 段首缩进一格（中文排版习惯） */
 }
 .content-line-heading {
   font-weight: bold;

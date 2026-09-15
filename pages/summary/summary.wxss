@@ -303,7 +303,10 @@
 }
 
 .placeholder-icon {
-  font-size: 64rpx;
+  /* 原为 ✨ emoji（font-size: 64rpx），换成 images/ai-summary.png 图标：
+     盒子尺寸沿用 64rpx，显示大小与原来一致；opacity 保留原占位水印的淡显处理 */
+  width: 64rpx;
+  height: 64rpx;
   opacity: 0.4;
   margin-bottom: var(--sp-md);
 }

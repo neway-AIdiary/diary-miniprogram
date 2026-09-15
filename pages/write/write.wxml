@@ -31,74 +31,92 @@
   </view>
 
   <!-- 主内容区 -->
-  <scroll-view class="content-scroll" scroll-y enhanced show-scrollbar="{{false}}">
+  <!-- 主内容区用普通 view + overflow:hidden，刻意不用 scroll-view：
+       scroll-view 是滚动容器，其子元素永远不会被压缩（flex 收缩不生效），
+       高度约束链条会断在第一层，卡片无法封顶、按钮会被内容顶出屏幕。
+       真正的滚动由卡片内部的 card-scroll 承担 -->
+  <view class="content-scroll">
     <view class="content-inner">
-      <!-- 日记正文：展示 + 编辑框 -->
+      <!-- 日记正文卡片：文字 + 位置 + 图片/视频都在卡片内，共用一层内部滚动区。
+           卡片高度封顶 = 日期行下沿 到 按钮行上沿；内容超出则在卡片内滚动，
+           按钮行钉在卡片下方，不再被新增内容顶出屏幕 -->
       <view class="diary-card">
-        <!-- 修改指令执行结果：高亮展示增删改的部分 -->
-        <block wx:if="{{highlight.active}}">
-          <view class="hl-header">
-            <view class="hl-badge">{{highlight.title}}</view>
-            <view class="hl-close" bindtap="dismissHighlight">✕</view>
-          </view>
-          <rich-text class="hl-content" nodes="{{highlight.nodes}}" bindtap="dismissHighlight"></rich-text>
-          <view class="hl-footer">{{highlight.count ? highlight.count + ' 处修改已高亮 · ' : ''}}点击返回编辑</view>
-        </block>
-        <!-- 正常编辑态 -->
-        <block wx:else>
-          <view class="diary-editor">
-            <!-- 自定义占位层（textarea 原生 placeholder 不支持换行，多行文案逐行渲染） -->
-            <view wx:if="{{!content}}" class="diary-placeholder">
-              <view class="dp-line">{{placeholderLine1}}</view>
-              <view class="dp-line">{{placeholderLine2}}</view>
-              <view class="dp-line">{{placeholderLine3}}</view>
+        <scroll-view class="card-scroll" scroll-y enhanced show-scrollbar="{{false}}">
+          <view class="card-scroll-inner">
+            <!-- 修改指令执行结果：高亮展示增删改的部分 -->
+            <block wx:if="{{highlight.active}}">
+              <view class="hl-header">
+                <view class="hl-badge">{{highlight.title}}</view>
+                <view class="hl-close" bindtap="dismissHighlight">✕</view>
+              </view>
+              <rich-text class="hl-content" nodes="{{highlight.nodes}}" bindtap="dismissHighlight"></rich-text>
+              <view class="hl-footer">{{highlight.count ? highlight.count + ' 处修改已高亮 · ' : ''}}点击返回编辑</view>
+            </block>
+            <!-- 正常编辑态 -->
+            <block wx:else>
+              <view class="diary-editor">
+                <!-- 自定义占位层（textarea 原生 placeholder 不支持换行，多行文案逐行渲染） -->
+                <view wx:if="{{!content}}" class="diary-placeholder">
+                  <view class="dp-line">{{placeholderLine1}}</view>
+                  <view class="dp-line">{{placeholderLine2}}</view>
+                  <view class="dp-line">{{placeholderLine3}}</view>
+                </view>
+                <textarea
+                  class="diary-textarea"
+                  value="{{content}}"
+                  bindinput="onContentInput"
+                  maxlength="-1"
+                  auto-height
+                  show-confirm-bar="{{false}}"
+                  adjust-position="{{true}}"
+                  cursor-spacing="20"
+                />
+              </view>
+              <view class="char-count">{{content.length}} 字</view>
+            </block>
+
+            <!-- 位置（与正文同属卡片，一起在卡片内滚动） -->
+            <view class="loc-card" wx:if="{{location}}">
+              <view class="loc-icon">
+                <view class="pin-ball"></view>
+                <view class="pin-hole"></view>
+                <view class="pin-tip"></view>
+              </view>
+              <view class="loc-info">
+                <text class="loc-name">{{location.name}}</text>
+                <text class="loc-addr" wx:if="{{location.address}}">{{location.address}}</text>
+              </view>
+              <view class="loc-clear" catchtap="clearLocation">✕</view>
             </view>
-            <textarea
-              class="diary-textarea"
-              value="{{content}}"
-              bindinput="onContentInput"
-              maxlength="-1"
-              auto-height
-              show-confirm-bar="{{false}}"
-              adjust-position="{{true}}"
-              cursor-spacing="20"
-            />
+
+            <!-- 图片/视频缩略图（与正文同属卡片，一起在卡片内滚动） -->
+            <view class="media-grid" wx:if="{{media.length > 0}}">
+              <view class="media-item" wx:for="{{media}}" wx:key="fileID">
+                <image class="media-img" src="{{item.thumb}}" mode="aspectFill" bindtap="previewMedia" data-index="{{index}}" />
+                <view wx:if="{{item.type === 'video'}}" class="media-video-badge">▶ {{item.duration}}s</view>
+                <view class="media-remove" catchtap="removeMedia" data-index="{{index}}">✕</view>
+              </view>
+            </view>
           </view>
-          <view class="char-count">{{content.length}} 字</view>
-        </block>
+        </scroll-view>
       </view>
 
-      <!-- 位置卡片 -->
-      <view class="loc-card" wx:if="{{location}}">
-        <view class="loc-icon">
-          <view class="pin-ball"></view>
-          <view class="pin-hole"></view>
-          <view class="pin-tip"></view>
-        </view>
-        <view class="loc-info">
-          <text class="loc-name">{{location.name}}</text>
-          <text class="loc-addr" wx:if="{{location.address}}">{{location.address}}</text>
-        </view>
-        <view class="loc-clear" catchtap="clearLocation">✕</view>
-      </view>
-
-      <!-- 图片/视频缩略图 -->
-      <view class="media-grid" wx:if="{{media.length > 0}}">
-        <view class="media-item" wx:for="{{media}}" wx:key="fileID">
-          <image class="media-img" src="{{item.thumb}}" mode="aspectFill" bindtap="previewMedia" data-index="{{index}}" />
-          <view wx:if="{{item.type === 'video'}}" class="media-video-badge">▶ {{item.duration}}s</view>
-          <view class="media-remove" catchtap="removeMedia" data-index="{{index}}">✕</view>
-        </view>
-      </view>
-
-      <!-- 工具行：AI 优化（最小范围）+ 保存 -->
+      <!-- 工具行：AI 优化（最小范围）+ 保存（钉在卡片下方，卡片封顶后不再下移） -->
       <view class="tool-row">
         <view class="tool-btn optimize-btn {{content.length < 20 ? 'disabled' : ''}}" bindtap="onOptimize">AI 优化</view>
         <button class="save-btn" bindtap="onSave" disabled="{{saving || !content}}" loading="{{saving}}">{{saving ? '保存中...' : '保存日记'}}</button>
       </view>
 
     </view>
-  </scroll-view>
+  </view>
+
+  <!-- 技术支持说明：固定在左下角，属背景层（z-index 低），可被正文卡片/工具行压盖；
+       底部偏移 = 固定输入栏高度(114rpx) + 安全区 + 22rpx 间隙（含上移半行 12rpx），
+       故写在行内用 safeAreaBottom -->
+  <view class="tech-credit" style="bottom: calc(136rpx + {{safeAreaBottom}}px);">
+    <image class="tech-credit-icon" src="/images/tech-support-brain.png" mode="aspectFit" />
+    <text class="tech-credit-text">一灯记 由DeepSeek、火山引擎、腾讯云提供技术支持</text>
+  </view>
 
   <!-- 心情选择浮层（点击日期行心情胶囊弹出，fixed 定位在视口层，不随滚动） -->
   <!-- ===== 日期选择弹层（月视图日历） ===== -->

@@ -67,19 +67,32 @@
 .content-scroll {
   flex: 1;
   min-height: 0;
+  /* 普通 view（非 scroll-view）：定高 + 裁剪，让高度约束能传给 content-inner 和卡片。
+     不用 scroll-view 是因为滚动容器不压缩子元素，flex 收缩链会断掉 */
+  overflow: hidden;
   padding: 0 24rpx;
   box-sizing: border-box;
   display: flex;
   flex-direction: column;
+  /* 抬到 tech-credit（左下角说明文字）之上：正文卡片/工具行可压盖说明文字 */
+  position: relative;
+  z-index: 1;
 }
 
 /* 滚动内容统一内层：内容不足一屏时仍撑满滚动区，避免底部留白不自然 */
 .content-inner {
   display: flex;
   flex-direction: column;
-  min-height: 100%;
-  /* 输入栏已固定在底部，加 200rpx 底留白确保长内容滚到底时不被底栏盖住 */
-  padding-bottom: 200rpx;
+  /* 可用高度变成硬约束：卡片超出时收缩到上限、内部滚动，按钮行永远不会被内容顶出屏幕。
+     父级已改为普通 view，这里的 height:100% 才真正生效（在 scroll-view 内会被忽略） */
+  height: 100%;
+  flex: 1 1 auto;
+  min-height: 0;
+  box-sizing: border-box;
+  /* 按钮行停稳位置 = 本底留白：值越大按钮越高，值越小越贴近屏幕底部（用户指定 190rpx）。
+     190rpx 略高于输入栏上沿（114rpx + 底部安全区，iPhone X 类约 182rpx），留出余量不贴住；
+     左下角「技术支持说明」底距 136rpx + 字高 26rpx，亦不会被压到 */
+  padding-bottom: 190rpx;
 }
 
 /* 日期（可选择）+ 心情（可选择）+ 天气（纯展示）：左侧日期/心情固定相邻，天气靠右 */
@@ -349,6 +362,32 @@
   border-radius: 20rpx;
   padding: 28rpx 28rpx 16rpx;
   box-shadow: 0 4rpx 16rpx rgba(0, 0, 0, 0.04);
+  /* 高度封顶：内容短＝自然高度；内容超出可用空间＝收缩到上限，由内部滚动区承接。
+     min-height: 0 才能突破 flex 默认最小内容高度，overflow: hidden 负责裁剪 */
+  display: flex;
+  flex-direction: column;
+  flex: 0 1 auto;
+  min-height: 0;
+  overflow: hidden;
+}
+
+/* 卡片内部滚动区：文字 + 位置 + 图片/视频都在这里面滚 */
+.card-scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.card-scroll-inner {
+  display: flex;
+  flex-direction: column;
+}
+
+/* 卡片内的位置条：与外层卡片同底色，改浅底 + 去阴影，避免「卡中卡」 */
+.diary-card .loc-card {
+  background: var(--surface-soft);
+  border: 1rpx solid var(--line-soft);
+  border-radius: 16rpx;
+  box-shadow: none;
 }
 
 /* 正文编辑区容器：承载自定义占位层 */
@@ -593,6 +632,8 @@
   align-items: center;
   gap: 20rpx;
   margin-top: 24rpx;
+  /* 永不被压缩：卡片收缩腾出的高度全部由内部滚动区承担，按钮行始终完整可见 */
+  flex-shrink: 0;
 }
 
 .tool-btn {
@@ -649,6 +690,37 @@
   background: var(--brand-soft);
   color: var(--surface);
   box-shadow: none;
+}
+
+/* ===== 技术支持说明（左下角背景层）=====
+   固定定位在固定输入栏上方；z-index 低于正文卡片/工具行，可被其压盖；
+   pointer-events: none 保证不拦截滚动与点击（纯装饰）。
+   底部偏移在 wxml 行内计算（输入栏高度 + safeAreaBottom） */
+.tech-credit {
+  position: fixed;
+  left: 24rpx;
+  /* 必须低于 .content-scroll 的 z-index:1，保证正文卡片/工具行能压盖说明文字；
+     0 仍高于 .page 背景，故文字正常可见 */
+  z-index: 0;
+  display: flex;
+  align-items: center;
+  gap: 8rpx;
+  pointer-events: none;
+}
+
+.tech-credit-icon {
+  width: 26rpx;
+  height: 26rpx;
+  flex-shrink: 0;
+  opacity: 0.5;
+}
+
+.tech-credit-text {
+  font-size: 20rpx;
+  line-height: 1.2;
+  color: var(--ink-faint);
+  letter-spacing: 0.5rpx;
+  white-space: nowrap;
 }
 
 /* ===== 底部固定区：面板 + 输入栏 =====

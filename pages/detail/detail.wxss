@@ -91,7 +91,7 @@
 /* 逐行渲染：空行保留一行高度；小标题行（◆/◇）只加粗、不上色 */
 .content-line {
   min-height: 58rpx;
-  text-indent: 2em;   /* 段首缩进两格（中文排版习惯） */
+  text-indent: 1em;   /* 段首缩进一格（中文排版习惯） */
 }
 .content-line-heading {
   font-weight: bold;
@@ -288,8 +288,10 @@
   display: flex;
   align-items: center;
   gap: 20rpx;
-  margin: 24rpx 24rpx 0;
-  padding-bottom: 24rpx;
+  /* 按钮沉到内容区最底部（margin-top:auto），下边正好落在 .edit-page 底留白划出的那条线上；
+     padding-bottom 归零，按钮最下边的位置 = 距屏幕底部 190rpx，与写日记页【AI优化】【保存日记】对齐 */
+  margin: auto 24rpx 0;
+  padding-bottom: 0;
 }
 
 .edit-actions button {
@@ -517,6 +519,11 @@
   background: var(--bg);
   overflow: hidden;
   z-index: 10;
+  /* 底留白 = 取消/保存按钮最下边的位置（距屏幕底部 190rpx），
+     与写日记页【AI优化】【保存日记】完全一致；配合 .edit-actions 的 margin-top:auto 生效。
+     底部输入栏是 fixed 定位（.edit-bottom），不受本留白影响 */
+  padding-bottom: 190rpx;
+  box-sizing: border-box;
 }
 
 .edit-scroll {

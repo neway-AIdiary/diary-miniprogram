@@ -132,8 +132,11 @@ function buildDiaryContext(diaries) {
 
 /**
  * 正文排版归一化（前端是纯文本展示，不吃 markdown 标记）：
- *   - 行首的 markdown 标题（# / ## / ###…）统一转成符号行：一级「◆ 标题」、二级及更深「◇ 标题」
+ *   - 行首的 markdown 标题（# / ## / ###…）统一转成符号行：# 与 ## →「◆ 标题」，
+ *     ### 及更深 →「◇ 标题」（提示词只要求用两个 #，故正常只会出现 ◆）
  *   - 小标题前补一个空行，让分段更透气
+ *   - 行首的 markdown 列表符号（- / * / +）统一转成「· 」，与小标题的 ◆/◇ 风格统一，
+ *     也避免裸 ASCII 横杠在中文排版里显得突兀（「- - -」这类分隔线保持原样）
  *   - 去掉行内加粗标记 **xxx**（符号已承担强调作用，留着反而会显示成星号）
  * 说明：模型仍按 markdown 输出（结构化最稳定），由这里翻译成符号，保证
  *      总结结果页 / 保存后的日记详情 / 分享文案 三处显示一致。
@@ -149,6 +152,15 @@ function normalizeSummaryText(text) {
       if (out.length && out[out.length - 1] !== '') out.push('') // 标题前保证空行
       out.push(symbol + ' ' + m[2].replace(/\*\*/g, '').trim())
       continue
+    }
+    // 行首列表符号：- / * / + → 「· 」（分隔线「- - -」等纯符号行不转）
+    const li = line.match(/^\s{0,3}[-*+]\s+(.*)$/)
+    if (li) {
+      const body = li[1].replace(/\*\*/g, '').trim()
+      if (body && !/^[-*+\s]+$/.test(body)) {
+        out.push('· ' + body)
+        continue
+      }
     }
     out.push(line.replace(/\*\*/g, ''))
   }
