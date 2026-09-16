@@ -37,7 +37,7 @@
     <view class="share-row {{shareAction === 'text' ? 'active' : ''}}" bindtap="selectShareAction" data-action="text">
       <view class="share-row-icon share-row-icon-text ri ri-file-text-line"></view>
       <view class="share-row-main">
-        <text class="share-row-name">复制精简文字</text>
+        <text class="share-row-name">复制完整文字</text>
         <text class="share-row-desc">已脱敏，适配各平台粘贴</text>
       </view>
     </view>

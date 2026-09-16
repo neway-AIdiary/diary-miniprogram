@@ -8,6 +8,7 @@
     "pages/backup/backup",
     "pages/setting/setting",
     "pages/setting-reminder/setting-reminder",
+    "pages/font-setting/font-setting",
     "pages/summary/summary",
     "pages/summary-result/summary-result"
   ],

@@ -11,6 +11,7 @@ page {
   --surface:       #FFFFFF;   /* 卡片/弹层 */
   --surface-soft:  #FBF8F2;   /* 卡片内浅底 */
   --surface-press: #F5EFE6;   /* 按压态 */
+  --surface-frost: rgba(248, 244, 238, 0.95); /* 底栏磨砂（深浅色各自定义） */
 
   /* ---------- 文字层 ---------- */
   --ink:           #333333;   /* 主文字 */
@@ -60,8 +61,15 @@ page {
 
   /* ---------- 字体 ---------- */
   /* 展示字：中文宋体系，营造杂志感；正文：系统无衬线保证可读 */
-  --font-display: 'Songti SC', 'STSong', 'Source Han Serif SC', 'Noto Serif CJK SC', 'SimSun', serif;
+  /* 兜底必须是无衬线：安卓不内置任何中文衬线，落到泛型 serif 会让数字走西文衬线、汉字按机型回落，与正文违和 */
+  --font-display: 'Songti SC', 'STSong', 'Source Han Serif SC', 'Source Han Serif CN', 'Noto Serif CJK SC', 'Noto Serif SC', 'STSongti-SC-Regular', 'SimSun', sans-serif;
   --font-body: -apple-system, BlinkMacSystemFont, 'Helvetica Neue', 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
+
+  /* ---------- 内容字号 / 字体（「日记字体」设置驱动，只作用于用户生成的正文） ---------- */
+  /* 默认＝中档 + 系统黑体；运行时由各页根节点注入的 style 覆盖（见 utils/fontSetting.js） */
+  --content-size: 32rpx;        /* 内容正文：小 28 / 中 32 / 大 36 */
+  --content-name-size: 34rpx;   /* 内容标题（档案词条名）：小 30 / 中 34 / 大 38 */
+  --content-font: var(--font-body);  /* 内容字体：默认系统黑体 */
 
   /* ---------- 间距 ---------- */
   --sp-xs: 8rpx;
@@ -92,6 +100,17 @@ page {
   color: var(--ink);
   line-height: 1.6;
   -webkit-font-smoothing: antialiased;
+
+  /* ---------- 标题刻度（全站唯一来源，改这里即可全站生效） ---------- */
+  --title-1: 42rpx;
+  --title-2: 32rpx;
+  --title-3: 26rpx;
+  --title-w: 600;
+  --title-w-3: 400;
+  --title-ink: var(--ink);
+  --title-ink-3: var(--ink-soft);
+  --title-track: 0.5rpx;
+  --title-track-3: 2rpx;
 }
 
 /* 通用容器 */
@@ -224,10 +243,10 @@ page {
 /* 章节标题：杂志感衬线小标 */
 .section-title {
   font-family: var(--font-display);
-  font-size: 34rpx;
-  font-weight: 600;
-  color: var(--ink);
-  letter-spacing: 0.5rpx;
+  font-size: var(--title-2);
+  font-weight: var(--title-w);
+  color: var(--title-ink);
+  letter-spacing: var(--title-track);
 }
 
 /* 章节序号：罗马数字 / 编号 */
@@ -250,4 +269,111 @@ page {
 .muted {
   color: var(--ink-soft);
   font-size: 24rpx;
+}
+
+/* ============================================================
+   页面根节点防外边距塌穿（2026-09-16）
+   首个子节点的 margin-top 会塌穿 .page，露出 page 元素/窗口的浅色底，
+   深色主题下在顶栏下显形为一条白条（日记本页实测：条高恰为统计卡
+   margin-top 24rpx）。flow-root 让 .page 成为 BFC：margin 留在根节点
+   内部由 var(--bg) 上色，布局零位移；浅色主题该区域本就是同色浅底，
+   零回归。已自带 flex / overflow:hidden / padding-top 的页面不受影响。
+   ============================================================ */
+.page {
+  display: flow-root;
+}
+
+/* ============================================================
+   原生 button 禁用态接管（2026-09-16）
+   实机上框架对 button[disabled] 的默认灰白底/浅灰字的优先级高于
+   页面级 class 定制（generate-btn.disabled / save-btn[disabled] 均被
+   盖掉），深色主题下变成"浅底浅字"不可读。统一用令牌接管：
+   浅色 = 米灰底 + 中灰字；深色 = 深底 + 暖米字。
+   !important 全站仅此处使用，用于压过框架默认禁用样式。
+   ============================================================ */
+button[disabled] {
+  background: var(--bg-soft) !important;
+  color: var(--ink-mid) !important;
+  box-shadow: none !important;
+}
+
+/* ============================================================
+   深色主题（.theme-dark，挂在各页根节点）
+   只覆盖颜色类令牌：暖炭底 + 琥珀提亮，延续编辑风。
+   字体 / 字号 / 间距 / 圆角 / 动效令牌一律不动。
+   切换机制见 utils/theme.js；深色取值须与 theme.js 的 CHROME.dark 对齐。
+   ============================================================ */
+.theme-dark {
+  /* ---------- 背景层 ---------- */
+  --bg:            #1B1916;   /* 页面底：暖炭黑 */
+  --bg-soft:       #211E1A;   /* 次级底 */
+  --surface:       #262320;   /* 卡片/弹层 */
+  --surface-soft:  #2C2824;   /* 卡片内深底 */
+  --surface-press: #35302A;   /* 按压态 */
+  --surface-frost: rgba(38, 35, 32, 0.95); /* 底栏磨砂 */
+
+  /* ---------- 文字层 ---------- */
+  --ink:           #E8E2D8;   /* 主文字：暖米白 */
+  --ink-mid:       #ADA496;   /* 次要文字 */
+  --ink-soft:      #8C8275;   /* 说明/时间 */
+  --ink-faint:     #6B6255;   /* 占位/图标 */
+  --ink-invert:    #FFFFFF;   /* 反白文字 */
+
+  /* ---------- 继承与间接令牌重置（务必保留本小节） ----------
+     page{} 里的 --title-ink / --title-ink-3 是 var(--ink) / var(--ink-soft) 的间接
+     引用，而 var() 在「定义处」（page 元素）就完成替换并被钉死为浅色值；page{} 上的
+     color: var(--ink) 同理。深色主题挂在页面根节点，覆盖 --ink 并不会改变这两个已解析
+     的值，也不改变根节点 color 的继承起点 —— 所以必须在 .theme-dark 内重新挂引用、
+     重置 color，否则 28 处标题（--title-ink）与所有未显式声明 color 的文字
+     （典型：textarea 内容）在深色下仍是深色底上的暗灰。改主题时请勿删除本节。
+     回归防护见 tools/test_theme.js 的 [深色继承重置] 段。 */
+  color: var(--ink);
+  --title-ink: var(--ink);
+  --title-ink-3: var(--ink-soft);
+
+  /* ---------- 分割线 ---------- */
+  --line:          #3A352D;   /* 常规线 */
+  --line-soft:     #2C2822;   /* 淡线 */
+  --line-strong:   #4C453A;   /* 强调线 */
+
+  /* ---------- 品牌色：琥珀提亮（保证深底上的文字对比） ---------- */
+  --brand:         #9C8E7B;
+  --brand-bright:  #B1A28E;
+  --brand-deep:    #7E7160;
+  --brand-mute:    #A79A87;
+  --brand-soft:    #2E2A23;   /* 浅底 → 深色浅底（chip 等） */
+  --brand-tint-08: rgba(156, 142, 123, 0.10);
+  --brand-tint-12: rgba(156, 142, 123, 0.16);
+  --brand-tint-25: rgba(156, 142, 123, 0.32);
+  --brand-shadow-20: rgba(0, 0, 0, 0.30);
+  --brand-shadow-22: rgba(0, 0, 0, 0.32);
+  --brand-shadow-28: rgba(0, 0, 0, 0.40);
+  --brand-shadow-55: rgba(0, 0, 0, 0.60);
+
+  /* ---------- 语义色：提亮一档 ---------- */
+  --danger:        #D96055;
+  --danger-deep:   #C24E44;
+  --danger-bright: #E8786D;
+  --danger-soft:   #3A2723;
+  --danger-shadow: rgba(0, 0, 0, 0.45);
+  --danger-tint-20: rgba(217, 96, 85, 0.22);
+  --danger-tint-25: rgba(217, 96, 85, 0.28);
+
+  /* ---------- AI 语义色：提亮一档 ---------- */
+  --ai:            #6FA3D2;
+  --ai-deep:       #A6C8E8;
+  --ai-soft:       #243139;
+  --ai-tint-12:    rgba(111, 163, 210, 0.16);
+  --ai-tint-25:    rgba(111, 163, 210, 0.32);
+  --ai-shadow-25:  rgba(0, 0, 0, 0.40);
+
+  /* ---------- 阴影：深色下改用纯黑半透明才可见 ---------- */
+  --shadow-sm: 0 2rpx 10rpx rgba(0, 0, 0, 0.30);
+  --shadow-md: 0 10rpx 30rpx rgba(0, 0, 0, 0.40);
+  --shadow-brand: 0 10rpx 24rpx var(--brand-shadow-28);
+}
+/* 深色下 AI 渐变两端都被提亮（--ai → --ai-deep 浅蓝），按钮白字对比不足，
+   字色改用表面深色（浅色主题零变化，本条只在 .theme-dark 下生效） */
+.theme-dark .generate-btn {
+  color: var(--surface);
 }

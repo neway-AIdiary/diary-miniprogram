@@ -3,6 +3,7 @@ const util = require('../../utils/util.js')
 const transfer = require('../../utils/transfer.js')
 const backup = require('../../utils/backup.js')
 const mediaGuard = require('../../utils/mediaGuard.js')
+const theme = require('../../utils/theme.js')
 const app = getApp()
 
 Page({
@@ -26,6 +27,7 @@ Page({
   },
 
   onShow() {
+    theme.applyTo(this)
     this.loadData()
   },
 

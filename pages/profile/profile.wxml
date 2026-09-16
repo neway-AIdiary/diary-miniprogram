@@ -1,5 +1,5 @@
 <!-- 我的页面 -->
-<view class="page">
+<view class="page {{themeClass}}">
   <!-- 用户信息卡片 -->
   <view class="user-card">
     <block wx:if="{{hasUserInfo}}">

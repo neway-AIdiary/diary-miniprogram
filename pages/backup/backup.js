@@ -1,6 +1,7 @@
 const storage = require('../../utils/storage.js')
 const util = require('../../utils/util.js')
 const backup = require('../../utils/backup.js')
+const theme = require('../../utils/theme.js')
 const app = getApp()
 
 Page({
@@ -22,6 +23,7 @@ Page({
   },
 
   onShow() {
+    theme.applyTo(this)
     this.loadData()
   },
 

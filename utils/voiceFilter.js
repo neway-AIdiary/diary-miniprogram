@@ -127,10 +127,86 @@ function normalizePunct(text) {
   // 3) 中文标点后行内空格清理（不碰换行）
   s = s.replace(/([，。！？；、…：])[ \t]+/g, '$1')
 
-  // 4) 还原保护点位
+  // 4) 碎逗号降密（语音按停顿插标点，句子被切成很多碎小句，见 thinShortCommas）
+  s = thinShortCommas(s)
+
+  // 5) 还原保护点位
   s = s.replace(/\u0001/g, '.')
 
   return s
+}
+
+// ===== 碎逗号降密（语音按停顿插标点，短句被切得很碎）=====
+// 语音引擎在「停顿」处插标点，越口语停顿越多，会出现
+//   「今天上班。路上差点，撞车，有一个人强行加塞，特别危险。」
+// 这种把短语切碎的逗号。两条保守规则：
+//   a) 句首状语/连接词后紧跟的逗号摘掉（「下午，命云控制行…」→「下午命云控制行…」）
+//      —— 只认「整块小句恰好等于词表里的词」，绝不碰「这个结果，」这类带修饰的碎片
+//   b) 叙述中间被停顿切碎的连续短小句（≤4 字）→ 摘掉它们之间的逗号，把碎片并回短语
+//      —— 若整段都是 ≤3 字的短项（「苹果，香蕉，橘子」）或碎小句正好落在句末，则视为
+//         并列列举 / 正常短句收尾，一律保留标点
+// 只动逗号：句号/顿号/分号/冒号一律不碰（句末停顿带语义，交给第二层 AI 润色）
+var THIN_LEN = 4
+
+// 句首状语 / 连接词：这些词独自成小句时，其后的逗号是换气而非句读
+var THIN_ADVERBS = [
+  '今天', '昨天', '明天', '早晨', '早上', '上午', '中午', '下午', '傍晚', '晚上', '夜里', '刚才', '现在', '后来', '随后', '接着',
+  '然后', '于是', '所以', '但是', '不过', '而且', '另外', '其实', '反正', '总之', '首先', '最后', '结果', '因为', '如果', '虽然',
+  '可能', '大概', '估计', '本来', '原本', '当然', '确实', '果然', '终于', '至少', '比如', '例如', '就是'
+]
+var THIN_ADVERB_RE = new RegExp('(^|[，。！？；：…\\n])[ \\t]*(' +
+  THIN_ADVERBS.slice().sort(function (a, b) { return b.length - a.length }).map(escapeRe).join('|') +
+  ')[ \\t]*，', 'g')
+
+// 碎小句判定：去空格后 1~THIN_LEN 个字
+function isThinPart(s) {
+  var n = String(s).replace(/[ \t]/g, '').length
+  return n >= 1 && n <= THIN_LEN
+}
+
+// 单个小句段（已被 。！？…\n 切好、内部只剩逗号）的碎逗号合并
+// 判定：列举（3 项以上且每项 ≤3 字）或位于句末 → 保留；叙述中间的碎片 → 摘逗号
+function thinOneClause(seg) {
+  if (seg.indexOf('，') === -1) return seg
+  var parts = seg.split('，')
+  // 至少被切成 3 段才算「碎」：只一个逗号的句子多是正常停顿（「好的，谢谢」），不动
+  if (parts.length < 3) return seg
+  var i = 0
+  var drop = []
+  while (i < parts.length) {
+    if (!isThinPart(parts[i])) { i++; continue }
+    var j = i
+    while (j + 1 < parts.length && isThinPart(parts[j + 1])) j++
+    // 这一段连续碎小句是否像「并列列举」：3 个以上、且每项都不超过 3 字（「苹果，香蕉，橘子」）
+    var listLike = true
+    for (var q = i; q <= j; q++) {
+      if (String(parts[q]).replace(/[ \t]/g, '').length > 3) { listLike = false; break }
+    }
+    if ((j - i + 1 >= 3 && listLike) || j === parts.length - 1) {
+      // 列举，或碎小句正好落在句末（可能是正常短句收尾）→ 保留标点
+    } else {
+      // 叙述中间被停顿切碎的碎片 → 该段内部逗号全部摘掉，并回短语
+      for (var b = i; b < j; b++) drop[b] = true
+    }
+    i = j + 1
+  }
+  if (!drop.length) return seg
+  var out = parts[0]
+  for (var k = 1; k < parts.length; k++) {
+    out += (drop[k - 1] ? '' : '，') + parts[k]
+  }
+  return out
+}
+
+/**
+ * 碎逗号降密（纯函数）：先摘句首状语后的逗号，再合并叙述中间被切碎的短小句
+ * 只处理逗号，不增删任何文字；输入无逗号时原样返回
+ */
+function thinShortCommas(text) {
+  var s = String(text || '')
+  if (s.indexOf('，') === -1) return s
+  s = s.replace(THIN_ADVERB_RE, '$1$2')
+  return s.replace(/[^。！？…\n]+/g, function (seg) { return thinOneClause(seg) })
 }
 
 /**
@@ -201,4 +277,4 @@ function purify(text, opts) {
   return { text: out.trim(), removed: removed, count: removed.length }
 }
 
-module.exports = { purify: purify, normalizePunct: normalizePunct }
+module.exports = { purify: purify, normalizePunct: normalizePunct, thinShortCommas: thinShortCommas }

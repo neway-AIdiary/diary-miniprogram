@@ -1,6 +1,6 @@
 <!-- 总结结果页：显示框架复用日记详情（卡片 + 标题 + meta + 独立滚动正文），
      差异：标题「X月X日 AI总结」/ 正文顶部先给「总结需求 + 数据范围」/ 底部三按钮 分享·编辑·保存 -->
-<view class="page">
+<view class="page {{themeClass}}" style="{{fontStyle}}">
   <!-- 阅读模式 -->
   <view class="detail-card">
     <!-- 固定区：标题 + 日期/标签（不随内容滚动） -->

@@ -3,6 +3,7 @@
  * 功能：周期（每日/每周）+ 时间 + 周几 + 开关（开启时调订阅消息授权）
  */
 const util = require('../../utils/util.js')
+const theme = require('../../utils/theme.js')
 
 // 微信公众平台「我的模板」中的订阅消息模板 ID（待办事项提醒，模版编号 2983）
 const SUBSCRIBE_TPL_ID = '43jTDjTJTUZd3tvis9ErkXv5Zoz0yUWPmB-7paOeGwc'
@@ -45,6 +46,10 @@ Page({
     statusText: '未开启',
     hintText: '',
     _initial: null // 记录切换前的状态，开关失败时回滚
+  },
+
+  onShow() {
+    theme.applyTo(this)
   },
 
   onLoad() {

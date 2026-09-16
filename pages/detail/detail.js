@@ -24,8 +24,13 @@ const MEDIA_GAP_RPX = 16
 
 // 注：分享弹窗「自定义展示开关」的本地记忆已移至 components/share-sheet（跨页面共用）
 
+const fontSetting = require('../../utils/fontSetting.js')
+const theme = require('../../utils/theme.js')
+
 Page({
   data: {
+    // 「日记字体」设置注入的 CSS 变量串：字号/字体作用于本页 UGC 正文
+    fontStyle: '',
     id: '',
     diary: null,
     contentBlocks: [],         // 正文拆行（小标题行 ◆/◇ 加粗；loadDetail/saveEdit 时重算）
@@ -142,6 +147,8 @@ Page({
   },
 
   onShow() {
+    theme.applyTo(this)
+    this.setData({ fontStyle: fontSetting.buildStyle() })
     // 编辑模式下注册语音目标：底栏「按住说话」识别结果追加到日记正文
     if (this.data.editing) {
       this.registerVoiceTarget()

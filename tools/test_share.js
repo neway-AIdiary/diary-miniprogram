@@ -51,13 +51,22 @@ assert('天气：无 icon', share.weatherLine({ weatherText: '多云 20°' }), '
 assert('天气：无天气', share.weatherLine({ weatherIcon: '☀️' }), '')
 assert('天气：空对象', share.weatherLine(null), '')
 
-// ===== 3. 复制精简文字（脱敏默认配置） =====
+// ===== 3. 复制完整文字（默认配置） =====
 const copyText = share.buildCopyText(diary)
 assert('复制：含日期', copyText.indexOf('2026年9月4日 16:20') !== -1, true)
 assert('复制：含天气', copyText.indexOf('☀️ 晴 28° · 深圳') !== -1, true)
 assert('复制：含心情', copyText.indexOf('开心') !== -1, true)
 assert('复制：含标签', copyText.indexOf('#生活 #运动 #旅行') !== -1, true)
-assert('复制：含折叠后的摘要', copyText.indexOf('今天 过得不错，去了公园散步，天气很好。') !== -1, true)
+assert('复制：含摘要（保留段落换行）', copyText.indexOf('今天 过得不错，\n去了公园散步，\n天气很好。') !== -1, true)
+assert('复制：段落结构（连续空行折叠为单换行）',
+  share.buildCopyText({ content: '第一段。\n\n\n第二段内容。\n第三段收尾。' }),
+  '第一段。\n第二段内容。\n第三段收尾。')
+const bigText = '一二三四五六七八九十'.repeat(30) // 300 字
+const bigCopy = share.buildCopyText({ createdAt: '2026年9月16日 10:00', content: bigText })
+assert('复制：300 字全文不截断', bigCopy.indexOf(bigText) !== -1, true)
+assert('复制：全文无省略号', bigCopy.indexOf('…'), -1)
+const hugeCopy = share.buildCopyText({ content: '字'.repeat(1200) })
+assert('复制：1200 字仍全文', hugeCopy.length, 1200)
 assert('复制：不含标题（隐私）', copyText.indexOf('一篇日记标题') === -1, true)
 assert('复制：首行是日期', copyText.split('\n')[0], '2026年9月4日 16:20')
 assert('复制：空日记为空串', share.buildCopyText(emptyDiary), '')
@@ -94,6 +103,16 @@ assert('空日记海报：不抛错返回日期空', em.date, '')
 // ===== 8. 开关缺省（默认视为开） =====
 const def = share.buildPosterModel(diary, {})
 assert('缺省开关：视为全开含图', def.images.length, 3)
+
+// ===== 9. 海报正文上限（方案1：150 → 600 字） =====
+assert('海报：行数上限常量为 40', share.MAX_POSTER_LINES, 40)
+const p300 = share.buildPosterModel({ createdAt: '2026年9月16日 10:00', content: bigText }, {})
+assert('海报：300 字不截断', p300.summary.length, 300)
+assert('海报：300 字未标记截断', p300.summaryTruncated, false)
+const p900 = share.buildPosterModel({ createdAt: '2026年9月16日 10:00', content: '字'.repeat(900) }, {})
+assert('海报：900 字截到 600', p900.summary.length, 600)
+assert('海报：超限末尾省略号', p900.summary.slice(-1), '…')
+assert('海报：超限标记截断', p900.summaryTruncated, true)
 
 console.log('\nshare tests: ' + passed + ' passed, ' + failed + ' failed')
 process.exit(failed > 0 ? 1 : 0)

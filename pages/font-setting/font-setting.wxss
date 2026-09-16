@@ -1,0 +1,148 @@
+/* ===== 日记字体设置页：极简琥珀编辑风 ===== */
+.page {
+  min-height: 100vh;
+  background: var(--bg);
+  padding: 32rpx 24rpx 60rpx;
+  box-sizing: border-box;
+}
+
+.card {
+  background: var(--surface);
+  border: 1rpx solid var(--line-soft);
+  border-radius: var(--r-lg);
+  box-shadow: var(--shadow-sm);
+  padding: 8rpx 0 28rpx;
+  margin-bottom: 32rpx;
+}
+
+.card-title {
+  font-family: var(--font-display);
+  font-size: var(--title-3);
+  color: var(--title-ink-3);
+  letter-spacing: var(--title-track-3);
+  font-weight: var(--title-w-3);
+  padding: 28rpx 32rpx 12rpx;
+}
+
+/* --- 字号三档 --- */
+.size-tabs {
+  display: flex;
+  gap: 16rpx;
+  padding: 8rpx 32rpx 0;
+}
+
+.size-tab {
+  flex: 1;
+  height: 150rpx;
+  border-radius: var(--r-md);
+  border: 1rpx solid var(--line-soft);
+  background: var(--bg);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10rpx;
+  transition: all var(--dur) var(--ease);
+}
+
+.size-tab.active {
+  background: var(--brand);
+  border-color: var(--brand);
+  box-shadow: var(--shadow-sm);
+}
+
+.size-sample {
+  line-height: 1.1;
+  color: var(--ink);
+}
+
+.size-label {
+  font-size: 22rpx;
+  letter-spacing: 2rpx;
+  color: var(--ink-soft);
+}
+
+.size-tab.active .size-sample,
+.size-tab.active .size-label {
+  color: var(--surface);
+}
+
+/* --- 字体列表 --- */
+.font-list {
+  padding: 4rpx 32rpx 0;
+}
+
+.font-item {
+  display: flex;
+  align-items: center;
+  gap: 20rpx;
+  padding: 26rpx 0;
+  border-bottom: 1rpx solid var(--line-soft);
+}
+
+.font-item:last-child {
+  border-bottom: none;
+}
+
+.font-sample {
+  flex: 1;
+  font-size: 30rpx;
+  color: var(--ink);
+  letter-spacing: 0.5rpx;
+}
+
+.font-desc {
+  font-size: 22rpx;
+  color: var(--ink-soft);
+}
+
+.font-dot {
+  width: 16rpx;
+  height: 16rpx;
+  border-radius: 50%;
+  border: 1rpx solid var(--line-strong);
+  box-sizing: border-box;
+}
+
+.font-item.active .font-sample {
+  color: var(--brand);
+}
+
+.font-item.active .font-dot {
+  background: var(--brand);
+  border-color: var(--brand);
+}
+
+/* --- 说明文字 --- */
+.hint-text {
+  padding: 20rpx 32rpx 0;
+  font-size: 22rpx;
+  line-height: 1.7;
+  color: var(--ink-faint);
+}
+
+/* --- 预览 --- */
+.preview-card {
+  background: var(--surface-soft);
+  border: 1rpx solid var(--line-soft);
+  border-radius: var(--r-lg);
+  padding: 32rpx;
+}
+
+.preview-title {
+  font-family: var(--font-display);
+  font-size: var(--title-3);
+  color: var(--title-ink-3);
+  letter-spacing: var(--title-track-3);
+  font-weight: var(--title-w-3);
+  margin-bottom: 20rpx;
+}
+
+.preview-body {
+  font-family: var(--content-font);
+  font-size: var(--content-size);
+  color: var(--ink);
+  line-height: 1.9;
+  letter-spacing: 0.3rpx;
+  text-indent: 2em;
+}

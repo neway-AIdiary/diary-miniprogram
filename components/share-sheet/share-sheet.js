@@ -27,7 +27,7 @@ Component({
   },
 
   data: {
-    shareAction: '',           // '' | 'poster'(保存海报) | 'text'(复制精简文字)
+    shareAction: '',           // '' | 'poster'(保存海报) | 'text'(复制完整文字)
     shareSw: { weather: true, mood: true, tags: false, images: false },
     safeAreaBottom: 0
   },
@@ -83,7 +83,7 @@ Component({
       wx.showToast({ title: '请先选择一种分享方式', icon: 'none' })
     },
 
-    // ===== 复制精简文字（脱敏默认配置：日期+天气+心情+标签+摘要） =====
+    // ===== 复制完整文字（默认配置：日期+天气+心情+标签+全文，保留段落） =====
     copyShareText() {
       const text = share.buildCopyText(this.data.diary)
       if (!text) {
@@ -184,6 +184,9 @@ Component({
           const W = 600
           const PAD = 46
           const MAXW = W - PAD * 2
+          // 画布像素上限：iOS canvas 总面积约 16.7M、单边约 8192，超限会绘制失败（白屏）
+          const MAX_CANVAS_PX = 12e6
+          const MAX_CANVAS_DIM = 8000
 
           // —— 绘制工具 ——
           const rrectPath = (x, y, w, h, r) => {
@@ -249,6 +252,9 @@ Component({
             // 第一遍：纯测量，得到各块纵向位置与总高（canvas 高度必须先定）
             const layout = []
             let y = PAD + 6
+            // 页脚参数提前确定：正文超长时要用它决定「引导扫码」还是「打开小程序」
+            const CODE_SIZE = 112
+            const hasCode = !!codeImg
             ctx.textBaseline = 'middle'
             ctx.font = '500 30px sans-serif'
             layout.push({ kind: 'date', y: y })
@@ -265,9 +271,16 @@ Component({
             }
             if (model.summary) {
               ctx.font = '400 33px sans-serif'
-              const lines = wrapLines(model.summary, MAXW).slice(0, 12)
-              layout.push({ kind: 'summary', y: y + 12, lines: lines, lineH: 54 })
+              const all = wrapLines(model.summary, MAXW)
+              // 双上限：字数上限（share.MAX_SUMMARY_LEN=600）先截，行数上限兜底 canvas 像素
+              const lines = all.slice(0, share.MAX_POSTER_LINES)
+              const cut = all.length > lines.length || !!model.summaryTruncated
+              layout.push({ kind: 'summary', y: y + 12, lines: lines, lineH: 54, cut: cut })
               y += 12 + lines.length * 54 + 6
+              if (cut) {
+                layout.push({ kind: 'summaryMore', y: y + 8, hasCode: hasCode })
+                y += 8 + 34
+              }
             }
             if (model.tags && model.tags.length) {
               ctx.font = '400 25px sans-serif'
@@ -299,15 +312,15 @@ Component({
             }
             y += 26
             const footY = y
-            const CODE_SIZE = 112
-            const hasCode = !!codeImg
             const H = y + (hasCode ? CODE_SIZE + 44 : 96)
             layout.push({ kind: 'footer', y: footY, hasCode: hasCode, codeSize: CODE_SIZE })
 
             // 设定画布尺寸（会重置画笔，随后统一重绘）
-            canvas.width = W * dpr
-            canvas.height = H * dpr
-            ctx.scale(dpr, dpr)
+            // 长正文时画布会很高：dpr 先按总面积与单边上限收紧，再落到整数像素
+            const dprEff = Math.max(1, Math.min(dpr, Math.sqrt(MAX_CANVAS_PX / (W * H)), MAX_CANVAS_DIM / H))
+            canvas.width = Math.floor(W * dprEff)
+            canvas.height = Math.floor(H * dprEff)
+            ctx.scale(dprEff, dprEff)
             ctx.textBaseline = 'middle'
 
             // 背景渐变
@@ -338,11 +351,25 @@ Component({
                 ctx.font = '400 27px sans-serif'
                 ctx.fillText(model.weather, PAD, b.y)
               } else if (b.kind === 'summary') {
-                ctx.fillStyle = '#2A2622'
                 ctx.font = '400 33px sans-serif'
                 b.lines.forEach((ln, i) => {
+                  if (b.cut && i === b.lines.length - 1) {
+                    // 末行横向渐隐：示意后文未展示（背景近白，文字色降透明最干净）
+                    const lw = ctx.measureText(ln).width
+                    const g = ctx.createLinearGradient(PAD, 0, PAD + lw, 0)
+                    g.addColorStop(0, 'rgba(42,38,34,1)')
+                    g.addColorStop(0.6, 'rgba(42,38,34,0.72)')
+                    g.addColorStop(1, 'rgba(42,38,34,0)')
+                    ctx.fillStyle = g
+                  } else {
+                    ctx.fillStyle = '#2A2622'
+                  }
                   ctx.fillText(ln, PAD, b.y + i * b.lineH)
                 })
+              } else if (b.kind === 'summaryMore') {
+                ctx.fillStyle = '#9A8F84'
+                ctx.font = '400 24px sans-serif'
+                ctx.fillText(b.hasCode ? '…完整内容见小程序码' : '…完整内容请打开小程序查看', PAD, b.y)
               } else if (b.kind === 'tags') {
                 ctx.font = '400 25px sans-serif'
                 b.rows.forEach((rowArr, ri) => {

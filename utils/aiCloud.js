@@ -26,6 +26,7 @@ const localAI = require('./ai.js')
 const util = require('./util.js')
 const storage = require('./storage.js')
 const entityClean = require('./entityClean.js')
+const archiveEdit = require('./archiveEdit.js')
 
 /**
  * 调用 AI
@@ -272,26 +273,26 @@ function callAITags(content, mood) {
  * 失败降级本地按行解析（以：或：分隔）
  * @param {string} text 用户输入的原始文本
  * @param {string} instruction 用户自定义纠错指令（可空，语音或文字输入）
- * @returns {Promise<{archives: Array<{name, description}>, from: 'cloud'|'local', error?: string}>}
+ * @returns {Promise<{archives: Array<{name, description}>, skipped?: number, from: 'cloud'|'local', error?: string}>}
+ *   skipped：名称不合格（整句话 / 超 9 字 / 含句读标点）被丢弃的条数
  */
 function callAIOrganizeArchive(text, instruction) {
   return new Promise((resolve) => {
-    // 本地降级：按行拆分，以：或：分隔 name 和 description
+    // 本地降级：按行拆分，交给 archiveEdit.parseArchiveLine 统一解析
+    // （名称必须是不超过 9 字的名词，否则丢弃该行——不再把整句话塞进 name）
     const localParse = () => {
       const lines = String(text || '').split(/[\n\r]+/)
       const archives = []
+      let skipped = 0
       lines.forEach(line => {
-        const trimmed = line.trim()
-        if (!trimmed) return
-        const m = trimmed.match(/^([^：:]+)[：:]\s*(.*)$/)
-        if (m) {
-          archives.push({ name: m[1].trim(), description: m[2].trim() })
-        } else {
-          // 没有分隔符的整行作为 name，description 留空
-          archives.push({ name: trimmed, description: '' })
+        const item = archiveEdit.parseArchiveLine(line)
+        if (item) {
+          archives.push(item)
+        } else if (String(line || '').trim()) {
+          skipped++
         }
       })
-      return { archives, from: 'local' }
+      return { archives, skipped, from: 'local' }
     }
 
     if (!wx.cloud) {
@@ -312,9 +313,11 @@ function callAIOrganizeArchive(text, instruction) {
       data: { action: 'organizeArchive', text: String(text || '').slice(0, 5000), instruction: instruction || '' }
     }).then(res => {
       const r = res && res.result
-      if (r && !r.error && Array.isArray(r.archives) && r.archives.length > 0) {
+      // 云端显式返回空数组也算成功（云函数已判定没有合格名词）
+      // → 不再降级本地重造脏名称，由页面提示「没识别到名词」
+      if (r && !r.error && Array.isArray(r.archives)) {
         console.log('[aiCloud] AI 整理档案成功 from=cloud:', r.archives.length, '条')
-        finish({ archives: r.archives, from: 'cloud' })
+        finish({ archives: r.archives, skipped: Number(r.dropped) || 0, from: 'cloud' })
       } else {
         console.warn('[aiCloud] AI 整理档案异常，降级本地:', (r && r.error) || '无archives字段')
         finish(localParse())

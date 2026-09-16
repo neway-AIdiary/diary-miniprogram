@@ -51,9 +51,11 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 34rpx;
-  font-weight: 600;
-  color: var(--ink);
+  font-size: var(--title-2);
+  font-weight: var(--title-w);
+  color: var(--title-ink);
+  font-family: var(--font-display);
+  letter-spacing: var(--title-track);
   text-align: center;
   margin-top: 8rpx;
 }
@@ -69,9 +71,11 @@
 }
 
 .share-sec-title {
-  font-size: 28rpx;
-  font-weight: 600;
-  color: var(--ink);
+  font-size: var(--title-3);
+  font-weight: var(--title-w-3);
+  color: var(--title-ink-3);
+  font-family: var(--font-display);
+  letter-spacing: var(--title-track-3);
 }
 
 .share-sec-sub {

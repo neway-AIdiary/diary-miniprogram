@@ -32,8 +32,13 @@ const SHORTCUTS = [
 
 // 注：结果的 markdown 渲染/复制/保存已移至 pages/summary-result（本页只负责调用 AI 生成）
 
+const fontSetting = require('../../utils/fontSetting.js')
+const theme = require('../../utils/theme.js')
+
 Page({
   data: {
+    // 「日记字体」设置注入的 CSS 变量串：字号/字体作用于本页 UGC 正文
+    fontStyle: '',
     // 底部安全区适配
     safeAreaBottom: 0,
     rangeList: RANGE_LIST,
@@ -79,6 +84,8 @@ Page({
   },
 
   onShow() {
+    theme.applyTo(this)
+    this.setData({ fontStyle: fontSetting.buildStyle() })
     // 注册语音目标：按住说话识别结果填入输入框
     this._voiceHandle = (text) => this.appendPrompt(text)
     app.globalData.voiceTarget = {

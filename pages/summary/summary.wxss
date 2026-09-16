@@ -79,9 +79,11 @@
 
 .sheet-title {
   text-align: center;
-  font-size: 30rpx;
-  font-weight: 600;
-  color: var(--ink);
+  font-size: var(--title-2);
+  font-weight: var(--title-w);
+  color: var(--title-ink);
+  font-family: var(--font-display);
+  letter-spacing: var(--title-track);
   margin-bottom: 16rpx;
 }
 
@@ -174,7 +176,8 @@
   left: 44rpx;
   right: 44rpx;
   pointer-events: none;
-  font-size: 30rpx;
+  font-family: var(--content-font);
+  font-size: var(--content-size);
   color: var(--ink-faint);
   line-height: 1.7;
 }
@@ -188,7 +191,8 @@
 .prompt-textarea {
   width: 100%;
   min-height: 180rpx;
-  font-size: 30rpx;
+  font-family: var(--content-font);
+  font-size: var(--content-size);
   line-height: 1.7;
   color: var(--ink);
 }
@@ -203,7 +207,7 @@
   flex-shrink: 0;
   display: flex;
   align-items: flex-end;
-  background: rgba(248, 244, 238, 0.95);
+  background: var(--surface-frost);
   border-top: 1rpx solid var(--line-soft);
   padding: 12rpx 16rpx 22rpx;
   z-index: 20;
@@ -390,7 +394,8 @@
 }
 
 .result-content {
-  font-size: 30rpx;
+  font-family: var(--content-font);
+  font-size: var(--content-size);
   line-height: 1.8;
   color: var(--ink);
   word-break: break-all;
@@ -491,7 +496,8 @@
 }
 
 .voice-text {
-  font-size: 28rpx;
+  font-family: var(--content-font);
+  font-size: var(--content-size);
   color: var(--ink-mid);
   line-height: 1.7;
   word-break: break-all;

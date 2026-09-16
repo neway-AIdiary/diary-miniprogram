@@ -285,4 +285,49 @@ function applyEdit(archives, edit) {
   return { archives: list, changed: false, msg: '' }
 }
 
-module.exports = { detectEdit, applyEdit, mergeDescription, appendArchiveDescription }
+/**
+ * 档案「名称」的硬约束（2026-09-16 用户反馈：一整句话被当成词条名）
+ * 名称必须是名词性主体，且不超过 ARCHIVE_NAME_MAX 个字；
+ * 语音 / 手写 / AI 三条录入路径统一走本模块判定，避免脏名称入库。
+ */
+const ARCHIVE_NAME_MAX = 9
+// 名称里不允许出现的标点：出现即说明「一整句话」被误当名称
+const NAME_PUNCT_RE = /[，,。.！!？?；;、：:…“”‘’（）()【】\[\]《》<>"']/
+
+/**
+ * 名称是否合格：非空、不超过 9 字、不含句读标点
+ * @param {string} name
+ * @returns {boolean}
+ */
+function isTermName(name) {
+  const n = String(name || '').trim()
+  if (!n) return false
+  if (n.length > ARCHIVE_NAME_MAX) return false
+  if (NAME_PUNCT_RE.test(n)) return false
+  return true
+}
+
+/**
+ * 把一行原始输入解析成 {name, description}；名称不合格返回 null（宁可不建档，也不产生脏名称）
+ *  - 「名词：说明」→ 直接拆分（名称不合格时落到下面的片段规则再试一次，保住说明内容）
+ *  - 无分隔符 / 名称不合格 → 取第一个标点前的片段作候选名词：
+ *      候选合格 → 作 name、其余作 description；候选也超长（整句话）→ 返回 null
+ * @param {string} line
+ * @returns {null | {name:string, description:string}}
+ */
+function parseArchiveLine(line) {
+  const raw = String(line || '').trim()
+  if (!raw) return null
+  const m = raw.match(/^([^：:]{1,20})[：:]\s*([\s\S]*)$/)
+  if (m) {
+    const name = m[1].trim()
+    if (isTermName(name)) return { name: name, description: m[2].trim() }
+  }
+  const idx = raw.search(/[，,。.！!？?；;、：:…]/)
+  const head = (idx === -1 ? raw : raw.slice(0, idx)).trim()
+  const rest = (idx === -1 ? '' : raw.slice(idx + 1)).replace(/^[，,。.！!？?；;、：:…\s]+/, '').trim()
+  if (isTermName(head)) return { name: head, description: rest }
+  return null
+}
+
+module.exports = { detectEdit, applyEdit, mergeDescription, appendArchiveDescription, isTermName, parseArchiveLine, ARCHIVE_NAME_MAX }

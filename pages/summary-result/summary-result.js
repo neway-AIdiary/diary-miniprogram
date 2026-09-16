@@ -20,8 +20,13 @@ const util = require('../../utils/util.js')
 const reminder = require('../../utils/reminder.js')
 const app = getApp()
 
+const fontSetting = require('../../utils/fontSetting.js')
+const theme = require('../../utils/theme.js')
+
 Page({
   data: {
+    // 「日记字体」设置注入的 CSS 变量串：字号/字体作用于本页 UGC 正文
+    fontStyle: '',
     prompt: '',        // 本次总结需求（如「提取我所有的运动」）
     content: '',       // 总结正文
     contentBlocks: [], // 正文拆行结果（小标题行 heading=true，wxml 逐行渲染加粗）
@@ -35,7 +40,12 @@ Page({
     busy: false        // 保存/编辑落库进行中：三个按钮置灰，防重复点击产生重复日记/草稿
   },
 
+  onShow() {
+    theme.applyTo(this)
+  },
+
   onLoad() {
+    this.setData({ fontStyle: fontSetting.buildStyle() })
     const ch = this.getOpenerEventChannel ? this.getOpenerEventChannel() : null
     if (ch && ch.on) {
       ch.on('summaryResult', (payload) => this.initFromPayload(payload))

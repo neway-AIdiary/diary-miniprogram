@@ -46,9 +46,10 @@
 }
 
 .status-title {
-  font-size: 32rpx;
-  font-weight: 600;
-  color: var(--ink);
+  font-size: var(--title-2);
+  font-weight: var(--title-w);
+  color: var(--title-ink);
+  letter-spacing: var(--title-track);
 }
 
 .status-sub {
@@ -169,9 +170,11 @@
 }
 
 .backup-title {
-  font-size: 32rpx;
-  font-weight: 600;
-  color: var(--ink);
+  font-size: var(--title-2);
+  font-weight: var(--title-w);
+  color: var(--title-ink);
+  font-family: var(--font-display);
+  letter-spacing: var(--title-track);
   text-align: center;
   margin-bottom: 20rpx;
 }
@@ -258,10 +261,10 @@
 
 .status-title {
   font-family: var(--font-display);
-  font-size: 32rpx;
-  font-weight: 600;
-  color: var(--ink);
-  letter-spacing: 0.5rpx;
+  font-size: var(--title-2);
+  font-weight: var(--title-w);
+  color: var(--title-ink);
+  letter-spacing: var(--title-track);
 }
 
 .status-sub,
@@ -277,12 +280,12 @@
   filter: none;
 }
 
-.menu-section,
 .privacy-title {
   font-family: var(--font-display);
-  font-size: 26rpx;
-  color: var(--ink-soft);
-  letter-spacing: 2rpx;
+  font-size: var(--title-3);
+  color: var(--title-ink-3);
+  letter-spacing: var(--title-track-3);
+  font-weight: var(--title-w-3);
 }
 
 .menu-item {

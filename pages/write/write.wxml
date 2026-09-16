@@ -1,5 +1,5 @@
 <!-- 写日记页面：微信聊天风格 -->
-<view class="page">
+<view class="page {{themeClass}}" style="{{fontStyle}}">
 
   <!-- 自定义导航栏：左上双横杠打开侧边栏 -->
   <view class="nav-bar" style="padding-top: {{statusBarHeight}}px;">

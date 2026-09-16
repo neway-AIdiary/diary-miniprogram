@@ -53,9 +53,11 @@
   position: absolute;
   left: 50%;
   transform: translateX(-50%);
-  font-size: 34rpx;
-  font-weight: 600;
-  color: var(--ink);
+  font-size: var(--title-2);
+  font-weight: var(--title-w);
+  color: var(--title-ink);
+  font-family: var(--font-display);
+  letter-spacing: var(--title-track);
 }
 
 .nav-right {
@@ -162,9 +164,11 @@
 }
 
 .cal-title {
-  font-size: 32rpx;
-  font-weight: 600;
-  color: var(--ink);
+  font-size: var(--title-2);
+  font-weight: var(--title-w);
+  color: var(--title-ink);
+  font-family: var(--font-display);
+  letter-spacing: var(--title-track);
 }
 
 .cal-nav {
@@ -336,8 +340,11 @@
 }
 
 .mood-picker-title {
-  font-size: 24rpx;
-  color: var(--ink-soft);
+  font-size: var(--title-3);
+  color: var(--title-ink-3);
+  font-family: var(--font-display);
+  font-weight: var(--title-w-3);
+  letter-spacing: var(--title-track-3);
   margin-bottom: 20rpx;
 }
 
@@ -407,7 +414,8 @@
   left: 0;
   right: 0;
   pointer-events: none;
-  font-size: 30rpx;
+  font-family: var(--content-font);
+  font-size: var(--content-size);
   line-height: 1.9;
   color: var(--ink-faint);
 }
@@ -420,10 +428,11 @@
   width: 100%;
   box-sizing: border-box;
   background: transparent;
-  font-size: 30rpx;
+  font-family: var(--content-font);
+  font-size: var(--content-size);
   color: var(--ink);
   line-height: 1.9;
-  min-height: 330rpx;
+  min-height: 400rpx;
   max-height: 60vh;
 }
 
@@ -465,7 +474,8 @@
   display: block;
   width: 100%;
   box-sizing: border-box;
-  font-size: 30rpx;
+  font-family: var(--content-font);
+  font-size: var(--content-size);
   color: var(--ink);
   line-height: 1.9;
   min-height: 220rpx;
@@ -1054,9 +1064,11 @@
   position: absolute;
   left: 50%;
   transform: translateX(-50%);
-  font-size: 32rpx;
-  font-weight: 600;
-  color: var(--ink);
+  font-size: var(--title-2);
+  font-weight: var(--title-w);
+  color: var(--title-ink);
+  font-family: var(--font-display);
+  letter-spacing: var(--title-track);
 }
 
 .sidebar-scroll {
@@ -1101,10 +1113,12 @@
 .sidebar-section-title {
   display: flex;
   align-items: center;
-  font-size: 30rpx;
-  color: var(--ink-soft);
+  font-size: var(--title-3);
+  color: var(--title-ink-3);
   margin-bottom: 20rpx;
-  font-weight: 500;
+  font-weight: var(--title-w-3);
+  font-family: var(--font-display);
+  letter-spacing: var(--title-track-3);
 }
 
 /* 日记本：统计 */
@@ -1177,6 +1191,7 @@
   flex: none;
   font-size: 28rpx;
   color: var(--ink);
+  font-family: var(--font-display);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -1265,6 +1280,7 @@
   font-size: 30rpx;
   font-weight: 600;
   color: var(--ink);
+  font-family: var(--font-display);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -1622,7 +1638,8 @@
 
 .voice-card-text {
   display: block;
-  font-size: 30rpx;
+  font-family: var(--content-font);
+  font-size: var(--content-size);
   line-height: 1.6;
   color: var(--ink);
   word-break: break-all;
@@ -1697,7 +1714,7 @@
   left: 0;
   right: 0;
   bottom: 0;
-  background: rgba(248, 244, 238, 0.95);
+  background: var(--surface-frost);
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -1793,9 +1810,11 @@
   position: absolute;
   left: 50%;
   transform: translateX(-50%);
-  font-size: 34rpx;
-  font-weight: 600;
-  color: var(--ink);
+  font-size: var(--title-2);
+  font-weight: var(--title-w);
+  color: var(--title-ink);
+  font-family: var(--font-display);
+  letter-spacing: var(--title-track);
 }
 
 /* 右侧 88rpx 占位：避让小程序胶囊按钮（···/◎），不放任何功能 */
@@ -1825,8 +1844,11 @@
 }
 
 .opt-points-title {
-  font-size: 24rpx;
-  color: var(--ink-soft);
+  font-size: var(--title-3);
+  color: var(--title-ink-3);
+  font-family: var(--font-display);
+  font-weight: var(--title-w-3);
+  letter-spacing: var(--title-track-3);
   margin-bottom: 14rpx;
 }
 
@@ -1919,9 +1941,11 @@
 }
 
 .entity-title {
-  font-size: 34rpx;
-  font-weight: 600;
-  color: var(--ink);
+  font-size: var(--title-2);
+  font-weight: var(--title-w);
+  color: var(--title-ink);
+  font-family: var(--font-display);
+  letter-spacing: var(--title-track);
   text-align: center;
   margin-bottom: 12rpx;
 }
@@ -2049,8 +2073,8 @@
 
 /* 正文输入：衬线体，写日记更像在纸上书写 */
 .diary-textarea {
-  font-family: var(--font-display);
-  font-size: 30rpx;
+  font-family: var(--content-font);
+  font-size: var(--content-size);
   color: var(--ink);
   line-height: 1.95;
   letter-spacing: 0.3rpx;
@@ -2063,10 +2087,10 @@
 /* 日历：杂志小开本 */
 .cal-title {
   font-family: var(--font-display);
-  font-size: 32rpx;
-  font-weight: 600;
-  color: var(--ink);
-  letter-spacing: 1rpx;
+  font-size: var(--title-2);
+  font-weight: var(--title-w);
+  color: var(--title-ink);
+  letter-spacing: var(--title-track);
 }
 
 .cal-week {
@@ -2094,7 +2118,7 @@
 
 /* 底部工具条：发丝线上浮，琥珀高亮 */
 .input-bar {
-  background: rgba(248, 244, 238, 0.95);
+  background: var(--surface-frost);
   border-top: 1rpx solid var(--line-soft);
 }
 
@@ -2143,3 +2167,12 @@
   line-height: 1;
   color: var(--brand);
 }
+
+/* ===== 深色主题：底栏图标为写死深色的 base64 SVG，深色下不可见，换浅色版 ===== */
+.theme-dark .icon-mic { background-image: url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCI+PHBhdGggZmlsbD0iI0FEQTQ5NiIgZD0iTTEyIDE1YTMuMiAzLjIgMCAwIDAgMy4yLTMuMlY2LjJhMy4yIDMuMiAwIDAgMC02LjQgMHY1LjZBMy4yIDMuMiAwIDAgMCAxMiAxNXoiLz48cGF0aCBmaWxsPSIjQURBNDk2IiBkPSJNMTcuOSAxMS40YTUuOSA1LjkgMCAwIDEtMTEuOCAwSDQuNGE3LjQgNy40IDAgMCAwIDYuOCA3LjRWMjFoMS42di0yLjJhNy40IDcuNCAwIDAgMCA2LjgtNy40aC0xLjd6Ii8+PC9zdmc+"); }
+
+.theme-dark .icon-keyboard { background-image: url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCI+PHBhdGggZmlsbD0iI0FEQTQ5NiIgZD0iTTIwIDVINGEyIDIgMCAwIDAtMiAydjEwYTIgMiAwIDAgMCAyIDJoMTZhMiAyIDAgMCAwIDItMlY3YTIgMiAwIDAgMC0yLTJ6bS05IDRoMnYyaC0yVjl6TTcgOWgydjJIN1Y5em0xMCA4SDd2LTJoMTB2MnptMC02aC0yVjloMnYyem0tNCA0di0yaDJ2MmgtMnptLTYgMHYtMmgydjJIN3oiLz48L3N2Zz4="); }
+
+.theme-dark .icon-plus { background-image: url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCI+PHBhdGggZmlsbD0iI0FEQTQ5NiIgZD0iTTExIDExVjVIMTNWMTFIMTlWMTNIMTNWMTlIMTFWMTNINVYxMUgxMVoiLz48L3N2Zz4="); }
+
+.theme-dark .icon-smiley { background-image: url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCI+PGNpcmNsZSBjeD0iMTIiIGN5PSIxMiIgcj0iOSIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjQURBNDk2IiBzdHJva2Utd2lkdGg9IjEuNyIvPjxjaXJjbGUgY3g9IjguOCIgY3k9IjEwIiByPSIxLjEiIGZpbGw9IiNBREE0OTYiLz48Y2lyY2xlIGN4PSIxNS4yIiBjeT0iMTAiIHI9IjEuMSIgZmlsbD0iI0FEQTQ5NiIvPjxwYXRoIGQ9Ik04IDEzLjdjMS4yIDEuNyA2LjggMS43IDggMCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjQURBNDk2IiBzdHJva2Utd2lkdGg9IjEuNiIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIi8+PC9zdmc+"); }

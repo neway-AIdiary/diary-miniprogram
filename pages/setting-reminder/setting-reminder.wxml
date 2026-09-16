@@ -1,5 +1,5 @@
 <!-- 闹钟提醒设置：周期 / 时间 / 周几 / 开关 -->
-<view class="page">
+<view class="page {{themeClass}}">
   <!-- 周期 -->
   <view class="card">
     <view class="card-title">提醒周期</view>

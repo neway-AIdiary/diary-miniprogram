@@ -3,9 +3,11 @@
 //   createdAt(如「2026年9月4日 16:20」) / content / moodText / moodColor / moodBg
 //   weatherIcon / weatherText(如「晴 28° · 深圳」) / tags:[] / images:[cloud fileID...]
 // 脱敏铁律（对应产品文档）：
-//   公开产物只出摘要（正文≤150字），最多 3 张图缩略；视频、定位、隐私长文永不出现；
+//   复制文字版给全文（保留段落结构，不截断）；海报正文上限 600 字（约 40 行），超长末行渐隐并引导扫码；
+//   最多 3 张图缩略；视频、定位永不出现；
 //   没天气就隐藏天气栏，不留空模块。
-const MAX_SUMMARY_LEN = 150   // 正文摘要上限（字）
+const MAX_SUMMARY_LEN = 600   // 海报正文上限（字）——约 40 行 × 15 字；再长会触到 canvas 像素上限
+const MAX_POSTER_LINES = 40   // 海报正文最多绘制的行数（与字数上限互为保险）
 const MAX_POSTER_IMAGES = 3   // 海报精选图上限
 
 // 折叠空白并去首尾；顺带去掉中文标点后残留的空格（换行折叠产生的「， 去」类瑕疵）
@@ -16,7 +18,16 @@ function cleanLine(s) {
     .trim()
 }
 
-// 正文截断为摘要：150 字内取整段，超出截到 149 字 + …
+// 正文按段落清理（复制文字版用）：保留换行结构，逐行折叠空白、去空行
+function cleanParagraphs(s) {
+  return String(s == null ? '' : s)
+    .replace(/\r\n?/g, '\n')
+    .split('\n')
+    .map(function (line) { return cleanLine(line) })
+    .filter(function (line) { return !!line })
+    .join('\n')
+}
+// 正文压成单行摘要并按上限截断：上限内取整段，超出截到 limit-1 字 + …
 function truncateSummary(text, max) {
   const limit = (typeof max === 'number' && max > 0) ? max : MAX_SUMMARY_LEN
   const t = cleanLine(text)
@@ -33,7 +44,7 @@ function weatherLine(d) {
   return (d.weatherIcon ? String(d.weatherIcon) + ' ' : '') + txt
 }
 
-// 复制精简文字（脱敏默认配置）：日期 + 天气 + 心情 + 标签 + 摘要
+// 复制文字版（脱敏默认配置）：日期 + 天气 + 心情 + 标签 + 全文（保留段落，不截断）
 function buildCopyText(d) {
   if (!d) return ''
   const lines = []
@@ -43,8 +54,8 @@ function buildCopyText(d) {
   if (d.moodText) lines.push(String(d.moodText).trim())
   const tags = Array.isArray(d.tags) ? d.tags.map(t => '#' + String(t).trim()).filter(Boolean) : []
   if (tags.length) lines.push(tags.join(' '))
-  const sum = truncateSummary(d.content)
-  if (sum) lines.push('', sum) // 摘要前空一行更易读
+  const body = cleanParagraphs(d.content)
+  if (body) lines.push('', body) // 正文前空一行更易读
   return lines.join('\n').trim()
 }
 
@@ -60,11 +71,12 @@ function posterDate(createdAt) {
 function buildPosterModel(d, sw) {
   sw = sw || {}
   if (!d) {
-    return { date: '', summary: '', weather: '', mood: '', moodColor: '', moodBg: '', tags: [], images: [] }
+    return { date: '', summary: '', summaryTruncated: false, weather: '', mood: '', moodColor: '', moodBg: '', tags: [], images: [] }
   }
   const m = {
     date: posterDate(d.createdAt),
     summary: truncateSummary(d.content),
+    summaryTruncated: cleanLine(d.content).length > MAX_SUMMARY_LEN,
     weather: sw.weather === false ? '' : weatherLine(d),
     mood: sw.mood === false ? '' : (String(d.moodText || '').trim()),
     moodColor: sw.mood === false ? '' : (d.moodColor || '#8A8F8C'),
@@ -80,8 +92,10 @@ function buildPosterModel(d, sw) {
 
 module.exports = {
   MAX_SUMMARY_LEN: MAX_SUMMARY_LEN,
+  MAX_POSTER_LINES: MAX_POSTER_LINES,
   MAX_POSTER_IMAGES: MAX_POSTER_IMAGES,
   cleanLine: cleanLine,
+  cleanParagraphs: cleanParagraphs,
   truncateSummary: truncateSummary,
   weatherLine: weatherLine,
   posterDate: posterDate,

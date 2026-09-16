@@ -1,13 +1,14 @@
 <!-- 设置页：五个功能按钮（占位） -->
-<view class="page">
+<view class="page {{themeClass}}">
   <view class="menu-section">
     <view class="menu-title">设置</view>
     <view class="menu-card">
-      <view class="menu-item" bindtap="onComingSoon" data-name="主题">
+      <view class="menu-item" bindtap="onToggleTheme">
         <text class="menu-icon ri ri-palette-line"></text><text class="menu-text">主题</text>
-        <text class="menu-arrow ri ri-arrow-right-s-line"></text>
+        <text class="menu-value">{{themeLabel}}</text>
+        <text class="menu-arrow ri {{themePanelOpen ? 'ri-arrow-up-s-line' : 'ri-arrow-down-s-line'}}"></text>
       </view>
-      <view class="menu-item" bindtap="onComingSoon" data-name="日记字体">
+      <view class="menu-item" bindtap="goToFontSetting">
         <text class="menu-icon ri ri-font-size-line"></text><text class="menu-text">日记字体</text>
         <text class="menu-arrow ri ri-arrow-right-s-line"></text>
       </view>
@@ -22,6 +23,24 @@
       <view class="menu-item" bindtap="showAbout">
         <text class="menu-icon ri ri-information-line"></text><text class="menu-text">关于</text>
         <text class="menu-arrow ri ri-arrow-right-s-line"></text>
+      </view>
+    </view>
+    <view class="menu-card theme-card" wx:if="{{themePanelOpen}}">
+      <view class="theme-opts">
+        <view class="theme-opt {{themeMode === 'light' ? 'on' : ''}}" bindtap="onPickTheme" data-mode="light">
+          <view class="theme-mock">
+            <view class="mock-title"></view>
+            <view class="mock-card"><view class="mock-line"></view><view class="mock-accent"></view></view>
+          </view>
+          <text class="theme-opt-label">浅色</text>
+        </view>
+        <view class="theme-opt {{themeMode === 'dark' ? 'on' : ''}}" bindtap="onPickTheme" data-mode="dark">
+          <view class="theme-mock mock-dark">
+            <view class="mock-title"></view>
+            <view class="mock-card"><view class="mock-line"></view><view class="mock-accent"></view></view>
+          </view>
+          <text class="theme-opt-label">深色</text>
+        </view>
       </view>
     </view>
   </view>

@@ -45,5 +45,17 @@ assert('purify 整链（含句号折叠）', vf.purify('嗯。。今天开了会
 assert('purify 整链（混用折叠）', vf.purify('对，。对对对，。就这样，。。').text, '对。对。就这样。')
 assert('purify 保留正常句读', vf.purify('我今天去了公园，天气很好。然后回家吃饭了。').text, '我今天去了公园，天气很好。然后回家吃饭了。')
 
+console.log('[4] 碎逗号降密（语音按停顿把短语切碎）')
+assert('两侧都短的碎逗号合并', vf.normalizePunct('路上差点，撞车，有一个人强行加塞，特别危险'), '路上差点撞车，有一个人强行加塞，特别危险')
+assert('叙述中间的三个碎小句→整体合并', vf.normalizePunct('今天上班，路上差点，撞车，有一个人强行加塞，特别危险'), '今天上班路上差点撞车，有一个人强行加塞，特别危险')
+assert('碎小句落在句末→保留标点', vf.normalizePunct('他走了，我留下，然后回家'), '他走了，我留下，然后回家')
+assert('三个连续短小句＝列举，保留', vf.normalizePunct('我买了苹果，香蕉，橘子'), '我买了苹果，香蕉，橘子')
+assert('只一个逗号的句子不动', vf.normalizePunct('好的，谢谢'), '好的，谢谢')
+assert('句首状语后的逗号摘掉', vf.normalizePunct('下午，命云控制行的三面是他们的人类总监'), '下午命云控制行的三面是他们的人类总监')
+assert('带修饰的碎片不算状语，不摘', vf.normalizePunct('这个结果，我们都没想到'), '这个结果，我们都没想到')
+assert('长小句之间的逗号不动', vf.normalizePunct('这个网店的网址被遮盖，又要重新提，今天一共提了两次'), '这个网店的网址被遮盖，又要重新提，今天一共提了两次')
+assert('顿号分号不受影响', vf.normalizePunct('苹果、香蕉、橘子，还有葡萄'), '苹果、香蕉、橘子，还有葡萄')
+assert('thinShortCommas 可单独调用', vf.thinShortCommas('差点，撞车，有一个人强行加塞'), '差点撞车，有一个人强行加塞')
+
 console.log('\n结果: ' + pass + ' 通过, ' + fail + ' 失败')
 process.exit(fail ? 1 : 0)

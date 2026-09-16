@@ -169,14 +169,14 @@
 /* 标题：衬线展示字，杂志感核心 */
 .diary-title {
   font-family: var(--font-display);
-  font-size: 34rpx;
-  font-weight: 600;
-  color: var(--ink);
+  font-size: var(--title-2);
+  font-weight: var(--title-w);
+  color: var(--title-ink);
   flex: 1;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  letter-spacing: 0.5rpx;
+  letter-spacing: var(--title-track);
 }
 
 /* AI 优化标签：琥珀描边小签 */
@@ -192,7 +192,8 @@
 }
 
 .diary-content {
-  font-size: 27rpx;
+  font-family: var(--content-font);
+  font-size: calc(var(--content-size) - 3rpx);
   color: var(--ink-mid);
   line-height: 1.75;
   overflow: hidden;

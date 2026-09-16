@@ -118,12 +118,17 @@ storage.replaceArchives([])
 storage.saveArchives([{ name: '王磊', description: '我的大学同学' }])
 // 再次保存同名同解释（描述追加合并：重复条目不追加）
 const r1 = storage.saveArchives([{ name: '王磊', description: '我的大学同学' }])
-check('ar-1 重复备案不新增', r1, { added: 0, updated: 0 })
+check('ar-1 重复备案不新增', r1, { added: 0, updated: 0, skipped: 0 })
 check('ar-2 只保留一条', storage.getArchives().filter(a => a.name === '王磊').length, 1)
 // 同名不同解释 → 按逗号条目追加合并（不覆盖旧信息），仍一条
 storage.saveArchives([{ name: '王磊', description: '我的高中同学' }])
 check('ar-3 更新后仍一条', storage.getArchives().filter(a => a.name === '王磊').length, 1)
 check('ar-4 描述追加合并', storage.getArchives()[0].description, '我的大学同学，我的高中同学')
+
+// ar-5/6：脏名称（一整句话）统一兜底拒收（2026-09-16 语音建档反馈）
+const rDirty = storage.saveArchives([{ name: '继续换行，继续换行，这个两行就够了，三孩没有必要？', description: '' }])
+check('ar-5 脏名称被拒收', rDirty, { added: 0, updated: 0, skipped: 1 })
+check('ar-6 脏名称不入库', storage.getArchives().filter(a => String(a.name).indexOf('，') !== -1).length, 0)
 
 /* ===== 5. processInput 流程模拟（语音路径） ===== */
 // 模拟：备案有王维，语音识别"今天和王伟吃饭"（无指令）→ 追加正文为备案写法

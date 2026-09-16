@@ -1,5 +1,5 @@
 <!-- 档案页面：主页同款底栏录入（表情/按住说话/+），点击词条可编辑 -->
-<view class="page">
+<view class="page {{themeClass}}" style="{{fontStyle}}">
 
   <!-- 提示栏 -->
   <view class="hint-bar">

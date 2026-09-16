@@ -1,0 +1,51 @@
+<!-- 日记字体设置：字号三档 + 字体族（作用对象＝用户生成的正文内容） -->
+<view class="page {{themeClass}}" style="{{previewStyle}}">
+
+  <!-- 字号 -->
+  <view class="card">
+    <view class="card-title">字体大小</view>
+
+    <view class="size-tabs">
+      <view
+        class="size-tab {{size === item.key ? 'active' : ''}}"
+        wx:for="{{sizeOptions}}"
+        wx:key="key"
+        data-key="{{item.key}}"
+        bindtap="onPickSize"
+      >
+        <text class="size-sample" style="font-size:{{item.rpx}}rpx">字</text>
+        <text class="size-label">{{item.label}}</text>
+      </view>
+    </view>
+
+    <view class="hint-text">作用于日记正文、AI 总结、档案内容与首页卡片摘要。</view>
+  </view>
+
+  <!-- 字体 -->
+  <view class="card">
+    <view class="card-title">字体</view>
+
+    <view class="font-list">
+      <view
+        class="font-item {{font === item.key ? 'active' : ''}}"
+        wx:for="{{fontOptions}}"
+        wx:key="key"
+        data-key="{{item.key}}"
+        bindtap="onPickFont"
+      >
+        <text class="font-sample" style="font-family:{{item.stack}}">{{item.label}}</text>
+        <text class="font-desc">{{item.desc}}</text>
+        <view class="font-dot"></view>
+      </view>
+    </view>
+
+    <view class="hint-text">宋体、楷体为云托管字体：iPhone 直接内置生效；安卓首次选择需短暂下载，未就绪时先显示黑体。</view>
+  </view>
+
+  <!-- 预览 -->
+  <view class="preview-card">
+    <view class="preview-title">预览</view>
+    <view class="preview-body">{{previewText}}</view>
+  </view>
+
+</view>

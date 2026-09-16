@@ -18,9 +18,10 @@
 
 .card-title {
   font-family: var(--font-display);
-  font-size: 26rpx;
-  color: var(--ink-soft);
-  letter-spacing: 2rpx;
+  font-size: var(--title-3);
+  color: var(--title-ink-3);
+  letter-spacing: var(--title-track-3);
+  font-weight: var(--title-w-3);
   padding: 28rpx 32rpx 12rpx;
 }
 
@@ -45,7 +46,7 @@
 
 .cycle-tab.active {
   background: var(--brand);
-  color: #fff;
+  color: var(--surface);
   border-color: var(--brand);
   box-shadow: var(--shadow-sm);
 }
@@ -117,7 +118,7 @@
 
 .weekday-item.active {
   background: var(--brand);
-  color: #fff;
+  color: var(--surface);
   border-color: var(--brand);
 }
 

@@ -1,5 +1,5 @@
 <!-- 首页 - 日记列表 -->
-<view class="page">
+<view class="page {{themeClass}}" style="{{fontStyle}}">
   <!-- 顶部统计栏 -->
   <view class="stats-bar" wx:if="{{stats && stats.total > 0}}">
     <view class="stat-item">

@@ -1,5 +1,5 @@
 <!-- 智能总结页 -->
-<view class="page">
+<view class="page {{themeClass}}" style="{{fontStyle}}">
 
   <!-- 中部滚动区：时间范围 + 需求输入 + 快捷模板 + 结果 -->
   <scroll-view class="content-scroll" scroll-y enhanced show-scrollbar="{{false}}">

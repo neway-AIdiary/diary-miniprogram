@@ -7,6 +7,8 @@ const zipWriter = require('./zipWriter.js')
 // 档案描述追加规则与手写输入添加共用（archiveEdit.appendArchiveDescription），
 // 保证「语音添加」与「手写输入添加」对已存在名词的描述追加结果完全一致
 const archiveEdit = require('./archiveEdit.js')
+// 「日记字体」设置：导出 Word 正文按当前字号档位换算（用户选择导出跟随）
+const fontSetting = require('./fontSetting.js')
 
 const STORAGE_KEY = 'diaries'
 // 文本导出/导入的分隔线（整行 >=10 个 = 视为分段标记）
@@ -663,7 +665,7 @@ function buildDocx(diaries, imgBin, videoMap) {
     if (content) {
       content.split(/\n+/).forEach(p => {
         const t = p.trim()
-        if (t) paras.push(docxPara(t, { size: '28', spacing: true }))
+        if (t) paras.push(docxPara(t, { size: String(fontSetting.getDocxSize()), spacing: true }))
       })
     }
     // 图片（二进制内嵌，离线可看）
@@ -1346,10 +1348,17 @@ function saveArchives(items) {
   list.forEach(a => { nameMap[a.name] = a })
   let added = 0
   let updated = 0
+  let skipped = 0
   items.forEach(item => {
     const name = String(item.name || '').trim()
     const desc = String(item.description || '').trim()
     if (!name) return
+    // 统一兜底（云函数 / 本地降级 / 手输三条路共用）：名称必须是 9 字以内的名词，
+    // 含句读标点或超长 = 一整句话被误当名称 → 丢弃本条，不入库
+    if (!archiveEdit.isTermName(name)) {
+      skipped++
+      return
+    }
     if (nameMap[name]) {
       const oldDesc = String(nameMap[name].description || '').trim()
       const merged = mergeArchiveDescription(oldDesc, desc)
@@ -1371,9 +1380,9 @@ function saveArchives(items) {
       added++
     }
   })
-  if (!safeSetStorage(ARCHIVE_KEY, list)) return { added: 0, updated: 0 } // 存储已满：已弹窗提示
+  if (!safeSetStorage(ARCHIVE_KEY, list)) return { added: 0, updated: 0, skipped } // 存储已满：已弹窗提示
   scheduleCloudBackup()
-  return { added, updated }
+  return { added, updated, skipped }
 }
 
 /**

@@ -3,8 +3,13 @@ const util = require('../../utils/util.js')
 const transfer = require('../../utils/transfer.js')
 const app = getApp()
 
+const fontSetting = require('../../utils/fontSetting.js')
+const theme = require('../../utils/theme.js')
+
 Page({
   data: {
+    // 「日记字体」设置注入的 CSS 变量串：字号/字体作用于本页 UGC 正文
+    fontStyle: '',
     diaries: [],
     allDiaries: [],
     isEmpty: false,
@@ -21,6 +26,8 @@ Page({
   },
 
   onShow() {
+    theme.applyTo(this)
+    this.setData({ fontStyle: fontSetting.buildStyle() })
     // 从写日记/详情页返回时刷新
     if (app.globalData.needRefresh) {
       app.globalData.needRefresh = false

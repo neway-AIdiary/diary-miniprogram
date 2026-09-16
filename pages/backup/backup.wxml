@@ -1,5 +1,5 @@
 <!-- 云端备份页：可选加密备份，明文永不上传 -->
-<view class="page">
+<view class="page {{themeClass}}">
   <!-- 状态卡 -->
   <view class="status-card">
     <view class="status-icon {{backupEnabled ? 'on' : ''}}"><text class="ri {{backupEnabled ? 'ri-cloud-fill' : 'ri-cloud-line'}}"></text></view>

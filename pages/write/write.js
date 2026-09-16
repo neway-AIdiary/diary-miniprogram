@@ -30,17 +30,23 @@ function pickSidebarKeyword(tags) {
 const EMOJIS = ['😀','😁','😂','🤣','😊','😍','🥰','😘','😜','🤪','😎','🤩','🥳','😇','🤗','🤔','🙄','😴','🤤','😭','😅','😓','🥺','😳','🤯','😤','😡','🤮','🤧','🥶','🤠','😈','👻','💀','👽','🤖','🎃','😺','🙈','🙉','🙊','💩','👍','👎','👏','🙏','💪','🤝','✌️','🤞','🖖','👌','🤘','👊','❤️','💔','💕','💖','💗','💘','💞','💓','✨','⭐','🌟','🔥','💧','🌈','☀️','🌙','⚡','❄️','🌸','🌹','🌻','🍀','🎉','🎊','🎂','🍰','🍎','🍉','🍓','🍑','☕','🍵','🍺','🥂','🏠','🚗','✈️','🎵','🎶','📚','📖','💻','📱','🎮','⚽','🏀','🎯','🧩','💡','💰','💎','📌','🔒','🔑','🚀','🛸','⏰','📅','😷','🥵','🥶','🫶','🫡','🫠']
 const KAOMOJIS = ['(◕‿◕)','(￣▽￣)','(≧∇≦)','(´･ω･`)','(◐‿◑)','ヽ(´▽`)/','(╯°□°)╯︵┻━┻','(T_T)','(^_^)','(o^^)o','(=^･^=)','(｡•̀ᴗ-)✧','┗(＾0＾)┓','(｡ŏ_ŏ)','(；一_一)','(¬_¬)','(＾▽＾)','(●´ω｀●)','(づ￣ ³￣)づ','(๑˃ᴗ˂)ﻭ','(๑•̀ㅂ•́)و✧','(￣▽￣)ノ','(╥﹏╥)','(ノ﹏ヽ)','(′⌒`)','(´；ω；`)','(｡•́︿•̀｡)','(づ｡◕‿‿◕｡)づ','(ノ◕ヮ◕)ノ*:･ﾟ✧','(╯▽╰)','(°▽°)','(●—●)','(・ω・)ノ','(ง •̀_•́)ง','(╬ Ò﹏Ó)','(｀Д´)','(￣へ￣)','(´-ω-`)','(；￣Д￣)','(ﾟ▽ﾟ*)','(⌒▽⌒)','(＾-＾)','(^o^)','(>_<)','(=_=)','(-_-)','(~_~)','(O_O)','(o_O)','(•̀ᴗ•́)و','(•́ω•̀)','(๑•̀ㅂ•́)','(｀・ω・´)']
 
+const fontSetting = require('../../utils/fontSetting.js')
+const theme = require('../../utils/theme.js')
+const textRules = require('../../utils/textRules.js')
+
 Page({
   data: {
+    // 「日记字体」设置注入的 CSS 变量串：字号/字体作用于本页 UGC 正文
+    fontStyle: '',
     // 系统栏适配
     statusBarHeight: 20,
     safeAreaBottom: 0,
     // 日记正文
     content: '',
     // 自定义占位文案（textarea 原生 placeholder 不支持换行，改用覆盖层渲染；支持多行）
-    placeholderLine1: '您可以语音或手动输入内容，自动记录和融合到当天的日记',
-    placeholderLine2: '输入改动指令直接更改内容，如：把王威改成王伟，删除第一句',
-    placeholderLine3: '最终还可以通过点击AI优化按钮，完善您的日记',
+    placeholderLine1: textRules.DEFAULT_LINES[0],
+    placeholderLine2: textRules.DEFAULT_LINES[1],
+    placeholderLine3: textRules.DEFAULT_LINES[2],
     diaryDate: '',
     minDate: '',
     maxDate: '',
@@ -151,6 +157,10 @@ Page({
   },
 
   onShow() {
+    theme.applyTo(this)
+    this.setData({ fontStyle: fontSetting.buildStyle() })
+    // 占位文案：按「打开次数」优先、「日记篇数」次之的规则取三行（云端可配，失败静默回落默认）
+    this.applyPlaceholderText()
     // 注册语音目标：底部「按住说话」识别结果交给本页处理
     this._voiceHandle = (text) => this.handleVoiceText(text)
     app.globalData.voiceTarget = {
@@ -167,6 +177,16 @@ Page({
     voice.warmup()
     // 刷新侧边栏数据
     this.refreshSidebar()
+  },
+
+  // 写日记页占位文案：按「打开次数」优先、「日记篇数」次之的规则取三行
+  applyPlaceholderText() {
+    const lines = textRules.getLines(storage.getStats().total)
+    this.setData({
+      placeholderLine1: lines[0],
+      placeholderLine2: lines[1],
+      placeholderLine3: lines[2]
+    })
   },
 
   onHide() {
