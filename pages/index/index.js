@@ -5,6 +5,7 @@ const app = getApp()
 
 const fontSetting = require('../../utils/fontSetting.js')
 const theme = require('../../utils/theme.js')
+const lock = require('../../utils/lock.js')
 
 Page({
   data: {
@@ -27,6 +28,8 @@ Page({
 
   onShow() {
     theme.applyTo(this)
+    // 日记本密码：需要锁且本会话未解锁 → 跳锁屏页（页面栈清空，退不回内容页）
+    if (lock.guard()) return
     this.setData({ fontStyle: fontSetting.buildStyle() })
     // 从写日记/详情页返回时刷新
     if (app.globalData.needRefresh) {

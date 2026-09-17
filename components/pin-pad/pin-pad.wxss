@@ -1,0 +1,102 @@
+/* ===== 4 位密码键盘：极简琥珀编辑风 ===== */
+.pin-pad {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+/* 圆点行 */
+.pin-dots {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8rpx 0 24rpx;
+}
+
+.pin-dot {
+  width: 26rpx;
+  height: 26rpx;
+  margin: 0 18rpx;
+  border-radius: 50%;
+  border: 2rpx solid var(--line-strong);
+  box-sizing: border-box;
+  transition: background var(--dur) var(--ease), border-color var(--dur) var(--ease), transform var(--dur) var(--ease);
+}
+
+.pin-dot-on {
+  background: var(--brand);
+  border-color: var(--brand);
+  transform: scale(1.15);
+}
+
+.pin-shake {
+  animation: pin-shake 0.42s var(--ease);
+}
+
+@keyframes pin-shake {
+  0%, 100% { transform: translateX(0); }
+  15% { transform: translateX(-14rpx); }
+  30% { transform: translateX(12rpx); }
+  45% { transform: translateX(-9rpx); }
+  60% { transform: translateX(6rpx); }
+  80% { transform: translateX(-3rpx); }
+}
+
+/* 提示文案（固定高度，避免键盘上下跳） */
+.pin-msg {
+  min-height: 44rpx;
+  font-size: 24rpx;
+  color: var(--danger);
+  text-align: center;
+  padding-bottom: 8rpx;
+}
+
+/* 键位 */
+.pin-keys {
+  width: 100%;
+  display: flex;
+  flex-wrap: wrap;
+}
+
+.pin-key-wrap {
+  width: 33.333%;
+  box-sizing: border-box;
+  padding: 8rpx;
+}
+
+.pin-key {
+  height: 116rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--r-md);
+  font-size: 42rpx;
+  color: var(--ink);
+  background: var(--surface);
+  border: 1rpx solid var(--line-soft);
+  box-sizing: border-box;
+  transition: background var(--dur) var(--ease), transform var(--dur) var(--ease);
+}
+
+.pin-key-hover {
+  background: var(--surface-press);
+  transform: scale(0.96);
+}
+
+.pin-key-ghost {
+  background: transparent;
+  border-color: transparent;
+}
+
+.pin-del {
+  font-size: 26rpx;
+  color: var(--ink-mid);
+}
+
+.pin-forget {
+  margin-top: 32rpx;
+  font-size: 26rpx;
+  color: var(--ink-soft);
+  padding: 12rpx 24rpx;
+}

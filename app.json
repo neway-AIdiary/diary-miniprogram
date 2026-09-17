@@ -7,8 +7,11 @@
     "pages/archive/archive",
     "pages/backup/backup",
     "pages/setting/setting",
+    "pages/about/about",
     "pages/setting-reminder/setting-reminder",
     "pages/font-setting/font-setting",
+    "pages/lock/lock",
+    "pages/setting-lock/setting-lock",
     "pages/summary/summary",
     "pages/summary-result/summary-result"
   ],

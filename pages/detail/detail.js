@@ -26,6 +26,7 @@ const MEDIA_GAP_RPX = 16
 
 const fontSetting = require('../../utils/fontSetting.js')
 const theme = require('../../utils/theme.js')
+const lock = require('../../utils/lock.js')
 
 Page({
   data: {
@@ -148,6 +149,8 @@ Page({
 
   onShow() {
     theme.applyTo(this)
+    // 日记本密码：需要锁且本会话未解锁 → 跳锁屏页（页面栈清空，退不回内容页）
+    if (lock.guard()) return
     this.setData({ fontStyle: fontSetting.buildStyle() })
     // 编辑模式下注册语音目标：底栏「按住说话」识别结果追加到日记正文
     if (this.data.editing) {
@@ -477,6 +480,7 @@ Page({
     let content = this.data.content
     const applied = []
     let firstNotFound = null
+    let firstBlocked = null
 
     for (const cmd of commands) {
       const res = aiEdit.apply(content, cmd)
@@ -485,6 +489,8 @@ Page({
         applied.push(cmd)
       } else if (res.reason === 'notFound' && !firstNotFound) {
         firstNotFound = cmd
+      } else if (res.reason === 'allRemove' && !firstBlocked) {
+        firstBlocked = cmd
       }
     }
 
@@ -495,20 +501,27 @@ Page({
       wx.showToast({ title: this.editTitle(applied[0]), icon: 'none' })
     } else if (applied.length > 1) {
       wx.showToast({ title: '已执行 ' + applied.length + ' 条修改指令', icon: 'none' })
+    } else if (firstBlocked) {
+      wx.showToast({ title: '「前边所有内容」不支持删除，请指明要删的内容', icon: 'none' })
     } else if (firstNotFound) {
       const word = firstNotFound.type === 'insert' ? firstNotFound.at : firstNotFound.from
-      wx.showToast({ title: '日记中没有「' + word + '」', icon: 'none' })
+      const scope = aiEdit.scopeText(firstNotFound.scope)
+      wx.showToast({
+        title: scope ? ('日记' + scope + '找不到「' + word + '」') : ('日记中没有「' + word + '」'),
+        icon: 'none'
+      })
     }
   },
 
   // 单条指令的操作摘要文案（toast 提示用）
   editTitle(edit) {
     if (edit.type === 'removeSent') return this.sentRemoveText(edit)
-    if (edit.type === 'remove') return '已删除「' + edit.from + '」'
+    const scope = aiEdit.scopeText(edit.scope)
+    if (edit.type === 'remove') return '已删除' + (scope ? scope + '的' : '') + '「' + edit.from + '」'
     if (edit.type === 'insert') {
-      return '已在「' + edit.at + (edit.pos === 'before' ? '前' : '后') + '」加上「' + edit.text + '」'
+      return '已在' + (scope ? scope + '的' : '') + '「' + edit.at + (edit.pos === 'before' ? '前' : '后') + '」加上「' + edit.text + '」'
     }
-    return '已修改：「' + edit.from + '」→「' + edit.to + '」'
+    return '已修改：' + (scope ? scope + '的' : '') + '「' + edit.from + '」→「' + edit.to + '」'
   },
 
   // 按位置删句的描述文案：已删除最后一句话 / 已删除第一句话 / 已删除最后两句 / 已删除倒数第二句
@@ -948,6 +961,16 @@ Page({
         }
       }
     })
+  },
+
+  // [detail-gobackhome v1] 跨设备分享占位页「返回」：能退就退，退不了回日记本
+  goBackHome() {
+    const pages = getCurrentPages()
+    if (pages && pages.length > 1) {
+      wx.navigateBack()
+    } else {
+      wx.reLaunch({ url: '/pages/index/index' })
+    }
   },
 
   // ===================== 分享弹窗 =====================

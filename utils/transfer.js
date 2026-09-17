@@ -18,6 +18,7 @@ const util = require('./util.js')
  */
 function exportToWord(onEmpty, list) {
   // list 可选：传入子集（如日记本搜索结果）时仅导出该子集；不传则全量导出
+  const isFullExport = !Array.isArray(list)
   if (!Array.isArray(list)) list = storage.getAllDiaries()
   if (!list.length) {
     if (onEmpty) onEmpty()
@@ -26,7 +27,13 @@ function exportToWord(onEmpty, list) {
   const fileName = storage.buildWordFileName(list)
   wx.showLoading({ title: '正在生成 Word…', mask: true })
   resolveMediaForDocx(list).then((media) => {
-    const buffer = storage.buildDocx(list, media.imgBin, media.videoMap)
+    // [docx-archives v1] 全量导出附带档案（文档末尾一节）；子集导出不带
+    const archives = isFullExport ? storage.getArchives() : null
+    // [docx-skip-tip v1] 有图片因超预算未内嵌时，导出结果里明确告知，避免静默丢图（云端原图不受影响）
+    const skipTip = media.skipped
+      ? '\n\n提示：有 ' + media.skipped + ' 张图片因文档体积超限未随文件保存，云端原图不受影响。'
+      : ''
+    const buffer = storage.buildDocx(list, media.imgBin, media.videoMap, archives)
     const fs = wx.getFileSystemManager()
     const filePath = wx.env.USER_DATA_PATH + '/' + fileName
     fs.writeFile({
@@ -42,7 +49,7 @@ function exportToWord(onEmpty, list) {
           success: () => {
             wx.showModal({
               title: '导出成功',
-              content: '已保存到【' + filePath + '】\n\n文件保存在小程序内（手机文件/WPS 中看不到）。点「发送」转发到文件传输助手，即可在手机中找到并用 WPS 打开。',
+              content: '已保存到【' + filePath + '】\n\n文件保存在小程序内（手机文件/WPS 中看不到）。点「发送」转发到文件传输助手，即可在手机中找到并用 WPS 打开。' + skipTip,
               confirmText: '发送',
               cancelText: '知道了',
               success: (res) => {
@@ -61,7 +68,7 @@ function exportToWord(onEmpty, list) {
           fail: () => {
             wx.showModal({
               title: 'Word 已生成',
-              content: '已保存到【' + filePath + '】\n\n文件生成成功，但自动打开预览失败。可重新导出；若反复失败，可换用「导出到剪贴板」备份文本。',
+              content: '已保存到【' + filePath + '】\n\n文件生成成功，但自动打开预览失败。可重新导出；若反复失败，可换用「导出到剪贴板」备份文本。' + skipTip,
               showCancel: false,
               confirmText: '知道了'
             })
@@ -95,10 +102,11 @@ function exportToWord(onEmpty, list) {
 function resolveMediaForDocx(diaries) {
   const imgBin = {}
   const videoMap = {}
-  if (!wx.cloud) return Promise.resolve({ imgBin: imgBin, videoMap: videoMap })
+  if (!wx.cloud) return Promise.resolve({ imgBin: imgBin, videoMap: videoMap, skipped: 0 })
   const fs = wx.getFileSystemManager()
   const tasks = []
   let budget = 8 * 1024 * 1024 // 图片二进制总预算 8MB
+  let skippedImg = 0 // [docx-skip-tip v1] 因超预算未内嵌的图片数
   ;(diaries || []).forEach(d => {
     ;(d.media || []).forEach(m => {
       const fid = m.fileID
@@ -121,7 +129,7 @@ function resolveMediaForDocx(diaries) {
                 success: (r) => {
                   const b64 = String(r.data || '')
                   const approxBytes = Math.floor(b64.length * 3 / 4)
-                  if (approxBytes > budget) { resolve(); return } // 超预算：跳过该图
+                  if (approxBytes > budget) { skippedImg++; resolve(); return } // 超预算：跳过该图
                   budget -= approxBytes
                   const extM = String(fid).toLowerCase().match(/\.(jpe?g|png|gif|bmp)(\?|$)/)
                   let ext = extM ? extM[1] : 'jpg'
@@ -136,7 +144,7 @@ function resolveMediaForDocx(diaries) {
       }
     })
   })
-  return Promise.all(tasks).then(() => ({ imgBin: imgBin, videoMap: videoMap }))
+  return Promise.all(tasks).then(() => ({ imgBin: imgBin, videoMap: videoMap, skipped: skippedImg }))
 }
 
 // 导入时把 Word 回退路径解析出的 base64 图片上传到云存储，替换为 fileID
@@ -271,7 +279,16 @@ function importFromFile(opts) {
                   const added = mode === 'replace'
                     ? storage.replaceAllDiaries(parsed.diaries)
                     : storage.importDiaries(parsed.diaries)
-                  finish(added, parsed.notes && parsed.notes.length ? parsed.notes.join('\n') : '')
+                  // [docx-archives v1] 文档若带档案节（全量导出产物），一并导入（saveArchives 追加语义，不覆盖）
+                  let extra = parsed.notes && parsed.notes.length ? parsed.notes.join('\n') : ''
+                  if (Array.isArray(parsed.archives) && parsed.archives.length) {
+                    const ar = storage.saveArchives(parsed.archives)
+                    const n = (ar.added || 0) + (ar.updated || 0)
+                    if (n > 0) {
+                      extra = (extra ? extra + '\n' : '') + '并导入档案 ' + n + ' 条（新增 ' + (ar.added || 0) + '、合并 ' + (ar.updated || 0) + '）'
+                    }
+                  }
+                  finish(added, extra)
                 } else {
                   // 回退解析：新 id，按「日期+内容」去重合并；先 AI 补全 心情/天气/标签
                   enrichDiariesWithMeta(parsed.diaries, () => {

@@ -1,0 +1,70 @@
+/* 复用设置页的 cell 列表样式，保证与「日记字体 / 闹钟」视觉完全一致 */
+@import "../setting/setting.wxss";
+
+/* ===== 顶部：应用名 + 版本号 =====
+   左内边距 32rpx，与下方 menu-title / 卡片文字左边缘对齐 */
+.about-hero {
+  padding: 0 32rpx 40rpx;
+}
+
+.about-name {
+  font-family: var(--font-display);
+  font-size: var(--title-1);
+  color: var(--ink);
+  letter-spacing: 4rpx;
+  line-height: 1.3;
+}
+
+.about-version {
+  margin-top: 12rpx;
+  font-size: 24rpx;
+  color: var(--ink-soft);
+  letter-spacing: 1rpx;
+}
+
+/* ===== 简介 ===== */
+.about-intro {
+  padding: 0 8rpx var(--sp-md);
+  font-size: 26rpx;
+  color: var(--ink-mid);
+  line-height: 1.8;
+  /* 首行缩进一个汉字位：1em = 当前字号 26rpx，将来改字号自动跟随 */
+  text-indent: 1em;
+}
+
+/* ===== 信息行：标签 + 值 两行式 ===== */
+.about-card .menu-icon {
+  color: var(--ink-soft);
+}
+
+.about-item-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.about-item-label {
+  font-size: 30rpx;
+  color: var(--ink);
+  line-height: 1.4;
+}
+
+.about-item-value {
+  margin-top: 8rpx;
+  font-size: 24rpx;
+  color: var(--ink-soft);
+  letter-spacing: 0.5rpx;
+  word-break: break-all;
+}
+
+/* 复制提示：纯视觉，点击由整行承接（冒泡到 menu-item 的 bindtap） */
+.about-copy {
+  flex-shrink: 0;
+  margin-left: 16rpx;
+  padding: 6rpx 18rpx;
+  font-size: 22rpx;
+  color: var(--brand);
+  border: 1rpx solid var(--brand-tint-25);
+  border-radius: var(--r-pill);
+}

@@ -608,9 +608,10 @@ function docxHiddenPara(jsonStr) {
  * @param {Array} diaries 日记数组（自动升序）
  * @param {Object} imgBin { fileID: { ext: 'jpg'|'png', b64: 纯base64（无 data: 前缀） } }
  * @param {Object} videoMap { fileID: 视频 https 临时链接 }
+ * @param {Array} [archives] 可选，档案列表（全量导出附带：文档末尾「档案」一节 + 隐藏 JSON，导入时可还原）
  * @returns {ArrayBuffer} docx 文件二进制
  */
-function buildDocx(diaries, imgBin, videoMap) {
+function buildDocx(diaries, imgBin, videoMap, archives) {
   imgBin = imgBin || {}
   videoMap = videoMap || {}
   const list = (diaries || []).slice().sort((a, b) => new Date(a.created_at) - new Date(b.created_at))
@@ -715,6 +716,22 @@ function buildDocx(diaries, imgBin, videoMap) {
     paras.push(docxHiddenPara(JSON.stringify(data)))
   })
 
+  // [docx-archives v1] 档案节（全量导出附带：可见「档案」一节 + 隐藏 JSON，导入时可完整还原）
+  const archList = (Array.isArray(archives) ? archives : [])
+    .filter(a => a && String(a.name || '').trim())
+  if (archList.length) {
+    paras.push(docxPara('档案', { bold: true, size: '34', color: 'C0773A', before: 480 }))
+    archList.forEach(a => {
+      const name = String(a.name).trim()
+      const desc = String(a.description || '').trim()
+      paras.push(docxPara('· ' + name + (desc ? '：' + desc : ''), { size: '24', spacing: true }))
+    })
+    paras.push(docxHiddenPara(JSON.stringify({
+      type: 'ai-diary-archives',
+      archives: archList.map(a => ({ name: String(a.name).trim(), description: String(a.description || '').trim() }))
+    })))
+  }
+
   // 4) document.xml
   const docXml = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n' +
     '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" ' +
@@ -785,10 +802,10 @@ function buildDocx(diaries, imgBin, videoMap) {
 /**
  * 解析 .docx 的 word/document.xml 为日记数组
  * @param {string} xml document.xml 文本
- * @returns {{diaries: Array, full: boolean, notes: Array}}
+ * @returns {{diaries: Array, full: boolean, notes: Array, archives: Array}} archives 为档案节（全量导出附带），无则为 []
  */
 function parseDocxXml(xml) {
-  if (!xml || typeof xml !== 'string') return { diaries: [], full: false, notes: [] }
+  if (!xml || typeof xml !== 'string') return { diaries: [], full: false, notes: [], archives: [] }
   // 1) 提取段落
   const paras = []
   const reP = /<w:p\b[\s\S]*?<\/w:p>/g
@@ -804,12 +821,23 @@ function parseDocxXml(xml) {
   }
   // 2) 优先：隐藏段（vanish + AIDIARY: 前缀）完整还原
   const diaries = []
+  // [docx-archives v1]
+  const archives = []
   paras.forEach(pXml => {
     if (pXml.indexOf('<w:vanish') === -1) return
     const t = paraText(pXml)
     if (t.indexOf('AIDIARY:') !== 0) return
     try {
       const obj = JSON.parse(t.slice(8))
+      if (obj && obj.type === 'ai-diary-archives' && Array.isArray(obj.archives)) {
+        // 档案节（全量导出附带）：一并取出，交给导入流程 saveArchives 追加合并
+        obj.archives.forEach(a => {
+          if (a && String(a.name || '').trim()) {
+            archives.push({ name: String(a.name).trim(), description: String(a.description || '').trim() })
+          }
+        })
+        return
+      }
       if (obj && obj.content) {
         diaries.push({
           id: obj.id || generateId(),
@@ -828,7 +856,7 @@ function parseDocxXml(xml) {
       }
     } catch (e) { /* 单段损坏跳过 */ }
   })
-  if (diaries.length) return { diaries: diaries, full: true, notes: [] }
+  if (diaries.length) return { diaries: diaries, full: true, notes: [], archives: archives }
 
   // 3) 回退：解析可视段落（文件可能被 Word/WPS 编辑过）
   const notes = []
@@ -906,6 +934,8 @@ function parseDocxXml(xml) {
     }
     // 头部副标题行跳过
     if (t.indexOf('AI日记 · 日记备份') !== -1 || t.indexOf('导出时间：') !== -1) return
+    // [docx-archives v1] 档案节可见行（编辑过的文档回退路径）：标题行与「· 名字：描述」行不入正文
+    if (t === '档案' || /^·\s/.test(t)) return
     // 正文
     cur.content = cur.content ? cur.content + '\n' + t : t
   })
@@ -919,9 +949,9 @@ function parseDocxXml(xml) {
   const valid = fallback.filter(d => d.content)
   if (valid.length) {
     notes.push('文档中没有找到完整备份数据（可能被编辑过），已按可见文本还原；图片与视频未能自动还原。')
-    return { diaries: valid, full: false, notes: notes }
+    return { diaries: valid, full: false, notes: notes, archives: archives }
   }
-  return { diaries: [], full: false, notes: [] }
+  return { diaries: [], full: false, notes: [], archives: archives }
 }
 
 // HTML 内容 → 纯文本（<br>/<p> 变换行，剥离其余标签并解码实体）
@@ -1304,11 +1334,11 @@ function replaceAllDiaries(importList) {
 }
 
 /**
- * 清空所有日记（「我的」页清除全部；同时触发云端同步）
+ * 清空本机所有日记（设置页「清除所有日记」调用）
+ * 不触发云端自动同步：云端快照与云端图片/视频全部保留，用户之后仍可从云端恢复
  */
 function clearAllDiaries() {
   safeSetStorage(STORAGE_KEY, [])
-  scheduleCloudBackup()
 }
 
 /* ===== 档案：存储人物/机构等备注信息 ===== */
@@ -1317,10 +1347,28 @@ const ARCHIVE_KEY = 'archives'
 
 /**
  * 获取所有档案（按更新时间倒序）
+ *
+ * [archive-order v1] 排序必须可复现，主键 + 次键两级：
+ *  - 主键：updated_at 倒序（最近改动的排前面）；
+ *  - 次键：updated_at 完全相同（含缺失/非法时间）时，按**存储数组下标升序**
+ *    —— 即同一批 saveArchives 录入的档案保持录入顺序。
+ *  为什么显式写次键：同一批档案的 updated_at 可能落在相邻毫秒（循环跨毫秒，
+ *  冷启动/JIT 未热时更常见）。只按时间倒序时，末条会冒到最前 → 同一份数据
+ *  在不同时刻运行得到不同顺序，档案列表 / 热词优先级 / 导出 docx 的档案节
+ *  顺序都不可复现。另外也不依赖引擎「稳定排序」的实现差异（ES2019 起要求
+ *  稳定，但显式次键在任何引擎上都成立）。
+ *  返回新数组，不改动 Storage 里的原数组引用。
  */
 function getArchives() {
   const list = wx.getStorageSync(ARCHIVE_KEY) || []
-  return list.sort((a, b) => new Date(b.updated_at) - new Date(a.updated_at))
+  return list
+    .map((item, index) => ({ item: item, index: index }))
+    .sort((x, y) => {
+      const d = new Date(y.item.updated_at) - new Date(x.item.updated_at)
+      if (d) return d
+      return x.index - y.index
+    })
+    .map(o => o.item)
 }
 
 /**
@@ -1349,6 +1397,10 @@ function saveArchives(items) {
   let added = 0
   let updated = 0
   let skipped = 0
+  // [archive-batch-ts v1] 整批共用同一个时间戳：语义上「这一批是同一时刻保存的」。
+  // 同时保证同批各条 updated_at 完全相同 → getArchives() 的稳定次键生效，
+  // 顺序恒等于录入顺序；也避免同一条的 created_at 与 updated_at 差 1ms。
+  const now = new Date().toISOString()
   items.forEach(item => {
     const name = String(item.name || '').trim()
     const desc = String(item.description || '').trim()
@@ -1364,7 +1416,7 @@ function saveArchives(items) {
       const merged = mergeArchiveDescription(oldDesc, desc)
       if (merged !== null && merged !== oldDesc) {
         nameMap[name].description = merged
-        nameMap[name].updated_at = new Date().toISOString()
+        nameMap[name].updated_at = now // [archive-batch-ts v1]
         updated++
       }
     } else {
@@ -1372,8 +1424,8 @@ function saveArchives(items) {
         id: 'a_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9),
         name: name,
         description: desc,
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
+        created_at: now,
+        updated_at: now
       }
       list.push(entry)
       nameMap[name] = entry

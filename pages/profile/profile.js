@@ -2,8 +2,8 @@ const storage = require('../../utils/storage.js')
 const util = require('../../utils/util.js')
 const transfer = require('../../utils/transfer.js')
 const backup = require('../../utils/backup.js')
-const mediaGuard = require('../../utils/mediaGuard.js')
 const theme = require('../../utils/theme.js')
+const lock = require('../../utils/lock.js')
 const app = getApp()
 
 Page({
@@ -28,6 +28,8 @@ Page({
 
   onShow() {
     theme.applyTo(this)
+    // 日记本密码：需要锁且本会话未解锁 → 跳锁屏页（页面栈清空，退不回内容页）
+    if (lock.guard()) return
     this.loadData()
   },
 
@@ -98,32 +100,6 @@ Page({
   },
 
   // 清除所有日记（同步清理云端媒体、归零本地用量估算）
-  clearAllDiaries() {
-    wx.showModal({
-      title: '确认清除',
-      content: '将删除所有日记数据（含已上传的云端图片/视频），且不可恢复，确定继续吗？建议先导出备份。',
-      confirmColor: '#e74c3c',
-      success: (res) => {
-        if (res.confirm) {
-          const snapshot = storage.getAllDiaries()
-          const fileIDs = mediaGuard.collectFileIDs(snapshot)
-          storage.clearAllDiaries()
-          app.globalData.needRefresh = true
-          mediaGuard.clearMediaUsage()
-          this.loadData()
-          wx.showToast({ title: '已清除全部日记', icon: 'success' })
-          if (fileIDs.length) {
-            mediaGuard.deleteCloudFiles(fileIDs).then((r) => {
-              if (r && r.failed > 0) {
-                wx.showToast({ title: r.failed + ' 个云端媒体删除失败', icon: 'none' })
-              }
-            })
-          }
-        }
-      }
-    })
-  },
-
   // ===== 云端备份 =====
 
   // 开启备份：弹出密码设置弹框（首次设置输两次；重新开启校验原密码只输一次）

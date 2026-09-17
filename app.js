@@ -35,6 +35,20 @@ App({
 
     // 清理历史版本首次安装时写入的 3 篇示例日记（严格匹配，仅执行一次）
     this.cleanupSampleDiaries()
+
+    // 日记本密码：会话解锁态初始化（密码开启时，本次会话以「未解锁」开始）
+    require('./utils/lock.js').initSession()
+  },
+
+  // 回到前台：密码开启且后台停留 ≥30 秒 → 重新上锁并跳锁屏页
+  // （冷启动也会走这里，此时会话未解锁，同样跳锁屏页）
+  onShow() {
+    require('./utils/lock.js').onAppShow()
+  },
+
+  // 进入后台：记下时刻，供回前台判定停留时长
+  onHide() {
+    require('./utils/lock.js').noteHide()
   },
 
   // 清理历史版本首次安装时写入的 3 篇示例日记：

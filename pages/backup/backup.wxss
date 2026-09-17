@@ -109,6 +109,13 @@
   line-height: 1.7;
   white-space: pre-line;
 }
+/* 加密承诺：加大一号并标红，突出「备份不含明文」 */
+.backup-hint-warn {
+  padding: 16rpx 32rpx 0;
+  font-size: 28rpx;
+  color: var(--danger);
+  line-height: 1.7;
+}
 
 /* 自动同步失败提示（红字） */
 .sync-error {
@@ -302,4 +309,34 @@
 
 .sync-error {
   color: var(--danger);
+}
+
+/* 历史版本区块（多版本快照） */
+.version-section {
+  padding: 0 24rpx;
+  margin-top: 32rpx;
+}
+
+.version-title {
+  font-family: var(--font-display);
+  font-size: var(--title-3);
+  color: var(--title-ink-3);
+  letter-spacing: var(--title-track-3);
+  font-weight: var(--title-w-3);
+  padding: 0 8rpx 16rpx;
+}
+
+.version-info {
+  flex: 1;
+}
+
+.version-time {
+  font-size: 30rpx;
+  color: var(--ink);
+}
+
+.version-sub {
+  font-size: 24rpx;
+  color: var(--ink-soft);
+  margin-top: 6rpx;
 }

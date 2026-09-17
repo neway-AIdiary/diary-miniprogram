@@ -171,5 +171,30 @@ ok(withCtx2.indexOf('李雷') !== -1, '不同 ctx 第二次: 「李雷」被注�
 // 基础词（档案 + recent）应当命中缓存
 ok(withCtx1.indexOf('王新伟') !== -1, '基础词（档案）跨多次 get 仍可见')
 
+// ===== 8. 档案顺序可复现（[archive-order v1] 回归） =====
+// 背景：本文件曾偶发失败（"档案名词排最前"），根因不在热词逻辑，而在
+// storage.saveArchives 逐条取时间戳 —— 循环跨毫秒时同批档案的 updated_at 落在
+// 相邻毫秒，getArchives() 只按时间倒序 → 末条冒到最前，顺序不可复现。
+// 下面用假时钟把偶发变确定：每次 toISOString 比上一次晚 1ms。两个作用 ——
+//  ① 同批三条档案必然落在相邻毫秒（精确复现原本的偶发条件）；
+//  ② 跨批两次 saveArchives 的时间戳严格递增（「后一批在前」才可断言）。
+section('档案顺序可复现（同批跨毫秒）')
+const __realIso = Date.prototype.toISOString
+const __base = Date.now()
+let __tick = 0
+Date.prototype.toISOString = function () { return __realIso.call(new Date(__base + (__tick++))) }
+store['archives'] = []
+storage.saveArchives([{ name: '甲一' }, { name: '乙二' }, { name: '丙三' }])
+const __order = storage.getArchives().map(a => a.name)
+const __raw = (store['archives'] || []).slice()
+storage.saveArchives([{ name: '丁四' }])
+const __order2 = storage.getArchives().map(a => a.name)
+Date.prototype.toISOString = __realIso
+ok(__raw.map(a => a.name).join(',') === '甲一,乙二,丙三', '存储数组本身保持录入顺序')
+ok(__order.join(',') === '甲一,乙二,丙三', '同一批档案跨毫秒仍保持录入顺序（实际 ' + __order.join('→') + '）')
+ok(new Set(__raw.map(a => a.updated_at)).size === 1, '同一批档案共用同一个 updated_at')
+ok(__raw.every(a => a.created_at === a.updated_at), '同一条档案 created_at === updated_at')
+ok(__order2[0] === '丁四', '后一批档案排在前（跨批仍最近优先，实际 ' + __order2.join('→') + '）')
+
 console.log('\n===== 结果: ' + pass + ' 通过, ' + fail + ' 失败 =====')
 process.exit(fail ? 1 : 0)

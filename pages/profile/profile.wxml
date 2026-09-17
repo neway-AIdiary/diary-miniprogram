@@ -107,10 +107,6 @@
         <view class="menu-text">关于</view>
         <view class="menu-arrow ri ri-arrow-right-s-line"></view>
       </view>
-      <view class="menu-item" bindtap="clearAllDiaries">
-        <view class="menu-text danger">清除所有日记</view>
-        <view class="menu-arrow ri ri-arrow-right-s-line"></view>
-      </view>
     </view>
   </view>
 

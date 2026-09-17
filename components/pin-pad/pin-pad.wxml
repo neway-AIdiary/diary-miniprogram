@@ -1,0 +1,29 @@
+<!-- 4 位数字密码键盘（圆点 + 自绘键位） -->
+<view class="pin-pad">
+  <!-- 四个圆点：已输入的个数点亮 -->
+  <view class="pin-dots {{shake ? 'pin-shake' : ''}}">
+    <view
+      class="pin-dot {{code.length > index ? 'pin-dot-on' : ''}}"
+      wx:for="{{[0, 1, 2, 3]}}"
+      wx:key="*this"
+    ></view>
+  </view>
+
+  <!-- 错误/提示文案（占位固定高度，避免键盘跳动） -->
+  <view class="pin-msg">{{error}}</view>
+
+  <!-- 键位：1-9 / 空 / 0 / 删除 -->
+  <view class="pin-keys">
+    <view class="pin-key-wrap" wx:for="{{keys}}" wx:key="index" data-k="{{item.k}}" bindtap="onKey">
+      <view
+        class="pin-key {{item.k ? '' : 'pin-key-ghost'}}"
+        hover-class="{{item.k ? 'pin-key-hover' : 'none'}}"
+      >
+        <text wx:if="{{item.k && item.k !== 'del'}}">{{item.k}}</text>
+        <text wx:elif="{{item.k === 'del'}}" class="pin-del">删除</text>
+      </view>
+    </view>
+  </view>
+
+  <view wx:if="{{showForget}}" class="pin-forget" bindtap="onForget">忘记密码？</view>
+</view>

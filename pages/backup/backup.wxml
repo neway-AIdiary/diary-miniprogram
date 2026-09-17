@@ -25,6 +25,10 @@
           <view class="menu-text">从云端恢复</view>
           <view class="menu-arrow ri ri-arrow-right-s-line"></view>
         </view>
+        <view class="menu-item" bindtap="clearCloudMedia">
+          <view class="menu-text">清理云端图片/视频</view>
+          <view class="menu-arrow ri ri-arrow-right-s-line"></view>
+        </view>
         <view class="menu-item" bindtap="clearCloudBackup">
           <view class="menu-text danger">清空云端备份</view>
           <view class="menu-arrow ri ri-arrow-right-s-line"></view>
@@ -35,8 +39,24 @@
         </view>
       </block>
     </view>
-    <view class="backup-hint">{{backupHint}}</view>
+    <view class="backup-hint" wx:if="{{backupHint}}">{{backupHint}}</view>
+    <view class="backup-hint-warn" wx:if="{{backupHintWarn}}">{{backupHintWarn}}</view>
     <view class="sync-error" wx:if="{{syncErrorText}}">{{syncErrorText}}</view>
+  </view>
+
+  <!-- 云端历史版本（多版本快照，最新在前） -->
+  <view class="version-section" wx:if="{{versions.length > 1}}">
+    <view class="version-title">历史版本</view>
+    <view class="menu-card">
+      <view class="menu-item" wx:for="{{versions}}" wx:key="index" data-index="{{item.index}}" bindtap="restoreVersion">
+        <view class="version-info">
+          <view class="version-time">{{item.label}}</view>
+          <view class="version-sub">{{item.itemCount}} 篇日记</view>
+        </view>
+        <view class="menu-arrow ri ri-arrow-right-s-line"></view>
+      </view>
+    </view>
+    <view class="backup-hint">云端保留最近 5 次快照；点任一版本可恢复该时间点的日记（需输入备份密码）。</view>
   </view>
 
   <!-- 隐私说明 -->
@@ -47,7 +67,9 @@
     <view class="privacy-text">3. 换新手机：登录同一微信后进入本页，点「从云端恢复」并输入备份密码即可恢复；</view>
     <view class="privacy-text">4. 备份密码忘记将无法恢复云端备份，请牢记；</view>
     <view class="privacy-text">5. 「关闭云端备份」只是停止自动同步，云端已有备份会保留，重新开启后继续同步；</view>
-    <view class="privacy-text">6. 「清空云端备份」物理删除云端全部备份数据（日记 + 档案），删除后不可恢复。</view>
+    <view class="privacy-text">6. 云端保留最近 5 次备份快照：改坏了可在本页「历史版本」里选一个时间点恢复；</view>
+    <view class="privacy-text">7. 「清理云端图片/视频」删除当前日记引用的云端媒体文件（释放云存储空间），删除后图片视频无法显示，文字与档案不受影响；</view>
+    <view class="privacy-text">8. 「清空云端备份」物理删除云端全部备份数据（含所有历史版本，日记 + 档案），删除后不可恢复。</view>
   </view>
 </view>
 
@@ -76,6 +98,21 @@
     <view class="backup-actions">
       <view class="backup-btn cancel" bindtap="closeConfirmClear">取消</view>
       <view class="backup-btn danger" bindtap="doClearCloud">删除云数据</view>
+    </view>
+  </view>
+</view>
+
+<!-- 清理云端图片/视频确认弹层（页面内自绘：点击必弹，确认后才执行） -->
+<view class="backup-modal" wx:if="{{confirmMediaShow}}">
+  <view class="backup-mask" bindtap="closeConfirmMedia"></view>
+  <view class="backup-card">
+    <view class="backup-title">清理云端图片/视频</view>
+    <view class="backup-desc">将删除云端 {{mediaFileCount}} 个图片/视频文件（约 {{mediaSizeText}}），范围是当前本机日记引用的媒体。</view>
+    <view class="backup-desc">删除后这些日记在换机恢复 / 重新导入时会显示不出图片视频（文字与档案不受影响），且不可恢复。</view>
+    <view class="backup-desc">云端加密备份不受影响；本机日记也不会被删除。</view>
+    <view class="backup-actions">
+      <view class="backup-btn cancel" bindtap="closeConfirmMedia">取消</view>
+      <view class="backup-btn danger" bindtap="doClearCloudMedia">删除云端媒体</view>
     </view>
   </view>
 </view>

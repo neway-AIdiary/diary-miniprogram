@@ -27,13 +27,32 @@ function cleanParagraphs(s) {
     .filter(function (line) { return !!line })
     .join('\n')
 }
-// 正文压成单行摘要并按上限截断：上限内取整段，超出截到 limit-1 字 + …
+// 海报正文：保留原文换行（与「复制文字版」同一口径），按上限截断且不切断整行；
+// 换行不占用字数上限——上限只约束真正的文字量
 function truncateSummary(text, max) {
   const limit = (typeof max === 'number' && max > 0) ? max : MAX_SUMMARY_LEN
-  const t = cleanLine(text)
-  if (!t) return ''
-  if (t.length <= limit) return t
-  return t.slice(0, limit - 1) + '…'
+  const full = cleanParagraphs(text)
+  if (!full) return ''
+  if (full.replace(/\n/g, '').length <= limit) return full
+  const out = []
+  let n = 0
+  const lines = full.split('\n')
+  for (let i = 0; i < lines.length; i++) {
+    const ln = lines[i]
+    if (n + ln.length <= limit) { out.push(ln); n += ln.length; continue }
+    // 本行放不下：能放多少写多少，再补省略号收尾（总字数仍不超过 limit）
+    const rest = limit - n - 1
+    if (rest > 0) {
+      out.push(ln.slice(0, rest) + '…')
+    } else if (out.length) {
+      const last = out[out.length - 1]
+      out[out.length - 1] = last.slice(0, Math.max(1, last.length - 1)) + '…'
+    } else {
+      out.push(ln.slice(0, Math.max(1, limit - 1)) + '…')
+    }
+    break
+  }
+  return out.join('\n')
 }
 
 // 天气一行（icon + 文本），无则空串
@@ -76,7 +95,7 @@ function buildPosterModel(d, sw) {
   const m = {
     date: posterDate(d.createdAt),
     summary: truncateSummary(d.content),
-    summaryTruncated: cleanLine(d.content).length > MAX_SUMMARY_LEN,
+    summaryTruncated: cleanParagraphs(d.content).replace(/\n/g, '').length > MAX_SUMMARY_LEN,
     weather: sw.weather === false ? '' : weatherLine(d),
     mood: sw.mood === false ? '' : (String(d.moodText || '').trim()),
     moodColor: sw.mood === false ? '' : (d.moodColor || '#8A8F8C'),

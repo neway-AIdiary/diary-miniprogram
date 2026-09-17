@@ -293,11 +293,6 @@
             <text class="s-menu-text">档案</text>
             <text class="s-arrow ri ri-arrow-right-s-line"></text>
           </view>
-          <view class="s-menu-item" bindtap="goBackup">
-            <view class="s-menu-icon ri ri-cloud-line"></view>
-            <text class="s-menu-text">云端备份</text>
-            <text class="s-arrow ri ri-arrow-right-s-line"></text>
-          </view>
           <view class="s-menu-item s-menu-item-ai" bindtap="goToSummary">
             <view class="s-menu-icon ri ri-quill-pen-line"></view>
             <text class="s-menu-text">智能总结</text>
@@ -308,9 +303,15 @@
             <text class="s-menu-text">设置</text>
             <text class="s-arrow ri ri-arrow-right-s-line"></text>
           </view>
-          <view class="s-menu-item danger" bindtap="clearAllDiaries">
-            <view class="s-menu-icon ri ri-delete-bin-line"></view>
-            <text class="s-menu-text">清除所有日记</text>
+          <!-- [sidebar-local-backup v1] 本地备份：全量导出（.docx，含档案）入口，不建页、直接触发 -->
+          <view class="s-menu-item" bindtap="onLocalBackup">
+            <view class="s-menu-icon ri ri-upload-2-line"></view>
+            <text class="s-menu-text">本地备份</text>
+            <text class="s-arrow ri ri-arrow-right-s-line"></text>
+          </view>
+          <view class="s-menu-item" bindtap="goBackup">
+            <view class="s-menu-icon ri ri-cloud-line"></view>
+            <text class="s-menu-text">云端备份</text>
             <text class="s-arrow ri ri-arrow-right-s-line"></text>
           </view>
         </view>

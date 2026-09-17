@@ -1,7 +1,9 @@
 const storage = require('../../utils/storage.js')
 const util = require('../../utils/util.js')
 const backup = require('../../utils/backup.js')
+const mediaGuard = require('../../utils/mediaGuard.js')
 const theme = require('../../utils/theme.js')
+const lock = require('../../utils/lock.js')
 const app = getApp()
 
 Page({
@@ -9,6 +11,7 @@ Page({
     // 云端备份状态
     backupEnabled: false,
     backupHint: '',
+    backupHintWarn: '',
     syncErrorText: '',
     // 备份密码弹框
     backupModalShow: false,
@@ -19,23 +22,35 @@ Page({
     // 清空云端备份确认弹层
     confirmClearShow: false,
     // 关闭云端备份确认弹层
-    confirmDisableShow: false
+    confirmDisableShow: false,
+    // 云端历史版本（多版本快照：最新在前）
+    versions: [],
+    // 从指定历史版本恢复时的版本序号（0 = 最新）
+    pendingVersionIndex: 0,
+    // 清理云端图片/视频确认弹层与规模提示
+    confirmMediaShow: false,
+    mediaFileCount: 0,
+    mediaSizeText: ''
   },
 
   onShow() {
     theme.applyTo(this)
+    // 日记本密码：需要锁且本会话未解锁 → 跳锁屏页（页面栈清空，退不回内容页）
+    if (lock.guard()) return
     this.loadData()
   },
 
   loadData() {
     const state = backup.getState()
     let backupHint = ''
+    let backupHintWarn = ''
     if (state && state.enabled) {
-      const last = state.lastSyncAt ? util.formatDate(state.lastSyncAt) : ''
-      backupHint = '已开启 · 上次备份 ' + (state.lastCount || 0) + ' 篇' + (last ? '（' + last + '）' : '') + ' · 日记改动后自动同步\n明文永不上传，服务器只存加密密文'
+      // 状态卡已展示「云端备份已开启」，不再重复状态行；只保留加密承诺（标红展示）
+      backupHintWarn = '明文永不上传，服务器只存加密密文'
     } else if (backup.hasSavedKey()) {
       // 已关闭云端备份但本地密钥还在，云端仍有历史备份：重新开启可续用
-      backupHint = '自动备份已关闭；云端仍有历史备份，重新开启后继续同步\n明文永不上传，服务器只存加密密文'
+      backupHint = '自动备份已关闭；云端仍有历史备份，重新开启后继续同步'
+      backupHintWarn = '明文永不上传，服务器只存加密密文'
     } else {
       backupHint = '默认只存在本机，不上传任何数据；开启后仅上传 AES 加密密文'
     }
@@ -52,7 +67,29 @@ Page({
     this.setData({
       backupEnabled: backup.isEnabled(),
       backupHint: backupHint,
+      backupHintWarn: backupHintWarn,
       syncErrorText: syncErrorText
+    })
+
+    this.loadVersions()
+  },
+
+  // 云端历史版本列表（多版本快照）：仅本地还留着备份密钥时查询；失败静默，不影响主流程
+  loadVersions() {
+    if (!backup.hasSavedKey()) {
+      this.setData({ versions: [] })
+      return
+    }
+    backup.listVersions().then((list) => {
+      this.setData({
+        versions: (list || []).map((v, i) => ({
+          index: v.index,
+          itemCount: v.itemCount,
+          label: (util.formatDate(v.at) || '时间未知') + (i === 0 ? '（最新）' : '')
+        }))
+      })
+    }).catch(() => {
+      this.setData({ versions: [] })
     })
   },
 
@@ -69,9 +106,21 @@ Page({
     })
   },
 
-  // 从云端恢复：弹出密码输入弹框
+  // 从云端恢复（默认最新版本）：弹出密码输入弹框
   restoreFromCloud() {
-    this.setData({ backupModalShow: true, backupMode: 'restore', pwd1: '', pwd2: '' })
+    this.setData({ backupModalShow: true, backupMode: 'restore', pendingVersionIndex: 0, pwd1: '', pwd2: '' })
+  },
+
+  // 从指定历史版本恢复：记住版本序号，走同一套密码弹框
+  restoreVersion(e) {
+    const idx = Number(e.currentTarget.dataset.index) || 0
+    this.setData({
+      backupModalShow: true,
+      backupMode: 'restore',
+      pendingVersionIndex: idx,
+      pwd1: '',
+      pwd2: ''
+    })
   },
 
   closeBackupModal() {
@@ -134,14 +183,15 @@ Page({
         })
       })
     } else {
-      // 恢复：拉密文 → 本地解密 → 选择合并/覆盖
+      // 恢复：拉密文 → 本地解密 → 选择合并/覆盖（可指定历史版本）
       if (!pwd) {
         wx.showToast({ title: '请输入备份密码', icon: 'none' })
         return
       }
+      const versionIndex = this.data.pendingVersionIndex || 0
       this.setData({ backupModalShow: false })
       wx.showLoading({ title: '解密恢复中…', mask: true })
-      backup.restore(pwd).then((r) => {
+      backup.restore(pwd, versionIndex).then((r) => {
         wx.hideLoading()
         this.applyRestored(r)
       }).catch((e) => {
@@ -158,6 +208,7 @@ Page({
 
   // 恢复落地：合并（去重追加）或覆盖本地
   applyRestored(r) {
+    const verText = r.versionAt ? '（版本时间 ' + (util.formatDate(r.versionAt) || r.versionAt) + '）' : ''
     wx.showActionSheet({
       itemList: ['合并到本机（去重追加，共 ' + r.itemCount + ' 篇）', '覆盖本机全部日记'],
       success: (res) => {
@@ -177,7 +228,7 @@ Page({
           : '已恢复 ' + (added > 0 ? added + ' 篇新日记' : '（内容均已存在）')
         wx.showModal({
           title: replace ? '已覆盖恢复' : '已合并恢复',
-          content: msg + '\n\n档案信息已一并恢复。',
+          content: msg + '\n\n档案信息已一并恢复。' + verText,
           showCancel: false,
           confirmText: '知道了'
         })
@@ -205,7 +256,61 @@ Page({
     })
   },
 
-  // 一键清空云端备份：先弹页面内确认层，用户确认后才物理删除云端密文（备份保持开启，之后改动会重新上传）
+  // 清理云端图片/视频：范围 = 当前本机日记引用的云端媒体（客户端无法列举云端孤儿文件）
+  clearCloudMedia() {
+    const diaries = storage.getAllDiaries()
+    const ids = mediaGuard.collectFileIDs(diaries)
+    if (!ids.length) {
+      wx.showModal({
+        title: '没有可清理的媒体',
+        content: '当前本机没有带图片/视频的日记，无法确定云端媒体归属，因此没有可安全清理的对象。',
+        showCancel: false,
+        confirmText: '知道了'
+      })
+      return
+    }
+    const allMedia = []
+    diaries.forEach((d) => { (d.media || []).forEach((m) => allMedia.push(m)) })
+    const bytes = mediaGuard.sumMediaBytes(allMedia)
+    this._mediaIDs = ids
+    this.setData({
+      confirmMediaShow: true,
+      mediaFileCount: ids.length,
+      mediaSizeText: bytes > 0 ? (bytes / 1024 / 1024).toFixed(1) + ' MB' : '大小未知'
+    })
+  },
+
+  closeConfirmMedia() {
+    this.setData({ confirmMediaShow: false })
+  },
+
+  // 用户确认后删除云端媒体文件（含视频封面），并同步扣减本机用量估算
+  doClearCloudMedia() {
+    this.setData({ confirmMediaShow: false })
+    const ids = this._mediaIDs || []
+    if (!ids.length) return
+    const diaries = storage.getAllDiaries()
+    const allMedia = []
+    diaries.forEach((d) => { (d.media || []).forEach((m) => allMedia.push(m)) })
+    const bytes = mediaGuard.sumMediaBytes(allMedia)
+    wx.showLoading({ title: '删除中…', mask: true })
+    mediaGuard.deleteCloudFiles(ids).then((r) => {
+      wx.hideLoading()
+      if (bytes > 0) mediaGuard.subtractMediaUsage(bytes)
+      this._mediaIDs = null
+      this.loadData()
+      const failed = (r && r.failed) || 0
+      wx.showModal({
+        title: failed ? '部分删除失败' : '已清理云端媒体',
+        content: '已删除 ' + ((r && r.deleted) || 0) + ' 个云端图片/视频文件'
+          + (failed ? '，' + failed + ' 个删除失败（可稍后重试）' : '') + '。',
+        showCancel: false,
+        confirmText: '知道了'
+      })
+    })
+  },
+
+  // 一键清空云端备份：先弹页面内确认层，用户确认后才物理删除云端全部版本密文（备份保持开启，之后改动会重新上传）
   clearCloudBackup() {
     this.setData({ confirmClearShow: true })
   },

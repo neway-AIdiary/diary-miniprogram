@@ -1,0 +1,6 @@
+{
+  "navigationBarTitleText": "日记本密码",
+  "usingComponents": {
+    "pin-pad": "/components/pin-pad/pin-pad"
+  }
+}

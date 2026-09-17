@@ -198,18 +198,25 @@ Component({
             ctx.arcTo(x, y, x + w, y, r)
             ctx.closePath()
           }
+          // 保留原文换行：先按 \n 拆段，段内再按画布宽度折行（画布宽是硬约束，
+          // 超过画布的单行必须折开，否则会画出边界被裁掉）；空行原样占一行高度
           const wrapLines = (text, maxW) => {
             const out = []
-            let cur = ''
-            for (const ch of String(text)) {
-              if (ctx.measureText(cur + ch).width > maxW && cur) {
-                out.push(cur)
-                cur = ch
-              } else {
-                cur += ch
+            const paras = String(text).replace(/\r\n?/g, '\n').split('\n')
+            for (let pi = 0; pi < paras.length; pi++) {
+              const para = paras[pi]
+              if (!para) { out.push(''); continue }
+              let cur = ''
+              for (const ch of para) {
+                if (ctx.measureText(cur + ch).width > maxW && cur) {
+                  out.push(cur)
+                  cur = ch
+                } else {
+                  cur += ch
+                }
               }
+              if (cur) out.push(cur)
             }
-            if (cur) out.push(cur)
             return out
           }
           const drawCover = (img, dx, dy, dw, dh, r) => {

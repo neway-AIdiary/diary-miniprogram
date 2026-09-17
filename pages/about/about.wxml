@@ -1,0 +1,30 @@
+<!-- 关于页：应用名 / 版本号 / 简介 / 备案号 / 联系方式（点击整行即复制） -->
+<view class="page {{themeClass}}">
+  <view class="about-hero">
+    <view class="about-name">{{appName}}</view>
+    <view class="about-version">版本 {{version}}</view>
+  </view>
+
+  <view class="menu-section">
+    <view class="about-intro">{{intro}}</view>
+
+    <view class="menu-card about-card">
+      <view class="menu-item" bindtap="copyIcp">
+        <text class="menu-icon ri ri-global-line"></text>
+        <view class="about-item-main">
+          <text class="about-item-label">备案/许可证编号</text>
+          <text class="about-item-value">{{icpNo}}</text>
+        </view>
+        <text class="about-copy">复制</text>
+      </view>
+      <view class="menu-item" bindtap="copyWechat">
+        <text class="menu-icon ri ri-user-3-line"></text>
+        <view class="about-item-main">
+          <text class="about-item-label">联系我们</text>
+          <text class="about-item-value">微信 {{wechatId}}</text>
+        </view>
+        <text class="about-copy">复制</text>
+      </view>
+    </view>
+  </view>
+</view>

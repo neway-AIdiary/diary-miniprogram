@@ -16,11 +16,20 @@
         <text class="menu-icon ri ri-alarm-line"></text><text class="menu-text">闹钟</text>
         <text class="menu-arrow ri ri-arrow-right-s-line"></text>
       </view>
+      <view class="menu-item" bindtap="goToLock">
+        <text class="menu-icon ri ri-lock-line"></text><text class="menu-text">日记本密码</text>
+        <text class="menu-value">{{lockLabel}}</text>
+        <text class="menu-arrow ri ri-arrow-right-s-line"></text>
+      </view>
       <view class="menu-item menu-item-ai" bindtap="onComingSoon" data-name="AI模型">
         <text class="menu-icon ri ri-quill-pen-line"></text><text class="menu-text">AI模型</text>
         <text class="menu-arrow ri ri-arrow-right-s-line"></text>
       </view>
-      <view class="menu-item" bindtap="showAbout">
+      <view class="menu-item" bindtap="clearAllDiaries">
+        <text class="menu-icon danger ri ri-delete-bin-line"></text><text class="menu-text">清除所有日记</text>
+        <text class="menu-arrow ri ri-arrow-right-s-line"></text>
+      </view>
+      <view class="menu-item" bindtap="goToAbout">
         <text class="menu-icon ri ri-information-line"></text><text class="menu-text">关于</text>
         <text class="menu-arrow ri ri-arrow-right-s-line"></text>
       </view>

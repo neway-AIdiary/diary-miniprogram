@@ -7,6 +7,7 @@ const entityClean = require('../../utils/entityClean.js')
 const voice = require('../../utils/voice.js')
 const weather = require('../../utils/weather.js')
 const mediaGuard = require('../../utils/mediaGuard.js')
+const transfer = require('../../utils/transfer.js')
 const app = getApp()
 
 // 侧栏日记本默认显示的日记条数（其余通过「查看全部」进日记本页）
@@ -32,6 +33,8 @@ const KAOMOJIS = ['(◕‿◕)','(￣▽￣)','(≧∇≦)','(´･ω･`)','(�
 
 const fontSetting = require('../../utils/fontSetting.js')
 const theme = require('../../utils/theme.js')
+const lock = require('../../utils/lock.js')
+const draft = require('../../utils/draft.js')
 const textRules = require('../../utils/textRules.js')
 
 Page({
@@ -116,6 +119,8 @@ Page({
   },
 
   onLoad() {
+    // 日记本密码：冷启动首屏最早拦截点（需要锁且未解锁 → 立刻跳锁屏页）
+    if (lock.guard()) return
     // 自定义导航栏适配（safeArea.top 比 statusBarHeight 更能覆盖刘海/灵动岛）
     const win = wx.getWindowInfo ? wx.getWindowInfo() : wx.getSystemInfoSync()
     const statusBarHeight = win.statusBarHeight || 20
@@ -158,9 +163,13 @@ Page({
 
   onShow() {
     theme.applyTo(this)
+    // 日记本密码：需要锁且本会话未解锁 → 跳锁屏页（页面栈清空，退不回内容页）
+    if (lock.guard()) return
     this.setData({ fontStyle: fontSetting.buildStyle() })
     // 占位文案：按「打开次数」优先、「日记篇数」次之的规则取三行（云端可配，失败静默回落默认）
     this.applyPlaceholderText()
+    // 恢复上次未保存的草稿（输入框为空且有草稿时）
+    this.restoreDraft()
     // 注册语音目标：底部「按住说话」识别结果交给本页处理
     this._voiceHandle = (text) => this.handleVoiceText(text)
     app.globalData.voiceTarget = {
@@ -190,6 +199,8 @@ Page({
   },
 
   onHide() {
+    // 暂存未保存的正文（离开页面即可能被销毁：切后台、被锁屏页 reLaunch）
+    this.saveDraft()
     if (app.globalData.voiceTarget && app.globalData.voiceTarget.handle === this._voiceHandle) {
       app.globalData.voiceTarget = null
     }
@@ -198,10 +209,32 @@ Page({
   },
 
   onUnload() {
+    this.saveDraft()
     if (this._offVoiceState) this._offVoiceState()
     // 兜底：写了媒体但未保存就离开页面时，清掉本会话新上传的云文件（避免孤儿）
     // 保存进行中（_savingMedia）不清理：等保存出口决定，防止误删即将被日记引用的媒体
     if (!this._savingMedia) this.discardSessionUploads()
+  },
+
+  // ===== 草稿（防「写了一半离开就没了」）=====
+  // 离开页面（切后台 / 被锁屏页 reLaunch 销毁）时暂存正文；内容为空视为用户主动清空，一并作废
+  saveDraft() {
+    try {
+      const c = String(this.data.content || '')
+      if (!c.trim()) { draft.clear(); return }
+      draft.save(c)
+    } catch (e) { /* 草稿失败不影响正文 */ }
+  },
+
+  // 回到页面时恢复：仅当输入框为空（不覆盖正在写的内容）
+  restoreDraft() {
+    try {
+      if (String(this.data.content || '').trim()) return
+      const d = draft.load()
+      if (!d) return
+      this.setData({ content: d.content })
+      wx.showToast({ title: '已恢复上次未保存的内容', icon: 'none' })
+    } catch (e) { /* 静默 */ }
   },
 
   // ===== 日期 =====
@@ -476,6 +509,7 @@ Page({
     const applied = []
     const words = []
     let firstNotFound = null
+    let firstBlocked = null
 
     for (const cmd of commands) {
       const res = aiEdit.apply(content, cmd)
@@ -485,6 +519,8 @@ Page({
         if (res.highlightWord) words.push(res.highlightWord)
       } else if (res.reason === 'notFound' && !firstNotFound) {
         firstNotFound = cmd
+      } else if (res.reason === 'allRemove' && !firstBlocked) {
+        firstBlocked = cmd
       }
     }
 
@@ -503,20 +539,27 @@ Page({
       this.showEditHighlight(title, content, words.concat(matchWords))
     } else if (matchWords.length > 0) {
       this.showEditHighlight(this.matchTitle(matchInfo.replaced), content, matchWords)
+    } else if (firstBlocked) {
+      wx.showToast({ title: '「前边所有内容」不支持删除，请指明要删的内容', icon: 'none' })
     } else if (firstNotFound) {
       const word = firstNotFound.type === 'insert' ? firstNotFound.at : firstNotFound.from
-      wx.showToast({ title: '日记中没有「' + word + '」', icon: 'none' })
+      const scope = aiEdit.scopeText(firstNotFound.scope)
+      wx.showToast({
+        title: scope ? ('日记' + scope + '找不到「' + word + '」') : ('日记中没有「' + word + '」'),
+        icon: 'none'
+      })
     }
   },
 
   // 单条指令的操作摘要文案（高亮浮层标题用）
   editTitle(edit) {
     if (edit.type === 'removeSent') return this.sentRemoveText(edit)
-    if (edit.type === 'remove') return '已删除「' + edit.from + '」'
+    const scope = aiEdit.scopeText(edit.scope)
+    if (edit.type === 'remove') return '已删除' + (scope ? scope + '的' : '') + '「' + edit.from + '」'
     if (edit.type === 'insert') {
-      return '已在「' + edit.at + (edit.pos === 'before' ? '前' : '后') + '」加上「' + edit.text + '」'
+      return '已在' + (scope ? scope + '的' : '') + '「' + edit.at + (edit.pos === 'before' ? '前' : '后') + '」加上「' + edit.text + '」'
     }
-    return '已修改：「' + edit.from + '」→「' + edit.to + '」'
+    return '已修改：' + (scope ? scope + '的' : '') + '「' + edit.from + '」→「' + edit.to + '」'
   },
 
   // 按位置删句的描述文案：已删除最后一句话 / 已删除第一句话 / 已删除最后两句 / 已删除倒数第二句
@@ -532,13 +575,16 @@ Page({
     const e = pair.edit
     const r = pair.result || {}
     if (e.type === 'removeSent') return this.sentRemoveText(e)
+    const scope = aiEdit.scopeText(e.scope)
+    // 字面命中（范围词与目标词连成的原串真实存在）时按原串描述
+    const src = r.usedRaw && e.rawFrom ? e.rawFrom : e.from
     if (e.type === 'remove') {
-      return '已删除「' + e.from + '」' + (r.count > 1 ? '（共 ' + r.count + ' 处）' : '')
+      return '已删除' + (scope ? scope + '的' : '') + '「' + src + '」' + (r.count > 1 ? '（共 ' + r.count + ' 处）' : '')
     }
     if (e.type === 'insert') {
-      return '已在「' + e.at + (e.pos === 'before' ? '前' : '后') + '」插入「' + e.text + '」'
+      return '已在' + (scope ? scope + '的' : '') + '「' + e.at + (e.pos === 'before' ? '前' : '后') + '」插入「' + e.text + '」'
     }
-    return '已将「' + e.from + '」替换为「' + e.to + '」' + (r.count > 1 ? '（全部 ' + r.count + ' 处）' : '')
+    return '已将' + (scope ? scope + '的' : '') + '「' + src + '」替换为「' + e.to + '」' + (r.count > 1 ? '（全部 ' + r.count + ' 处）' : '')
   },
 
   /**
@@ -979,6 +1025,27 @@ Page({
     wx.navigateTo({ url: '/pages/setting/setting' })
   },
 
+  // [sidebar-local-backup v1] 本地备份：全量导出 Word（.docx，含档案），直接触发不建页
+  onLocalBackup() {
+    this.setData({ showSidebar: false })
+    const total = storage.getAllDiaries().length
+    if (!total) {
+      wx.showToast({ title: '暂无日记可导出', icon: 'none' })
+      return
+    }
+    wx.showModal({
+      title: '本地备份',
+      content: '将导出全部 ' + total + ' 篇日记（含档案）为 Word 文件',
+      success: (res) => {
+        if (res.confirm) {
+          transfer.exportToWord(() => {
+            wx.showToast({ title: '暂无日记可导出', icon: 'none' })
+          })
+        }
+      }
+    })
+  },
+
   // 智能总结
   goToSummary() {
     this.setData({ showSidebar: false })
@@ -1010,34 +1077,6 @@ Page({
     })
   },
 
-  clearAllDiaries() {
-    const self = this
-    wx.showModal({
-      title: '确认清除',
-      content: '将删除所有日记数据（含已上传的云端图片/视频），且不可恢复，确定继续吗？建议先导出备份。',
-      confirmColor: '#e74c3c',
-      success: (res) => {
-        if (res.confirm) {
-          // 先快照旧数据：清空后需同步清理云端媒体并归零本地用量估算
-          const snapshot = storage.getAllDiaries()
-          const fileIDs = mediaGuard.collectFileIDs(snapshot)
-          wx.setStorageSync('diaries', [])
-          app.globalData.needRefresh = true
-          mediaGuard.clearMediaUsage()
-          self.refreshSidebar()
-          wx.showToast({ title: '已清除全部日记', icon: 'success' })
-          if (fileIDs.length) {
-            mediaGuard.deleteCloudFiles(fileIDs).then((r) => {
-              if (r && r.failed > 0) {
-                wx.showToast({ title: r.failed + ' 个云端媒体删除失败', icon: 'none' })
-              }
-            })
-          }
-        }
-      }
-    })
-  },
-
   // ===== AI 优化（最小范围）=====
   onOptimize() {
     let content = this.data.content.trim()
@@ -1053,6 +1092,9 @@ Page({
     // 手写进正文的增删改指令：先执行（指令句不保留在正文中），并高亮改动
     let pending = null
     const embedded = aiEdit.extractEmbedded(content)
+    if (embedded.blocked && embedded.blocked.length) {
+      wx.showToast({ title: '「前边所有内容」不支持删除，请指明要删的内容', icon: 'none' })
+    }
     if (embedded.changed) {
       content = embedded.content.trim()
       this._localEditNotes = embedded.applied.map(p => this.editNote(p))
@@ -1432,6 +1474,8 @@ Page({
 
   resetAfterSave(diaryDate) {
     this._savingMedia = false
+    // 已保存：草稿作废（防下次进入误恢复）
+    draft.clear()
     this._sessionUploaded = [] // 已保存：丢弃会话上传清单（保留文件已入库；清理动作在保存出口完成）
     const todayKey = util.getDateKey()
     this.setData({

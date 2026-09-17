@@ -1,0 +1,19 @@
+<!-- 锁屏页：无导航栏（navigationStyle: custom），页面栈已清空，退不回内容页 -->
+<view class="page {{themeClass}}">
+  <view class="lock-wrap" style="padding-top:{{statusBarTop}}px">
+    <view class="lock-head">
+      <view class="lock-brand">一灯记</view>
+      <view class="lock-sub">输入 4 位密码解锁</view>
+    </view>
+
+    <view class="lock-body">
+      <pin-pad
+        id="pad"
+        show-forget="{{true}}"
+        disabled="{{frozenLeft > 0}}"
+        bind:complete="onComplete"
+        bind:forget="onForget"
+      />
+    </view>
+  </view>
+</view>

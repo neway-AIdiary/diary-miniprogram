@@ -34,6 +34,7 @@ const SHORTCUTS = [
 
 const fontSetting = require('../../utils/fontSetting.js')
 const theme = require('../../utils/theme.js')
+const lock = require('../../utils/lock.js')
 
 Page({
   data: {
@@ -85,6 +86,8 @@ Page({
 
   onShow() {
     theme.applyTo(this)
+    // 日记本密码：需要锁且本会话未解锁 → 跳锁屏页（页面栈清空，退不回内容页）
+    if (lock.guard()) return
     this.setData({ fontStyle: fontSetting.buildStyle() })
     // 注册语音目标：按住说话识别结果填入输入框
     this._voiceHandle = (text) => this.appendPrompt(text)

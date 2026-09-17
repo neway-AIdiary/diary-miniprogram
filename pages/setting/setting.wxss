@@ -167,3 +167,8 @@
   color: var(--ink);
   font-weight: 600;
 }
+
+/* 清除所有日记：垃圾桶图标警示红（文字与普通菜单一致） */
+.menu-icon.danger {
+  color: var(--danger);
+}

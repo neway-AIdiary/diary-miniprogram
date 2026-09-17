@@ -41,7 +41,7 @@ assert('摘要：短文本原样', share.truncateSummary('今天很开心', 150)
 const tr = share.truncateSummary(longText, 150)
 assert('摘要：150 字上限', tr.length, 150)
 assert('摘要：末尾省略号', tr.slice(-1), '…')
-assert('摘要：换行/多空格折叠', share.truncateSummary('a\n\n  b   c', 150), 'a b c')
+assert('摘要：保留换行（空行折叠、行内空白折叠）', share.truncateSummary('a\n\n  b   c', 150), 'a\nb c')
 assert('摘要：空文本', share.truncateSummary('   ', 150), '')
 assert('摘要：自定义上限', share.truncateSummary('一二三四五六七八九十', 5), '一二三四…')
 
@@ -80,7 +80,7 @@ assert('海报日期：空', share.posterDate(''), '')
 // ===== 5. 海报模型（默认全开） =====
 const pm = share.buildPosterModel(diary, { weather: true, mood: true, tags: true, images: true })
 assert('海报：日期', pm.date, '2026年9月4日')
-assert('海报：摘要', pm.summary, '今天 过得不错，去了公园散步，天气很好。')
+assert('海报：摘要保留原文换行', pm.summary, '今天 过得不错，\n去了公园散步，\n天气很好。')
 assert('海报：天气', pm.weather, '☀️ 晴 28° · 深圳')
 assert('海报：心情', pm.mood, '开心')
 assert('海报：心情色', pm.moodColor, '#FFB300')
@@ -113,6 +113,22 @@ const p900 = share.buildPosterModel({ createdAt: '2026年9月16日 10:00', conte
 assert('海报：900 字截到 600', p900.summary.length, 600)
 assert('海报：超限末尾省略号', p900.summary.slice(-1), '…')
 assert('海报：超限标记截断', p900.summaryTruncated, true)
+
+// ===== 10. 海报正文保留原文换行（2026-09-17） =====
+assert('海报：多段换行原样保留',
+  share.buildPosterModel({ content: '第一段。\n第二段。\n第三段。' }, {}).summary,
+  '第一段。\n第二段。\n第三段。')
+assert('海报：连续空行折叠为单换行',
+  share.buildPosterModel({ content: '上段。\n\n\n下段。' }, {}).summary,
+  '上段。\n下段。')
+assert('海报：换行不占字数上限（600 字 + 换行不截断）',
+  share.buildPosterModel({ content: '字'.repeat(590) + '\n' + '句'.repeat(10) }, {}).summaryTruncated,
+  false)
+const multiLong = share.buildPosterModel({ content: ('甲'.repeat(100) + '\n').repeat(8) + '乙'.repeat(50) }, {})
+assert('海报：超限截断保留整行（首行 100 字完整）', multiLong.summary.split('\n')[0].length, 100)
+assert('海报：截断后纯字数正好 600', multiLong.summary.replace(/\n/g, '').length, 600)
+assert('海报：超限末尾省略号', multiLong.summary.slice(-1), '…')
+assert('海报：截断处不留空行（6 行）', multiLong.summary.split('\n').length, 6)
 
 console.log('\nshare tests: ' + passed + ' passed, ' + failed + ' failed')
 process.exit(failed > 0 ? 1 : 0)

@@ -1,0 +1,36 @@
+/* ===== 锁屏页：居中品牌 + 密码键盘 ===== */
+.page {
+  min-height: 100vh;
+  background: var(--bg);
+  box-sizing: border-box;
+}
+
+.lock-wrap {
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  padding: 0 56rpx 72rpx;
+  box-sizing: border-box;
+}
+
+.lock-head {
+  padding-top: 140rpx;
+  text-align: center;
+}
+
+.lock-brand {
+  font-family: var(--font-display);
+  font-size: 50rpx;
+  color: var(--ink);
+  letter-spacing: 8rpx;
+}
+
+.lock-sub {
+  margin-top: 24rpx;
+  font-size: 26rpx;
+  color: var(--ink-soft);
+}
+
+.lock-body {
+  margin-top: 96rpx;
+}

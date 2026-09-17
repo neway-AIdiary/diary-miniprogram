@@ -1,0 +1,40 @@
+<!-- 日记本密码：开关 + 修改密码 + 说明；密码输入走底部弹层 -->
+<view class="page {{themeClass}}">
+  <view class="menu-section">
+    <view class="menu-title">日记本密码</view>
+    <view class="menu-card">
+      <view class="menu-item">
+        <text class="menu-icon ri ri-lock-line"></text>
+        <text class="menu-text">日记本密码</text>
+        <!-- 弹层打开时销毁 switch：关闭弹层后按最新 enabled 重建，取消时自动回弹 -->
+        <switch
+          wx:if="{{!padOpen}}"
+          checked="{{enabled}}"
+          bindchange="onToggleSwitch"
+          color="#C0773A"
+        />
+      </view>
+      <view class="menu-item" wx:if="{{enabled && !padOpen}}" bindtap="onChangeCode">
+        <text class="menu-icon ri ri-login-box-line"></text>
+        <text class="menu-text">修改密码</text>
+        <text class="menu-arrow ri ri-arrow-right-s-line"></text>
+      </view>
+    </view>
+
+    <view class="lock-hint">
+      <view class="lock-hint-line">开启后，打开日记本需先输入 4 位密码；离开 30 秒以上再回来会重新锁定。</view>
+      <view class="lock-hint-line">密码只保存在本机、不会上传，也不影响日记本身。清除密码不会删除任何日记。</view>
+      <view class="lock-hint-line">连续输错 5 次，需等待 30 秒再试。</view>
+    </view>
+  </view>
+
+  <!-- 密码输入弹层 -->
+  <view wx:if="{{padOpen}}" class="pad-mask" bindtap="onCancelPad"></view>
+  <view wx:if="{{padOpen}}" class="pad-sheet">
+    <view class="pad-sheet-head">
+      <text class="pad-sheet-title">{{padTitle}}</text>
+      <text class="pad-sheet-cancel" bindtap="onCancelPad">取消</text>
+    </view>
+    <pin-pad id="pad" bind:complete="onPadComplete" />
+  </view>
+</view>

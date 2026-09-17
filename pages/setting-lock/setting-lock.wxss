@@ -1,0 +1,57 @@
+/* 复用设置页的 cell 列表样式，保证与「日记字体 / 闹钟」完全一致 */
+@import "../setting/setting.wxss";
+
+/* ===== 说明文案 ===== */
+.lock-hint {
+  margin-top: var(--sp-md);
+  padding: 0 8rpx;
+}
+
+.lock-hint-line {
+  font-size: 24rpx;
+  color: var(--ink-soft);
+  line-height: 1.7;
+}
+
+/* ===== 密码输入弹层（底部升起） ===== */
+.pad-mask {
+  position: fixed;
+  left: 0;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(28, 24, 20, 0.35);
+  z-index: 100;
+}
+
+.pad-sheet {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 101;
+  background: var(--surface);
+  border-radius: 24rpx 24rpx 0 0;
+  padding: 32rpx 40rpx 56rpx;
+  box-shadow: var(--shadow-md);
+  box-sizing: border-box;
+}
+
+.pad-sheet-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8rpx;
+}
+
+.pad-sheet-title {
+  font-family: var(--font-display);
+  font-size: 30rpx;
+  color: var(--ink);
+}
+
+.pad-sheet-cancel {
+  font-size: 26rpx;
+  color: var(--ink-soft);
+  padding: 8rpx 0 8rpx 24rpx;
+}
