@@ -2,10 +2,10 @@
 <view class="page {{themeClass}}">
   <!-- 状态卡 -->
   <view class="status-card">
-    <view class="status-icon {{backupEnabled ? 'on' : ''}}"><text class="ri {{backupEnabled ? 'ri-cloud-fill' : 'ri-cloud-line'}}"></text></view>
+    <view class="status-icon {{backupEnabled ? 'on' : (cloudExists ? 'cloud' : '')}}"><text class="ri {{backupEnabled ? 'ri-cloud-fill' : 'ri-cloud-line'}}"></text></view>
     <view class="status-info">
-      <view class="status-title">{{backupEnabled ? '云端备份已开启' : '云端备份未开启'}}</view>
-      <view class="status-sub">{{backupEnabled ? '日记改动后自动加密同步' : '日记只存在本机，不上传任何数据'}}</view>
+      <view class="status-title">{{statusTitle}}</view>
+      <view class="status-sub">{{statusSub}}</view>
     </view>
   </view>
 
@@ -16,32 +16,32 @@
         <view class="menu-text">开启云端备份（加密）</view>
         <view class="menu-arrow ri ri-arrow-right-s-line"></view>
       </view>
-      <block wx:else>
-        <view class="menu-item" bindtap="backupNow">
-          <view class="menu-text">立即备份到云端</view>
-          <view class="menu-arrow ri ri-arrow-right-s-line"></view>
-        </view>
-        <view class="menu-item" bindtap="restoreFromCloud">
-          <view class="menu-text">从云端恢复</view>
-          <view class="menu-arrow ri ri-arrow-right-s-line"></view>
-        </view>
-        <view class="menu-item" bindtap="clearCloudMedia">
-          <view class="menu-text">清理云端图片/视频</view>
-          <view class="menu-arrow ri ri-arrow-right-s-line"></view>
-        </view>
-        <view class="menu-item" bindtap="clearCloudBackup">
-          <view class="menu-text danger">清空云端备份</view>
-          <view class="menu-arrow ri ri-arrow-right-s-line"></view>
-        </view>
-        <view class="menu-item" bindtap="disableBackup">
-          <view class="menu-text">关闭云端备份</view>
-          <view class="menu-arrow ri ri-arrow-right-s-line"></view>
-        </view>
-      </block>
+      <view class="menu-item" wx:if="{{backupEnabled}}" bindtap="backupNow">
+        <view class="menu-text">立即备份到云端</view>
+        <view class="menu-arrow ri ri-arrow-right-s-line"></view>
+      </view>
+      <!-- 从云端恢复：已开启 / 曾开启过（本地密钥还在）/ 云端已有备份（换机场景）都露出 -->
+      <view class="menu-item" wx:if="{{showRestore}}" bindtap="restoreFromCloud">
+        <view class="menu-text">从云端恢复</view>
+        <view class="menu-arrow ri ri-arrow-right-s-line"></view>
+      </view>
+      <view class="menu-item" wx:if="{{backupEnabled}}" bindtap="clearCloudMedia">
+        <view class="menu-text">清理云端图片/视频</view>
+        <view class="menu-arrow ri ri-arrow-right-s-line"></view>
+      </view>
+      <view class="menu-item" wx:if="{{backupEnabled}}" bindtap="clearCloudBackup">
+        <view class="menu-text danger">清空云端备份</view>
+        <view class="menu-arrow ri ri-arrow-right-s-line"></view>
+      </view>
+      <view class="menu-item" wx:if="{{backupEnabled}}" bindtap="disableBackup">
+        <view class="menu-text">关闭云端备份</view>
+        <view class="menu-arrow ri ri-arrow-right-s-line"></view>
+      </view>
     </view>
     <view class="backup-hint" wx:if="{{backupHint}}">{{backupHint}}</view>
     <view class="backup-hint-warn" wx:if="{{backupHintWarn}}">{{backupHintWarn}}</view>
     <view class="sync-error" wx:if="{{syncErrorText}}">{{syncErrorText}}</view>
+    <view class="sync-error" wx:if="{{probeErrorText}}">{{probeErrorText}}</view>
   </view>
 
   <!-- 云端历史版本（多版本快照，最新在前） -->

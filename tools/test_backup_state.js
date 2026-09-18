@@ -226,7 +226,13 @@ async function run() {
   cloudBroken = false
 
   // 9. clearCloud 物理删除：meta 与文件都删，本地 key 保留
-  await backup.enable('test-password-123') // 确保有云端数据
+  // 覆盖护栏（2026-09-18）：清空前的云端已有备份，此时未显式授权的 enable 必须被拒
+  const versionsBefore = (metaDocs[0].versions || []).length
+  let guardMsg = ''
+  try { await backup.enable('test-password-123') } catch (e) { guardMsg = e.message }
+  assert('未授权 enable 被覆盖护栏拒绝', guardMsg.indexOf('云端已有备份') >= 0, true)
+  assert('被拒后云端版本数不变（没被静默清空）', (metaDocs[0].versions || []).length, versionsBefore)
+  await backup.enable('test-password-123', { allowOverwrite: true }) // 确保有云端数据（显式授权覆盖）
   const preClear = backup.getState()
   assert('清空前云端有 1 份快照', Object.keys(cloudFiles).length, 1)
   await backup.clearCloud()
@@ -305,8 +311,9 @@ async function run() {
   assert('旧结构仍可正常恢复', compatRestore.diaries.length, 1)
 
   // enable 重置版本：新密码场景清空历史版本，从第 1 版重建
+  // （2026-09-18 起这条「清空重建」路径必须显式授权，否则会被覆盖护栏拒绝）
   metaDocs[0].versions = snapshotMeta.versions
-  await backup.enable('test-password-123')
+  await backup.enable('test-password-123', { allowOverwrite: true })
   assert('enable 后版本重置为 1 版', metaDocs[0].versions.length, 1)
   assert('enable 后云存储只剩 1 个文件（旧版本已清）', Object.keys(cloudFiles).length, 1)
 

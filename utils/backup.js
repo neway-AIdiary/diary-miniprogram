@@ -19,9 +19,15 @@
  *     超出才删最旧。旧版本不被覆盖 → 改坏了可以回到某个时间点（备份页可选版本恢复）
  *   - 兼容旧数据：meta 只有 fileID 没有 versions 时，视为「1 个版本」
  *
+ * 覆盖护栏（2026-09-18，重要）：
+ *   enable(password, opts) 在云端已有备份时会清空全部历史版本（旧密文只有旧密码能解，无法沿用）。
+ *   该「清空重建」属破坏性动作，故必须由页面在用户确认后显式传 opts.allowOverwrite=true 才放行；
+ *   缺省一律 reject（err.code === 'CLOUD_EXISTS'，且此时尚未上传任何密文）。
+ *   新增任何调用 enable 的入口（页面/流程）都必须先做覆盖确认，否则会是「保存失败」而非静默丢数据。
+ *
  * 导出（在旧版基础上新增 listVersions）：
  *   isEnabled / getState / hasSavedKey / enable / reenable / sync /
- *   getLastSyncError / restore / cloudStatus / listVersions / clearCloud / disable
+ *   getLastSyncError / restore / cloudStatus / listVersions / adoptCloud / clearCloud / disable
  */
 
 const crypto = require('./crypto.js')
@@ -312,14 +318,20 @@ function getLastSyncError() {
 
 /**
  * 开启云端备份：设置备份密码 → 本地派生密钥 → 加密全量上传
+ *
+ * 防误覆盖（2026-09-18）：云端已有备份时本函数会清空其全部历史版本 —— 这是设计使然
+ * （旧密文只有旧密码能解开），但必须由调用方显式传 allowOverwrite 才放行，否则一律拒绝。
+ * 宁可让保存失败（用户看到「云端已有备份」的提示），也不能在他不知情时静默清空云端备份。
  * @param {string} password 备份密码（>= 6 位）
+ * @param {{allowOverwrite?:boolean}} [opts] allowOverwrite=true 表示「用户已在页面上确认覆盖」
  * @returns {Promise<{itemCount:number, archiveCount:number}>}
  */
-function enable(password) {
+function enable(password, opts) {
   const pwd = String(password || '')
   if (pwd.length < 6) {
     return Promise.reject(new Error('备份密码至少 6 位'))
   }
+  const allowOverwrite = !!(opts && opts.allowOverwrite)
   const salt = crypto.randomBytes(16)
   const key = crypto.pbkdf2(pwd, salt, crypto.ITERATIONS, 32)
   const verifier = makeVerifier(key)
@@ -329,6 +341,13 @@ function enable(password) {
     // 开启场景：本次是用「新密码」建立备份（无本地密钥才会走到 enable），
     // 旧版本是用旧密钥加密的、当前已无人能解开 → 清空历史版本，从第 1 版重建。
     const oldVersions = metaVersions(meta)
+    // 覆盖护栏（兜底，2026-09-18）：调用方漏判时在这里拦下 —— 注意此刻还没上传任何密文，
+    // 抛错即中止，云端 meta 与历史快照原样不动。
+    if (oldVersions.length && !allowOverwrite) {
+      const err = new Error('云端已有备份，需确认后才能覆盖')
+      err.code = 'CLOUD_EXISTS'
+      throw err
+    }
     return uploadSnapshot(meta._id, enc.ciphertext).then((fileID) => {
       const now = new Date().toISOString()
       const patch = {
@@ -458,6 +477,41 @@ function restore(password, versionIndex) {
   })
 }
 
+/**
+ * 接上云端已有备份（换机 / 卸载重装后恢复完成、想继续自动同步）：
+ * 用「原备份密码」校验云端 verifier，通过后把该密钥写回本地状态并开启自动备份。
+ * 只改本地状态，不上传、不重建 —— 云端已有密文与历史版本原样保留。
+ * @param {string} password 原备份密码
+ * @returns {Promise<{itemCount:number}>}
+ */
+function adoptCloud(password) {
+  const pwd = String(password || '')
+  if (!pwd) return Promise.reject(new Error('请输入备份密码'))
+  return getMeta().then((meta) => {
+    const versions = metaVersions(meta)
+    if (!meta || !versions.length || !meta.salt || !meta.verifier) {
+      throw new Error('云端没有备份数据')
+    }
+    const saltBytes = hexToBytes(String(meta.salt))
+    const key = crypto.pbkdf2(pwd, saltBytes, crypto.ITERATIONS, 32)
+    if (makeVerifier(key) !== meta.verifier) {
+      throw new Error('备份密码不正确')
+    }
+    const latest = versions[0]
+    saveState({
+      enabled: true,
+      salt: String(meta.salt),
+      key: crypto.bytesToBase64(key),
+      verifier: String(meta.verifier),
+      metaId: meta._id,
+      fileID: latest.fileID,
+      lastSyncAt: latest.at || new Date().toISOString(),
+      lastCount: latest.itemCount || 0
+    })
+    return { itemCount: latest.itemCount || 0 }
+  })
+}
+
 // ===== 云端状态查询（未开启也安全）=====
 
 /**
@@ -548,6 +602,7 @@ module.exports = {
   restore: restore,
   cloudStatus: cloudStatus,
   listVersions: listVersions,
+  adoptCloud: adoptCloud,
   clearCloud: clearCloud,
   disable: disable
 }

@@ -141,6 +141,62 @@ const parsed = aiEdit.splitCommands(m2.text)
 check('pi-2 指令仍识别', parsed.commands.length >= 1, true)
 check('pi-3 叙述已替换', parsed.narrative.indexOf('王维') !== -1, true)
 
-console.log('\n===== 结果: pass', pass, 'fail', fail, '=====')
-process.exit(fail > 0 ? 1 : 0)
+/* ===== 6. 名词黑名单：单字只在首字否决（防误杀含「能/来/上」的合法专名） =====
+ * 2026-09-18 用户侧 bug：「北汽新能源是我上一家公司」保存后不弹备案 —— 旧规则「含字即拦」命中「能」。
+ */
+const fs = require('fs')
+
+// 6a 行为：合法专名必须能提取（本地规则引擎，无 wx.cloud 路径）
+aiCloud.callAIExtractEntities('北汽新能源是我上一家公司').then(r6a => {
+  check('nb-1 北汽新能源可提取', (r6a.entities || []).map(e => e.name).indexOf('北汽新能源') !== -1, true)
+  return aiCloud.callAIExtractEntities('蔚来汽车是我的代步工具')
+}).then(r6b => {
+  check('nb-2 蔚来汽车可提取', (r6b.entities || []).map(e => e.name).indexOf('蔚来汽车') !== -1, true)
+  return aiCloud.callAIExtractEntities('四维图新是一家科技公司。')
+}).then(r6c => {
+  check('nb-3 四维图新可提取', (r6c.entities || []).map(e => e.name).indexOf('四维图新') !== -1, true)
+  return aiCloud.callAIExtractEntities('去公司是每天的必修课')
+}).then(r6d => {
+  // 6b 反向：动词开头的句式片段仍必须被拦
+  check('nb-4 动词开头仍被拦', (r6d.entities || []).length, 0)
+
+  // 6c 静态护栏：两端（小程序 / 云函数）不允许再出现旧黑名单，且新规则两份逐字一致
+  const utilSrc = fs.readFileSync(path.join(base, 'utils/aiCloud.js'), 'utf8')
+  const fnSrc = fs.readFileSync(path.join(base, 'cloudfunctions/optimizeDiary/index.js'), 'utf8')
+  check('nb-5 旧黑名单已清除(小程序端)', utilSrc.indexOf('INVALID_NAME_WORDS') === -1, true)
+  check('nb-6 旧黑名单已清除(云函数)', fnSrc.indexOf('INVALID_NAME_WORDS') === -1, true)
+  const arrText = (src, key) => {
+    const m = src.match(new RegExp(key + '\\s*=\\s*\\[([^\\]]*)\\]'))
+    return m ? m[1].replace(/[\s']/g, '') : 'MISSING'
+  }
+  const headU = arrText(utilSrc, 'NAME_BLOCK_HEAD_CHARS')
+  const headF = arrText(fnSrc, 'NAME_BLOCK_HEAD_CHARS')
+  check('nb-7 首字黑名单两端一致', headU !== 'MISSING' && headU === headF, true)
+  const wordU = arrText(utilSrc, 'NAME_BLOCK_WORDS')
+  const wordF = arrText(fnSrc, 'NAME_BLOCK_WORDS')
+  check('nb-8 多字黑名单两端一致', wordU !== 'MISSING' && wordU === wordF, true)
+
+/* ===== 7. 否定句不备案（2026-09-18 用户侧 bug：「我明明不是这么说的。」弹出备案「明明不」） ===== */
+// AI 拆词「明明不」+ 余句「是这么说的」以「是」开头 → 旧规则误判为定义句
+check('ng-1 否定句拆词「明明不」不备案', entityClean.isExplainedNoun('明明不', '我明明不是这么说的。'), false)
+// AI 只报「明明」时，靠副词表拦截（「明明是这么说的」旧规则会误判为定义句）
+check('ng-2 副词「明明」不备案', entityClean.isExplainedNoun('明明', '我明明是这么说的。'), false)
+// NEG_LEADS 顺带治既有误报源：「王磊不是坏人」旧规则也会误判为定义句
+check('ng-3 否定句「王磊不是坏人」不备案', entityClean.isExplainedNoun('王磊', '王磊不是坏人。'), false)
+// 副词表直接拦截（「其实是…」句式旧规则会误判为定义句）
+check('ng-4 虚词「其实」不备案', entityClean.isExplainedNoun('其实', '其实是我的错。'), false)
+// 正例不误伤：正常备案句原路径放行
+check('ng-5 正例「王喜兰」仍备案', entityClean.isExplainedNoun('王喜兰', '我妈叫王喜兰。'), true)
+check('ng-6 正例「披萨」仍备案', entityClean.isExplainedNoun('披萨', '这是披萨，就是一种意大利饼。'), true)
+// 否定句即使主语是真专名也不弹备案（日记原文保持不变，无副作用）
+check('ng-7 专名+否定句不备案', entityClean.isExplainedNoun('王喜兰', '王喜兰不是本地人。'), false)
+
+  console.log('\n===== 结果: pass', pass, 'fail', fail, '=====')
+  process.exit(fail > 0 ? 1 : 0)
+}).catch(err => {
+  fail++
+  console.log('FAIL: nb-调用异常', err)
+  console.log('\n===== 结果: pass', pass, 'fail', fail, '=====')
+  process.exit(1)
+})
 } // runRest end

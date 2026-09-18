@@ -8,6 +8,8 @@
     "pages/backup/backup",
     "pages/setting/setting",
     "pages/about/about",
+    "pages/agreement/agreement",
+    "pages/quote/quote",
     "pages/setting-reminder/setting-reminder",
     "pages/font-setting/font-setting",
     "pages/lock/lock",

@@ -1,5 +1,8 @@
 {
-  "usingComponents": {},
+  "usingComponents": {
+    "privacy-popup": "../../components/privacy-popup/privacy-popup",
+    "guide-mask": "../../components/guide-mask/guide-mask"
+  },
   "navigationStyle": "custom",
   "navigationBarTitleText": "AI日记"
 }

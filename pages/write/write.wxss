@@ -1076,33 +1076,62 @@
   min-height: 0;
 }
 
-/* 侧栏顶部：登录/用户卡片 */
-.sidebar-user-top {
+/* ===== [dailyquote v2] 侧栏「每日一签」文化推广位 =====
+   两行固定口径（第一行＝诗词名/作者，第二行＝正文前 16 字），
+   单行溢出统一用 CSS 省略号兜底（JS 已截断，这里只防字号放大后撑破）。
+   颜色走主题令牌，深色由 theme-dark 覆盖，不写死色值。
+   v2：原「头像-点击登录」区已移除，本卡上移为侧栏第一块，上边距 22 -> 28rpx 补呼吸感 */
+.sidebar-quote {
   flex-shrink: 0;
   display: flex;
   align-items: center;
-  padding: 28rpx;
+  padding: 28rpx 28rpx;
   background: var(--surface);
   border-bottom: 1rpx solid var(--line-soft);
 }
 
-.sidebar-user-top-hover {
+.sidebar-quote-hover {
   background: var(--bg-soft);
 }
 
-.sidebar-user-top .s-avatar,
-.sidebar-user-top .s-avatar-default {
-  width: 100rpx;
-  height: 100rpx;
-  font-size: 48rpx;
+.sidebar-quote .sq-icon {
+  flex-shrink: 0;
+  width: 52rpx;
+  height: 52rpx;
+  margin-right: 18rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 28rpx;
+  color: var(--brand-mute);
+  background: var(--brand-tint-08);
+  border: 1rpx solid var(--brand-tint-25);
+  border-radius: var(--r-pill);
 }
 
-.sidebar-user-top .s-user-name {
-  font-size: 32rpx;
+.sq-body {
+  flex: 1;
+  min-width: 0;
 }
 
-.sidebar-user-top .s-arrow {
-  font-size: 32rpx;
+.sq-line1 {
+  font-size: 30rpx;
+  font-weight: 600;
+  color: var(--ink);
+  line-height: 1.4;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.sq-line2 {
+  margin-top: 6rpx;
+  font-size: 25rpx;
+  color: var(--ink-soft);
+  line-height: 1.4;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
 }
 
 /* 侧边栏模块 */

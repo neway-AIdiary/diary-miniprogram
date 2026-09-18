@@ -8,6 +8,7 @@
  */
 const theme = require('../../utils/theme.js')
 const appInfo = require('../../utils/appInfo.js')
+const agreement = require('../../utils/agreement.js')
 
 Page({
   data: {
@@ -16,7 +17,8 @@ Page({
     version: appInfo.APP_VERSION,
     intro: appInfo.APP_INTRO,
     icpNo: appInfo.ICP_NO,
-    wechatId: appInfo.WECHAT_ID
+    wechatId: appInfo.WECHAT_ID,
+    effectiveDate: agreement.EFFECTIVE_DATE
   },
 
   onShow() {
@@ -44,5 +46,10 @@ Page({
   // 微信号：直接复制，免得用户手抄
   copyWechat() {
     this.copy(appInfo.WECHAT_ID, '微信号已复制')
+  },
+
+  // 用户协议与隐私政策：独立子页，默认落在隐私政策 Tab
+  goToAgreement() {
+    wx.navigateTo({ url: '/pages/agreement/agreement?tab=privacy' })
   }
 })

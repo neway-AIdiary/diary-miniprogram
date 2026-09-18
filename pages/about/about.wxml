@@ -25,6 +25,14 @@
         </view>
         <text class="about-copy">复制</text>
       </view>
+      <view class="menu-item" bindtap="goToAgreement">
+        <text class="menu-icon ri ri-file-text-line"></text>
+        <view class="about-item-main">
+          <text class="about-item-label">用户协议与隐私政策</text>
+          <text class="about-item-value">生效日期 {{effectiveDate}}</text>
+        </view>
+        <text class="about-copy">查看</text>
+      </view>
     </view>
   </view>
 </view>

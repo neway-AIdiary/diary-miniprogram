@@ -1,0 +1,34 @@
+<!-- 用户协议与隐私政策（合一页）：Tab 切换，正文来自 utils/agreement.js -->
+<view class="page {{themeClass}}">
+  <!-- Tab 切换 -->
+  <view class="agr-tabs">
+    <view
+      class="agr-tab {{tab === 'terms' ? 'active' : ''}}"
+      data-tab="terms"
+      bindtap="switchTab"
+    >用户协议</view>
+    <view
+      class="agr-tab {{tab === 'privacy' ? 'active' : ''}}"
+      data-tab="privacy"
+      bindtap="switchTab"
+    >隐私政策</view>
+  </view>
+
+  <!-- 用户协议 -->
+  <view class="agr-doc" wx:if="{{tab === 'terms'}}">
+    <block wx:for="{{terms}}" wx:key="title">
+      <view class="agr-section-title">{{item.title}}</view>
+      <view class="agr-para" wx:for="{{item.paras}}" wx:for-item="p" wx:key="*this">{{p}}</view>
+    </block>
+  </view>
+
+  <!-- 隐私政策 -->
+  <view class="agr-doc" wx:if="{{tab === 'privacy'}}">
+    <block wx:for="{{privacy}}" wx:key="title">
+      <view class="agr-section-title">{{item.title}}</view>
+      <view class="agr-para" wx:for="{{item.paras}}" wx:for-item="p" wx:key="*this">{{p}}</view>
+    </block>
+  </view>
+
+  <view class="agr-footer">生效日期：{{effectiveDate}}</view>
+</view>

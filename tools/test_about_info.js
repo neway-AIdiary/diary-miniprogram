@@ -1,12 +1,13 @@
 /**
  * 「关于」页信息一致性测试（纯 Node，无需小程序环境）
  *
- * 守护 5 件事：
+ * 守护 6 件事：
  *  1) utils/appInfo.js 的常量格式（版本号 / 备案号后缀 / 微信号）
  *  2) about 页四文件齐全，json 导航标题与 APP_NAME 一致（改 APP_NAME 时会咬）
  *  3) setting.js 的跳转路径与 app.json 的注册路径一致（防路径写错→点击无反应）
  *  4) about.wxml 用到的图标都在 icon.wxss 字体子集里（防出现空图标）
  *  5) about.wxml 绑定的事件 / 引用的变量都在 about.js 有实现与声明
+ *  6) APP_NAME 字面量泄漏护栏：侧栏标题必须绑 {{appName}}；全量 wxml 扫描 + 白名单
  *
  * 用法：node tools/test_about_info.js
  */
@@ -117,6 +118,54 @@ ok('wxml 变量都在 data 中声明（' + vars.length + ' 个）', missingVars.
 ok('复制走 wx.setClipboardData', aboutJs.indexOf('wx.setClipboardData') !== -1)
 ok('about.js 未硬编码备案号（只从 appInfo 取）', aboutJs.indexOf('京ICP备') === -1)
 ok('about.js 接入主题（theme.applyTo）', aboutJs.indexOf('theme.applyTo(this)') !== -1)
+
+// ---------- 6. APP_NAME 字面量泄漏护栏 ----------
+// APP_NAME 只允许来自 utils/appInfo.js；页面/组件里硬编码就成了「第二来源」，
+// 改品牌名时必然漏改（2026-09-18：侧栏居中标题写死「AI日记」，品牌改名后漏了一整轮）
+section('APP_NAME 字面量泄漏')
+const writeJs = read('pages/write/write.js')
+const writeWxml = read('pages/write/write.wxml')
+ok('write.js 已引入 appInfo', writeJs.indexOf("require('../../utils/appInfo.js')") !== -1)
+ok('write.js data 暴露 appName', writeJs.indexOf('appName: appInfo.APP_NAME,') !== -1)
+ok('侧栏标题绑定 {{appName}}（不再硬编码）',
+  writeWxml.indexOf('<view class="sidebar-title">{{appName}}</view>') !== -1)
+ok('侧栏标题区已无字面量',
+  /<view class="sidebar-title">[^<{]*<\/view>/.test(writeWxml) === false,
+  (writeWxml.match(/<view class="sidebar-title">[^<]*<\/view>/) || [''])[0])
+
+// 白名单：已知的、暂未收敛的硬编码点（值为允许出现次数）
+// 收敛后请把次数改为 0（或从表里删掉），别让白名单变成永久豁免
+const ALLOW_HARDCODED = {
+  'pages/lock/lock.wxml': 1,   // 锁屏页品牌名
+  'pages/write/write.wxml': 1  // 技术支持致谢行「一灯记 由DeepSeek…」
+}
+function walkWxml(dir) {
+  let out = []
+  fs.readdirSync(dir, { withFileTypes: true }).forEach((e) => {
+    const p = path.join(dir, e.name)
+    if (e.isDirectory()) out = out.concat(walkWxml(p))
+    else if (/\.wxml$/.test(e.name)) out.push(p)
+  })
+  return out
+}
+const leaked = []
+const scanned = [].concat(walkWxml(path.join(ROOT, 'pages')), walkWxml(path.join(ROOT, 'components')))
+scanned.forEach((p) => {
+  const rel = path.relative(ROOT, p).replace(/\\/g, '/')
+  const n = (fs.readFileSync(p, 'utf8').match(new RegExp(info.APP_NAME, 'g')) || []).length
+  const allow = ALLOW_HARDCODED[rel] || 0
+  if (n > allow) leaked.push(rel + '(' + n + '>' + allow + ')')
+})
+ok('wxml 硬编码 APP_NAME 未超出白名单（扫 ' + scanned.length + ' 个文件）',
+  leaked.length === 0, leaked.join(', '))
+
+// 红灯自检：拿改动前的 write.wxml 跑同一判据，必须不通过（证明断言有区分度）
+const BK_OLD_WXML = 'C:\\Users\\ThinkPad\\WorkBuddy\\sidebartitle-backup-20260918\\pages\\write\\write.wxml'
+if (fs.existsSync(BK_OLD_WXML)) {
+  const oldWxml = fs.readFileSync(BK_OLD_WXML, 'utf8')
+  ok('红灯自检：改动前侧栏标题确实硬编码（断言有区分度）',
+    oldWxml.indexOf('<view class="sidebar-title">{{appName}}</view>') === -1)
+}
 
 // ---------- 汇总 ----------
 lines.push('')

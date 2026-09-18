@@ -1,0 +1,89 @@
+/* 隐私协议弹窗 —— 颜色全部走主题令牌，深色由页面根 theme-dark 自动生效 */
+
+.pp-mask {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  z-index: 1200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.pp-modal {
+  width: 600rpx;
+  background: var(--surface);
+  border-radius: 24rpx;
+  padding: 40rpx 32rpx 32rpx;
+}
+
+.pp-title {
+  font-size: 32rpx;
+  color: var(--ink);
+  text-align: center;
+  line-height: 1.4;
+}
+
+.pp-desc {
+  margin-top: 24rpx;
+  font-size: 26rpx;
+  color: var(--ink-mid);
+  line-height: 1.7;
+  text-align: center;
+}
+
+.pp-links {
+  margin-top: 8rpx;
+  text-align: center;
+}
+
+.pp-link {
+  font-size: 26rpx;
+  color: var(--brand);
+  text-decoration: underline;
+  line-height: 1.7;
+}
+
+.pp-desc-soft {
+  margin-top: 16rpx;
+  font-size: 22rpx;
+  color: var(--ink-soft);
+  line-height: 1.7;
+  text-align: center;
+}
+
+.pp-btn-agree {
+  margin-top: 32rpx;
+  width: 100%;
+  padding: 22rpx 0;
+  font-size: 32rpx;
+  font-weight: 500;
+  text-align: center;
+  line-height: 1.5;
+  /* 复刻全局 .btn-primary 的视觉（组件样式隔离拿不到全局类，就地复刻） */
+  background: linear-gradient(135deg, var(--brand-bright) 0%, var(--brand) 55%, var(--brand-deep) 100%);
+  color: var(--ink-invert);
+  border: none;
+  border-radius: var(--r-pill);
+  box-shadow: var(--shadow-brand);
+}
+
+.pp-btn-agree:active {
+  background: linear-gradient(135deg, var(--brand) 0%, var(--brand-deep) 100%);
+  transform: translateY(2rpx);
+}
+
+.pp-btn-agree::after {
+  border: none;
+}
+
+.pp-btn-disagree {
+  margin-top: 20rpx;
+  padding: 8rpx 0 4rpx;
+  font-size: 26rpx;
+  color: var(--ink-soft);
+  text-align: center;
+}

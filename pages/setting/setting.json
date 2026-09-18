@@ -1,4 +1,6 @@
 {
-  "usingComponents": {},
+  "usingComponents": {
+    "guide-mask": "../../components/guide-mask/guide-mask"
+  },
   "navigationBarTitleText": "设置"
 }

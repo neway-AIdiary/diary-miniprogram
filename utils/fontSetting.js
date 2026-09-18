@@ -34,8 +34,9 @@ const SIZE_OPTIONS = [
 // ⚠️ 控制台复制的「下载地址」是临时签名链接（?sign=&t=过期时间，约 2 小时），不能用！
 // 注意：该文件所在域名需加入小程序后台「downloadFile 合法域名」
 const REMOTE_URLS = {
-  song: 'https://6169-aidiary-d6grgxkct50c30f45-1468488197.tcb.qcloud.la/fonts/yidengji-song.woff2',
-  kai: 'https://6169-aidiary-d6grgxkct50c30f45-1468488197.tcb.qcloud.la/fonts/yidengji-kai.woff2'
+  // ?v=2：换缓存 key，绕开 CDN 上早年缓存的「无跨域头」旧响应（CDN 缓存不区分 Origin）
+  song: 'https://6169-aidiary-d6grgxkct50c30f45-1468488197.tcb.qcloud.la/fonts/yidengji-song.woff2?v=2',
+  kai: 'https://6169-aidiary-d6grgxkct50c30f45-1468488197.tcb.qcloud.la/fonts/yidengji-kai.woff2?v=2'
 }
 
 // 字体族（3 种）：

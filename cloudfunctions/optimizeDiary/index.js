@@ -194,6 +194,7 @@ function buildSystemPrompt(action, ctx) {
     '   - mood: 当天心情，从「开心/平静/一般/难过/生气/幸福/疲倦/兴奋」中选一个；正文没有心情描述则留空字符串；',
     '   - weather: 天气描述，如「晴」「多云」「下雨」「阴天」等，可带温度（如「晴 28°」）；正文没提天气则留空字符串；',
     '   - tags: 中文关键词标签，每个 2-4 个字，最多 5 个，从该篇正文实际提到的主题/事件/人物/心情提炼；正文确实无主题则返回空数组；',
+    '     严禁虚词/代词/碎片词（反例：一家、是一、好的、这个、我们），必须是实义词或专名；',
     '要求：',
     '1. 只输出严格 JSON，不要输出任何其他文字；',
     '2. 不修改、不重写正文，只提取字段；',
@@ -213,6 +214,8 @@ function buildSystemPrompt(action, ctx) {
     '2. 每个标签为 2-4 个字的中文词（如：跑步、加班、家人、旅行）；',
     '3. 标签来自日记实际提到的主题/事件/人物/心情，不要虚构；',
     '4. 标签之间不重复、不近义（如"开心"和"高兴"只留一个）。',
+    '5. 严禁输出虚词、代词、量词、碎片词（反例：一家、是一、好的、这个、我们、时候、可以）；',
+    '   标签必须是「实义词或专名」——名词优先（如：跑步、加班、家人、四维图新、北汽新能源）。',
   ].join('\n')
   }
 
@@ -428,6 +431,32 @@ function callDeepSeek(payload) {
  * @returns {Promise<{parsed?: object, error?: string}>}
  */
 // 允许紧邻名词左侧的功能字/动词：除此之外左侧出现汉字即视为「从长名词里截取的子串」
+// ===== 标签质量闸（tagjunk v1 · 与小程序端 utils/tags.js 逐字一致，勿分叉）=====
+// 背景：「双字滑窗词频兜底」在中文里必然产出虚词碎片（一家 / 是一 / 好的），
+//       用户侧表现为详情页标签里出现无意义词。此处对 AI 返回的标签再过一道闸。
+const TAG_HEAD_STOP_CHARS = '是的了着过在很都也就还又这那我你他她它们谁怎一两有没不别太挺因所但而或和跟与把被让给从向往于为以及等之其此真'
+// 尾字只保留「结构助词 / 语气词」——过/就/都/也/还/很 这些一律不做尾字判据：
+// 它们是正经词的合法结尾（难过、走过、就好…），拦下来属于误伤，不值得。
+const TAG_TAIL_STOP_CHARS = '的了着是在呢吗吧啊呀哦嗯嘛地得'
+const TAG_JUNK_WORDS = ['一家', '两家', '这家', '那家', '是一', '好的', '一个', '两个', '这个', '那个', '什么', '怎么', '我们', '你们', '他们', '她们', '自己', '时候', '东西', '事情', '感觉', '真的', '可以', '因为', '所以']
+
+/**
+ * 标签是否有意义（与小程序端 utils/tags.js 的 isMeaningfulTag 同规则）
+ * @param {string} word
+ * @returns {boolean}
+ */
+function isMeaningfulTag(word) {
+  const w = String(word || '').trim()
+  if (!w) return false
+  if (w.length < 2 || w.length > 6) return false
+  if (!/^[A-Za-z0-9\u4e00-\u9fa5·]+$/.test(w)) return false
+  if (/^[0-9]+$/.test(w)) return false
+  if (TAG_JUNK_WORDS.indexOf(w) !== -1) return false
+  if (TAG_HEAD_STOP_CHARS.indexOf(w.charAt(0)) !== -1) return false
+  if (TAG_TAIL_STOP_CHARS.indexOf(w.charAt(w.length - 1)) !== -1) return false
+  return true
+}
+
 const PRE_NOUN_CHARS = '和跟与同对的了我你他她它们咱您于在从把被让给找见问说叫带陪还有去来到就也都又再想要会能没不很太以及等是做为'
 
 /**
@@ -528,11 +557,11 @@ exports.main = async (event, context) => {
       const r = await runPrompt(prompt, 300, undefined, buildSystemPrompt('tags'))
       if (r.error) return { error: r.error }
       let tags = (r.parsed && Array.isArray(r.parsed.tags)) ? r.parsed.tags : []
-      // 清洗：去空白、去重、过滤超长项，最多5个
+      // 清洗：过质量闸（虚词/碎片词）、去空白、去重、过滤超长项，最多5个
       const seen = new Set()
       tags = tags
         .map(t => String(t || '').trim().slice(0, 6))
-        .filter(t => t && !seen.has(t) && seen.add(t))
+        .filter(t => t && isMeaningfulTag(t) && !seen.has(t) && seen.add(t))
         .slice(0, 5)
       return { tags: tags }
     } catch (err) {
@@ -610,8 +639,17 @@ exports.main = async (event, context) => {
       let entities = (r.parsed && Array.isArray(r.parsed.entities)) ? r.parsed.entities : []
       // 清洗（explanation 为原文解释片段，供备案弹窗预览展示）
       const seen = new Set()
-      // 叙述词/连接词/动词：name 里不能出现这些，否则就不是名词
-      const INVALID_NAME_WORDS = ['是', '去', '上', '让', '带', '做', '吃', '待', '等', '为了', '然后', '又', '还', '也', '就', '和', '跟', '与', '同', '在', '到', '从', '把', '被', '给', '叫', '说', '看', '来', '走', '想', '要', '会', '能', '可以']
+      // 名词黑名单（与小程序端 utils/aiCloud.js 同步，改动必须两处一起改）
+      // 单字只在「名词首字」否决：含字即拦会误杀 北汽新能源(能)/蔚来汽车(来)/上汽集团(上)
+      const NAME_BLOCK_HEAD_CHARS = ['是', '的', '了', '着', '和', '跟', '与', '同', '在', '到', '从', '把', '被',
+  '给', '叫', '说', '想', '要', '又', '还', '也', '就', '都', '让', '做', '吃', '待', '等', '去', '走', '看', '带']
+      const NAME_BLOCK_WORDS = ['为了', '然后', '可以', '以及', '上一', '下一', '一家', '两家', '这家', '那家', '什么', '怎么']
+      const hasBlockedNameWord = (raw) => {
+        const n = String(raw || '').trim()
+        if (!n) return true
+        if (NAME_BLOCK_HEAD_CHARS.indexOf(n.charAt(0)) !== -1) return true
+        return NAME_BLOCK_WORDS.some(w => n.indexOf(w) !== -1)
+      }
       entities = entities
         .map(e => ({
           name: String(e.name || '').trim().slice(0, 50),
@@ -626,8 +664,8 @@ exports.main = async (event, context) => {
           // 硬规则：name 必须是 2-6 字的名词；description 必须有实际解释意义
           if (name.length < 2 || name.length > 6) return false
           if (desc.length < 4 || desc.length > 30) return false
-          // name 里不能出现叙述词或连接词
-          if (INVALID_NAME_WORDS.some(w => name.indexOf(w) !== -1)) return false
+          // name 命中黑名单（与小程序端同一份规则）
+          if (hasBlockedNameWord(name)) return false
           // name 不能是指示/人称代词开头
           if (/^[这那他她它们我你您我们你们他们她们]./.test(name)) return false
           // name 不能是纯数字、纯英文（允许中英混合）
@@ -670,7 +708,7 @@ exports.main = async (event, context) => {
         weather: String((x && x.weather) || '').trim(),
         tags: (Array.isArray(x && x.tags) ? x.tags : [])
           .map(t => String(t || '').trim().slice(0, 6))
-          .filter(Boolean)
+          .filter(t => t && isMeaningfulTag(t))
           .slice(0, 5)
       }))
       return { results: cleaned }

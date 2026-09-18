@@ -41,6 +41,15 @@
   color: var(--brand);
 }
 
+/* 云端有备份但本机未开启（换机场景）：琥珀浅底 + 空心云，介于开启与关闭之间 */
+.status-icon.cloud {
+  background: var(--brand-tint-08);
+}
+
+.status-icon.cloud .ri {
+  color: var(--brand);
+}
+
 .status-info {
   flex: 1;
 }

@@ -1,0 +1,29 @@
+<!-- 新手引导遮罩：全屏拦截层 + 聚光灯高亮孔 + 文案卡（纯展示，逻辑在页面/utils/guide.js） -->
+<view class="gm-root" wx:if="{{visible}}">
+
+  <!-- 拦截层：吃掉所有触摸，防止引导期间误触页面（catch 绑定，事件不冒泡） -->
+  <view class="gm-catch" catchtap="noop" catchtouchmove="noop" catchtouchstart="noop"></view>
+
+  <!-- 高亮孔：外扩阴影反向挖孔；目标拿不到时（view.spot 为空）整个孔不画 -->
+  <view
+    wx:if="{{view && view.spot}}"
+    class="gm-spot"
+    style="left:{{view.spot.left}}px;top:{{view.spot.top}}px;width:{{view.spot.width}}px;height:{{view.spot.height}}px;border-radius:{{view.spot.radius}}px;"
+  ></view>
+
+  <!-- 文案卡 -->
+  <view
+    wx:if="{{view}}"
+    class="gm-card"
+    style="left:{{view.card.left}}px;top:{{view.card.top}}px;width:{{view.card.width}}px;"
+  >
+    <view class="gm-step">{{step.index}} / {{step.total}}</view>
+    <view class="gm-title">{{step.title}}</view>
+    <view class="gm-desc">{{step.desc}}</view>
+    <view class="gm-actions">
+      <view class="gm-skip" bindtap="onSkip" hover-class="gm-hover">跳过</view>
+      <button class="gm-next" bindtap="onNext">{{step.buttonText}}</button>
+    </view>
+  </view>
+
+</view>

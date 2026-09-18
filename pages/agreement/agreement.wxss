@@ -1,0 +1,48 @@
+/* 用户协议与隐私政策页 —— 全部颜色走主题令牌（--ink/--ink-soft/--surface 等），
+   深色模式由根节点 theme-dark 覆盖令牌自动生效，本文件不写死任何色值 */
+
+.agr-tabs {
+  display: flex;
+  gap: 16rpx;
+  padding: 20rpx 32rpx 8rpx;
+}
+
+.agr-tab {
+  padding: 12rpx 28rpx;
+  font-size: 26rpx;
+  color: var(--ink-mid);
+  border: 1rpx solid var(--line);
+  border-radius: var(--r-pill);
+  transition: all 0.15s ease;
+}
+
+.agr-tab.active {
+  color: var(--brand);
+  border-color: var(--brand-tint-25);
+  background: var(--brand-tint-08);
+}
+
+.agr-doc {
+  padding: 24rpx 32rpx 40rpx;
+}
+
+.agr-section-title {
+  margin: 32rpx 0 12rpx;
+  font-size: 30rpx;
+  color: var(--ink);
+  line-height: 1.5;
+}
+
+.agr-para {
+  margin-bottom: 12rpx;
+  font-size: 26rpx;
+  color: var(--ink-mid);
+  line-height: 1.8;
+}
+
+.agr-footer {
+  padding: 0 32rpx 60rpx;
+  font-size: 22rpx;
+  color: var(--ink-soft);
+  text-align: center;
+}

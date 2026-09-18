@@ -27,6 +27,25 @@ const util = require('./util.js')
 const storage = require('./storage.js')
 const entityClean = require('./entityClean.js')
 const archiveEdit = require('./archiveEdit.js')
+const tagsEngine = require('./tags.js')
+
+/**
+ * 本地标签（tagjunk v1）：主题词典 + 档案专名补位
+ * 档案里备案过的人名/机构名（四维图新 / 北汽新能源 / 魏杰）才是标签该有的样子，
+ * 比旧版「双字词频兜底」可靠得多 —— 见 utils/tags.js 顶部说明。
+ * @param {string} content 日记正文
+ * @returns {string[]} 最多 5 个标签
+ */
+function localTags(content) {
+  let extra = []
+  try {
+    const list = storage.getArchives() || []
+    extra = list.map(a => String((a && a.name) || '').trim()).filter(Boolean)
+  } catch (e) {
+    extra = []
+  }
+  return tagsEngine.extractTags(content, 5, extra)
+}
 
 /**
  * 调用 AI
@@ -141,7 +160,6 @@ function callAIParse(text) {
  * @returns {Promise<Array<{index:number, date:string, mood:string, weather:string, tags:string[], from:string}>>}
  */
 function callAIExtractMetaBatch(items) {
-  const tagsEngine = require('./tags.js')
   return new Promise((resolve) => {
     // 本地降级：每篇只补标签（tags 引擎可靠）；心情/天气不做粗提（易误判），留空
     const localResults = () => (items || []).map(it => ({
@@ -149,7 +167,7 @@ function callAIExtractMetaBatch(items) {
       date: it.date || '',
       mood: '',
       weather: '',
-      tags: tagsEngine.extractTags(it.content, 5),
+      tags: localTags(it.content),
       from: 'local'
     }))
 
@@ -186,13 +204,19 @@ function callAIExtractMetaBatch(items) {
         const out = (items || []).map(it => {
           const x = map[it.index]
           if (x) {
-            return {
-              index: it.index,
-              date: x.date || it.date || '',
-              mood: x.mood || '',
-              weather: x.weather || '',
-              tags: Array.isArray(x.tags) ? x.tags : [],
-              from: 'cloud'
+            // 云端标签同样过质量闸：虚词/碎片词一律丢弃，全丢弃时降级本地专名标签
+            const cloudTags = (Array.isArray(x.tags) ? x.tags : [])
+              .filter(t => tagsEngine.isMeaningfulTag(t))
+              .slice(0, 5)
+            if (cloudTags.length > 0) {
+              return {
+                index: it.index,
+                date: x.date || it.date || '',
+                mood: x.mood || '',
+                weather: x.weather || '',
+                tags: cloudTags,
+                from: 'cloud'
+              }
             }
           }
           return {
@@ -200,7 +224,7 @@ function callAIExtractMetaBatch(items) {
             date: it.date || '',
             mood: '',
             weather: '',
-            tags: tagsEngine.extractTags(it.content, 5),
+            tags: localTags(it.content),
             from: 'local'
           }
         })
@@ -230,11 +254,10 @@ function callAIExtractMetaBatch(items) {
  * @returns {Promise<{tags: string[], from: 'cloud'|'local'}>}
  */
 function callAITags(content, mood) {
-  const tagsEngine = require('./tags.js')
   return new Promise((resolve) => {
     if (!wx.cloud) {
       console.warn('[aiCloud] 当前环境无 wx.cloud，标签用本地引擎生成')
-      resolve({ tags: tagsEngine.extractTags(content, 5), from: 'local' })
+      resolve({ tags: localTags(content), from: 'local' })
       return
     }
     let done = false
@@ -249,21 +272,25 @@ function callAITags(content, mood) {
       data: { content: content, mood: mood || '', action: 'tags' }
     }).then(res => {
       const r = res && res.result
-      if (r && !r.error && Array.isArray(r.tags) && r.tags.length > 0) {
-        console.log('[aiCloud] AI 打标签成功 from=cloud:', r.tags)
-        finish({ tags: r.tags.slice(0, 5), from: 'cloud' })
+      // 云端标签过质量闸（tagjunk v1）：虚词/碎片词丢弃，全被丢弃时降级本地专名标签
+      const cloudTags = (r && !r.error && Array.isArray(r.tags) ? r.tags : [])
+        .filter(t => tagsEngine.isMeaningfulTag(t))
+        .slice(0, 5)
+      if (cloudTags.length > 0) {
+        console.log('[aiCloud] AI 打标签成功 from=cloud:', cloudTags)
+        finish({ tags: cloudTags, from: 'cloud' })
       } else {
-        console.warn('[aiCloud] AI 打标签返回异常，降级本地:', (r && r.error) || '无tags字段')
-        finish({ tags: tagsEngine.extractTags(content, 5), from: 'local' })
+        console.warn('[aiCloud] AI 打标签返回异常或全被质量闸拦下，降级本地:', (r && r.error) || '无有效tags字段')
+        finish({ tags: localTags(content), from: 'local' })
       }
     }).catch(err => {
       console.warn('[aiCloud] AI 打标签调用失败，降级本地:', err && err.errMsg)
-      finish({ tags: tagsEngine.extractTags(content, 5), from: 'local' })
+      finish({ tags: localTags(content), from: 'local' })
     })
     // 云函数冷启动可能较慢，超时兜底（保存流程不能卡太久）
     const timer = setTimeout(() => {
       console.warn('[aiCloud] AI 打标签超时(15s)，降级本地')
-      finish({ tags: tagsEngine.extractTags(content, 5), from: 'local' })
+      finish({ tags: localTags(content), from: 'local' })
     }, 15000)
   })
 }
@@ -341,6 +368,27 @@ function callAIOrganizeArchive(text, instruction) {
  * 云函数不可用时兜底，保证备案提示仍可用
  * 实体带 explanation（解释在原文中的逐字片段），供正文清理使用
  */
+// ===== 名词黑名单（云端路径与本地路径共用同一份，勿分叉）=====
+// ⚠️ 不要退回「含字即拦」：单字做子串匹配会误杀合法专名 —— 北汽新能源(能)、蔚来汽车(来)、
+//    上汽集团(上)、能链智电(能) 全被丢弃，用户侧表现为「保存后不弹备案提醒」。
+// 规则：单字 → 只在「名词首字」命中时否决（这类字开头的 2~6 字串基本都是句式片段：去公司/是我的…）
+//       多字 → 出现在名词任意位置即否决（为了/然后/上一…基本都是误捕片段）
+const NAME_BLOCK_HEAD_CHARS = ['是', '的', '了', '着', '和', '跟', '与', '同', '在', '到', '从', '把', '被',
+  '给', '叫', '说', '想', '要', '又', '还', '也', '就', '都', '让', '做', '吃', '待', '等', '去', '走', '看', '带']
+const NAME_BLOCK_WORDS = ['为了', '然后', '可以', '以及', '上一', '下一', '一家', '两家', '这家', '那家', '什么', '怎么']
+
+/**
+ * 名词是否命中黑名单（云端/本地共用）
+ * @param {string} name 待校验名称
+ * @returns {boolean} true 表示应丢弃该名称
+ */
+function hasBlockedNameWord(name) {
+  const n = String(name || '').trim()
+  if (!n) return true
+  if (NAME_BLOCK_HEAD_CHARS.indexOf(n.charAt(0)) !== -1) return true
+  return NAME_BLOCK_WORDS.some(w => n.indexOf(w) !== -1)
+}
+
 // 名词清洗：剥离捕获进来的叙述前缀（如「我今天和王磊」→「王磊」）
 function cleanEntityName(raw) {
   let name = String(raw || '').trim()
@@ -360,8 +408,6 @@ function localExtractExplainedEntities(content) {
     '事情', '地方', '东西', '大家', '自己', '晚上', '上午', '下午', '中午', '早上']
   const results = []
   const seen = new Set()
-  // 叙述词/连接词/动词：name 里不能出现这些，否则就不是名词
-  const INVALID_NAME_WORDS = ['是', '去', '上', '让', '带', '做', '吃', '待', '等', '为了', '然后', '又', '还', '也', '就', '和', '跟', '与', '同', '在', '到', '从', '把', '被', '给', '叫', '说', '看', '来', '走', '想', '要', '会', '能', '可以']
 
   const push = (name, desc, expl) => {
     name = cleanEntityName(name)
@@ -378,8 +424,8 @@ function localExtractExplainedEntities(content) {
     if (STOP.indexOf(name) !== -1) return
     // 名词不能以指示/人称代词开头（如「这是我的母校」误匹配为名词）
     if (/^[这那他她它们我你您]./.test(name)) return
-    // name 里不能出现叙述词/连接词/动词
-    if (INVALID_NAME_WORDS.some(w => name.indexOf(w) !== -1)) return
+    // name 命中黑名单（首字为叙述词 / 含连接词，如「去公司」「上一家…」）→ 不是名词
+    if (hasBlockedNameWord(name)) return
     // 与页面侧同一道机械校验：排除虚词（分别/一共…）与带助词的短语（的第一天…），并要求原文确有定义句式
     if (!entityClean.isExplainedNoun(name, text)) return
     // 与已提取结果重叠（同一名词的重复匹配/脏匹配）→ 跳过
@@ -474,7 +520,6 @@ function callAIExtractEntities(content) {
         const hasDesc = r.entities.some(e => e && e.description)
         if (hasDesc) {
           // 硬校验：只保留"解释真实存在于原文"且 name 是 2-6 字名词、解释内容 4-30 字的实体（AI 编造/过短/过长/非名词全部过滤）
-          const INVALID_NAME_WORDS = ['是', '去', '上', '让', '带', '做', '吃', '待', '等', '为了', '然后', '又', '还', '也', '就', '和', '跟', '与', '同', '在', '到', '从', '把', '被', '给', '叫', '说', '看', '来', '走', '想', '要', '会', '能', '可以']
           const valid = r.entities.filter(e => {
             if (!e || !e.name || !e.description) return false
             const name = String(e.name).trim()
@@ -482,8 +527,8 @@ function callAIExtractEntities(content) {
             // name 必须是 2-6 字名词；description 必须有实际解释意义
             if (name.length < 2 || name.length > 6) return false
             if (desc.length < 4 || desc.length > 30) return false
-            // name 里不能出现叙述词/连接词/动词
-            if (INVALID_NAME_WORDS.some(w => name.indexOf(w) !== -1)) return false
+            // name 命中黑名单（与本地路径同一份规则）
+            if (hasBlockedNameWord(name)) return false
             // name 不能是指示/人称代词开头
             if (/^[这那他她它们我你您我们你们他们她们]./.test(name)) return false
             // 解释必须真实存在于原文

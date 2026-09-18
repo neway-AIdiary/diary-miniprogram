@@ -36,9 +36,29 @@ const theme = require('../../utils/theme.js')
 const lock = require('../../utils/lock.js')
 const draft = require('../../utils/draft.js')
 const textRules = require('../../utils/textRules.js')
+const reminder = require('../../utils/reminder.js')
+const guide = require('../../utils/guide.js')
+const appInfo = require('../../utils/appInfo.js')
+// [dailyquote v1] 侧栏「每日一签」内容源（本地池 + 按日期确定性轮换）
+const dailyQuote = require('../../utils/dailyQuote.js')
+
+// 保存后的「非关键步骤」统一兜底：任何一步异常都不得影响「日记已保存」这个事实，
+// 更不得吞掉实体识别（备案提醒）——它是保存流程里唯一的交互步骤。
+// 2026-09-18 教训：reminder 漏引 → 抛 ReferenceError → 被 doAddDiary 的 catch
+// 兜成「补跳详情页」→ checkNewEntities 整段跳过，备案提醒静默失效 8 天。
+function safePostSave(step, fn) {
+  try {
+    return fn()
+  } catch (e) {
+    console.error('[write] 保存后步骤异常（已忽略，不影响已保存内容）:', step, e)
+    return null
+  }
+}
 
 Page({
   data: {
+    // 应用名（唯一来源 utils/appInfo.js）：侧栏标题使用，禁止在 wxml 里写死字面量
+    appName: appInfo.APP_NAME,
     // 「日记字体」设置注入的 CSS 变量串：字号/字体作用于本页 UGC 正文
     fontStyle: '',
     // 系统栏适配
@@ -101,6 +121,9 @@ Page({
     sidebarKeyword: '',
     userInfo: null,
     hasUserInfo: false,
+    // [dailyquote v1] 每日一签卡片：{ index, type, icon, line1, line2 }，
+    // line1＝诗词名/作者，line2＝正文前 16 字
+    dailyQuote: { index: -1, type: '', icon: dailyQuote.ICON, line1: '', line2: '' },
     // ===== AI 优化（最小范围）=====
     optimizing: false,
     aiLoadingText: 'AI正在优化你的日记...',
@@ -115,12 +138,35 @@ Page({
     showEntityPrompt: false,
     newEntities: [],
     // 修改指令执行结果高亮：{active, title, nodes, count}
-    highlight: { active: false, title: '', nodes: [], count: 0 }
+    highlight: { active: false, title: '', nodes: [], count: 0 },
+    // 新手引导（5 步）：可见性 / 当前步 / 目标矩形 / 高亮孔形状
+    // 目标是量出来的（guide.measure），拿不到传 null → 组件只显示卡片、不画高亮孔
+    guideVisible: false,
+    guideStep: {},
+    guideRect: null,
+    guideShape: 'rect'
   },
 
   onLoad() {
+    // 隐私查询是否有结论：false = 还不知道要不要弹隐私弹窗（异步查询在途）。
+    // 引导靠它让路 —— 结论出来前绝不开播，否则两个弹层会叠着弹（见 maybeStartGuide）
+    this._privacyChecked = false
     // 日记本密码：冷启动首屏最早拦截点（需要锁且未解锁 → 立刻跳锁屏页）
     if (lock.guard()) return
+    // 微信隐私协议：needAuthorization 为 true 时自绘弹窗征求同意（同意过/旧库均静默）。
+    // tryShow 返回 Promise<boolean>（是否需要授权）：拿到结论后才决定放不放行引导
+    const privacyPopup = this.selectComponent('#privacyPopup')
+    if (privacyPopup && privacyPopup.tryShow) {
+      // 兜底：查询长时间不返回（极端）也不让引导永久不播 —— 到点按「无需授权」放行。
+      // 放行后裁决里仍会再看一眼弹窗是否可见，所以不会因此叠弹。
+      this._privacyTimer = setTimeout(() => this.onPrivacyChecked(false), 1500)
+      Promise.resolve(privacyPopup.tryShow()).then(
+        (needAuth) => this.onPrivacyChecked(needAuth),
+        () => this.onPrivacyChecked(false)
+      )
+    } else {
+      this.onPrivacyChecked(false) // 取不到组件/旧版本：按「无需授权」放行，绝不卡死引导
+    }
     // 自定义导航栏适配（safeArea.top 比 statusBarHeight 更能覆盖刘海/灵动岛）
     const win = wx.getWindowInfo ? wx.getWindowInfo() : wx.getSystemInfoSync()
     const statusBarHeight = win.statusBarHeight || 20
@@ -186,6 +232,10 @@ Page({
     voice.warmup()
     // 刷新侧边栏数据
     this.refreshSidebar()
+    // [dailyquote v1] 每日一签：跨天回到页面也要换成当天的（onShow 每次都重取）
+    this.refreshDailyQuote()
+    // 新手引导：首启自动播一次（是否播过看 guideDone_v1 标记；与隐私弹窗的先后由 maybeStartGuide 兜住）
+    this.maybeStartGuide()
   },
 
   // 写日记页占位文案：按「打开次数」优先、「日记篇数」次之的规则取三行
@@ -940,11 +990,130 @@ Page({
   // ===== 侧边栏（日记本 / 我的）=====
   openSidebar() {
     this.refreshSidebar()
+    this.refreshDailyQuote()
     this.setData({ showSidebar: true })
   },
 
   closeSidebar() {
     this.setData({ showSidebar: false })
+  },
+
+  // ===== [dailyquote v1] 每日一签（文化推广位）=====
+  // 取「当天那一签」的卡片两行；纯本地计算，不会失败，无需 loading/兜底文案
+  refreshDailyQuote() {
+    this.setData({ dailyQuote: dailyQuote.getToday() })
+  },
+
+  // 进全篇页：透传下标（非法下标由 dailyQuote.safeIndex 回落今天）
+  goToDailyQuote() {
+    const i = this.data.dailyQuote.index
+    this.setData({ showSidebar: false })
+    wx.navigateTo({ url: '/pages/quote/quote?i=' + i })
+  },
+
+  // ===== 新手引导（5 步：写日记页 2 步 + 侧栏 2 步 → 设置页 1 步）=====
+  // 步骤表 / 状态机 / 几何计算全在 utils/guide.js（纯函数、可单测）；本页只决定
+  // 「什么时候播」「怎么把元素量出来交给遮罩组件」。
+
+  // 进页面：够条件就自动开播。裁决逻辑在 guide.evalStart（纯函数、可单测）——
+  // 本页只负责把状态喂进去、按回的动作执行。
+  maybeStartGuide() {
+    const popup = this.selectComponent('#privacyPopup')
+    const action = guide.evalStart({
+      active: guide.isActive(),
+      belongsHere: guide.stepBelongsTo('write'),
+      shouldAuto: guide.shouldAutoStart(),
+      // 注意用「查询是否有结论」而不是「此刻是否可见」：查询是异步的，
+      // 用可见性判会在回调返回前误判成「没有弹层」（首启两弹叠着弹的根因）
+      privacyChecked: this._privacyChecked === true,
+      privacyVisible: !!(popup && popup.data && popup.data.visible)
+    })
+    // 让路：隐私弹窗可能马上冒出来 / 正开着 → 记住「在等」，由 onPrivacyClosed 接上
+    if (action === 'wait') { this._guideWaiting = true; return }
+    if (action === 'none') return
+    if (action === 'abort') { guide.abort(); return } // 从设置页返回：半途状态失效（不写标记 → 下次从头播）
+    if (action === 'resume') { this.showGuideStep(); return }
+    this.startGuide()
+  },
+
+  // 隐私查询有结论（tryShow resolve）：需要授权 → 弹窗已显示，等用户处理完再接（bind:close 回调）；
+  // 不需要授权 → 直接看引导能不能走
+  onPrivacyChecked(needAuth) {
+    if (this._privacyTimer) { clearTimeout(this._privacyTimer); this._privacyTimer = null } // 结论已到，撤掉兜底定时器
+    this._privacyChecked = true
+    if (needAuth) return
+    this.resumeGuide()
+  },
+
+  // 隐私弹窗关闭回调（组件 bind:close）
+  onPrivacyClosed() {
+    this._privacyChecked = true // 关闭必然意味着查询已有结论（防御性补齐）
+    this.resumeGuide()
+  },
+
+  // 让路结束：引导若在等，重新裁决一次（不直接 startGuide —— 中间页面状态可能已变）
+  resumeGuide() {
+    if (!this._guideWaiting) return
+    this._guideWaiting = false
+    this.maybeStartGuide()
+  },
+
+  startGuide() {
+    guide.start()
+    // 等首屏布局稳定再量坐标（onShow 里立刻量可能拿到 0 尺寸）
+    setTimeout(() => this.showGuideStep(), 300)
+  },
+
+  // 展示当前步：需要侧栏的步骤先拉开侧栏 —— 抽屉是 transform 过渡，
+  // 必须等动画结束（~300ms）再量，否则量到的是滑出屏幕外的坐标
+  showGuideStep() {
+    const step = guide.getStep()
+    if (!step) { this.endGuide(); return }
+    if (step.pre === 'sidebar' && !this.data.showSidebar) {
+      this.setData({ showSidebar: true }, () => {
+        setTimeout(() => this.measureGuideStep(step), 360)
+      })
+      return
+    }
+    this.measureGuideStep(step)
+  },
+
+  measureGuideStep(step) {
+    guide.measure(this, step.target, (rect) => {
+      this.setData({
+        guideVisible: true,
+        guideStep: step,
+        guideRect: rect,
+        guideShape: step.shape || 'rect'
+      })
+    })
+  },
+
+  onGuideNext() {
+    const step = guide.getStep()
+    if (!step) { this.endGuide(); return }
+    // 跨页（1.B）：第 4 步「去设置」→ 先推进到第 5 步，再跳设置页续接
+    if (step.action === 'goSetting') {
+      guide.next()
+      this.setData({ guideVisible: false, guideRect: null, showSidebar: false })
+      wx.navigateTo({ url: guide.SETTING_URL })
+      return
+    }
+    const nextStep = guide.next()
+    if (!nextStep) { this.endGuide(true); return }
+    this.showGuideStep()
+  },
+
+  onGuideSkip() {
+    this.endGuide(true)
+  },
+
+  // 收尾：走完或跳过都算「看过」（写标记，不再打扰），并把页面恢复常态
+  endGuide(done) {
+    if (done) guide.finish()
+    else guide.abort()
+    this.setData({ guideVisible: false, guideRect: null, showSidebar: false })
+    if (done) wx.showToast({ title: '随时可在设置里重看引导', icon: 'none' })
   },
 
   // 侧栏日记本：默认只显示最近 SIDEBAR_DIARY_LIMIT 篇，其余通过「查看全部」进日记本页
@@ -1236,6 +1405,7 @@ Page({
   onSave() {
     const { content, mood, optimized, diaryDate } = this.data
     this._navigated = false // 本次保存的跳转尚未发生（防重入标记复位）
+    this._entityCheckActive = false // 本次保存的实体识别尚未发起
 
     if (!content.trim()) {
       wx.showToast({ title: '请输入日记内容', icon: 'none' })
@@ -1339,35 +1509,46 @@ Page({
         return
       }
       savedOk = true // 日记已安全写入本地：之后任何异常都不应报「保存失败」
+      console.log('[write] 落库成功, id =', saved.id, '，实体识别已发起')
 
-      this._sessionUploaded = []
-      if (removed.length) {
+      // ★ 顺序纪律：实体识别（备案提醒）必须是落库后的第一步。
+      //   它是保存流程里唯一的交互步骤，绝不允许被后面任何一步的异常吞掉。
+      //   `_lastSavedId` 必须提前就绪：识别结束后由它跳转详情页（afterSaveNavigate 有防重入）。
+      this._lastSavedId = saved.id
+      this._entityCheckActive = true
+      try {
+        this.checkNewEntities(savedContent) // 保存后检测新实体，检测完再跳转详情
+      } catch (e) {
+        this._entityCheckActive = false
+        console.error('[write] 实体识别发起异常（直接跳转详情页）:', e)
+        this.afterSaveNavigate()
+      }
+
+      // ↓↓↓ 以下都是「非关键步骤」：各自兜底，任何一步炸了都不影响已保存的日记，
+      //     更不允许反过来影响上面的实体识别。
+      safePostSave('标记首页刷新', () => { app.globalData.needRefresh = true })
+      safePostSave('清理被移除的云端媒体', () => {
+        this._sessionUploaded = []
+        if (!removed.length) return
         mediaGuard.deleteMediaItems(removed).then((r) => {
           if (r && r.failed > 0) {
             wx.showToast({ title: r.failed + ' 个云端媒体删除失败', icon: 'none' })
           }
         })
-      }
-      this._lastSavedId = saved.id
-      app.globalData.needRefresh = true
-
-      this.resetAfterSave(diaryDate)
-      wx.showToast({ title: '保存成功', icon: 'success' })
-      console.log('[write] 落库成功, id =', saved.id, '，进入实体识别')
-
-      // 上报「今天已写」（闹钟判断依据），失败静默
-      reminder.callMarkWritten(diaryDate)
-
-      // 保存后检测新实体，检测完再跳转详情
-      this.checkNewEntities(savedContent)
+      })
+      safePostSave('复位页面状态（含草稿作废）', () => { this.resetAfterSave(diaryDate) })
+      safePostSave('保存成功提示', () => { wx.showToast({ title: '保存成功', icon: 'success' }) })
+      // 上报「今天已写」（闹钟判断依据）：reminder 内部已静默，这里再兜一层
+      safePostSave('闹钟「今天已写」上报', () => { reminder.callMarkWritten(diaryDate) })
     }).catch((err) => {
       this._savingMedia = false
       this.setData({ saving: false })
       if (savedOk) {
-        // 日记已安全落库：实体识别/自动分段等增强步骤的异常不应报「保存失败」吓用户，
-        // 但导航可能还没发生——兜底补跳详情页（afterSaveNavigate 内部有防重入保护）
-        console.error('[write] 日记已保存，但后续步骤异常（已兜底补跳详情页）:', err)
-        this.afterSaveNavigate()
+        // 日记已安全落库：后续增强步骤的异常不应报「保存失败」吓用户。
+        // ⚠️ 但绝不能在这里抢先跳转：实体识别若已在途，跳走会把备案弹窗吃掉
+        //    （识别内部有 8 秒上限 + afterSaveNavigate 防重入，交给它跳）。
+        console.error('[write] 日记已保存，但后续步骤异常:', err)
+        if (!this._entityCheckActive) this.afterSaveNavigate()
         return
       }
       // 真正的保存失败（落库前）：AI 标签获取异常/网络问题，内容保留在输入框可重试
@@ -1435,23 +1616,31 @@ Page({
         if (orphanIDs.length) mediaGuard.deleteCloudFiles(orphanIDs) // 被融合覆盖的旧日记媒体一并清云
 
         this._lastSavedId = base.id
-        app.globalData.needRefresh = true
-
-        this.resetAfterSave(diaryDate)
-        wx.showToast({
-          title: result.from === 'cloud' ? '已与当日日记融合保存' : 'AI 融合暂不可用，已合并保存',
-          icon: result.from === 'cloud' ? 'success' : 'none'
+        this._entityCheckActive = true
+        try {
+          // 只对「本次新增的内容」识别名词备案，旧日记里已存在的名词不再重复提示
+          this.checkNewEntities(savedContent)
+        } catch (e) {
+          this._entityCheckActive = false
+          console.error('[write] 实体识别发起异常（直接跳转详情页）:', e)
+          this.afterSaveNavigate()
+        }
+        safePostSave('标记首页刷新', () => { app.globalData.needRefresh = true })
+        safePostSave('复位页面状态（含草稿作废）', () => { this.resetAfterSave(diaryDate) })
+        safePostSave('融合保存提示', () => {
+          wx.showToast({
+            title: result.from === 'cloud' ? '已与当日日记融合保存' : 'AI 融合暂不可用，已合并保存',
+            icon: result.from === 'cloud' ? 'success' : 'none'
+          })
         })
-
-        // 只对「本次新增的内容」识别名词备案，旧日记里已存在的名词不再重复提示
-        this.checkNewEntities(savedContent)
       }).catch((err) => {
         this._savingMedia = false
         this.setData({ saving: false })
         if (savedOk) {
-          // 日记已安全落库：后续步骤异常不报「保存失败」，并兜底补跳详情页（防重入）
-          console.error('[write] 融合已保存，但后续步骤异常（已兜底补跳详情页）:', err)
-          this.afterSaveNavigate()
+          // 日记已安全落库：后续步骤异常不报「保存失败」；
+          // 实体识别在途时不抢先跳转（跳走会吃掉备案弹窗）
+          console.error('[write] 融合已保存，但后续步骤异常:', err)
+          if (!this._entityCheckActive) this.afterSaveNavigate()
           return
         }
         // AI 标签获取失败（落库前）：内容保留在输入框可重试
@@ -1475,7 +1664,8 @@ Page({
   resetAfterSave(diaryDate) {
     this._savingMedia = false
     // 已保存：草稿作废（防下次进入误恢复）
-    draft.clear()
+    // draft.clear() 内部已静默，这里再兜一层：草稿异常绝不允许中断「保存后复位」
+    try { draft.clear() } catch (e) { console.error('[write] 清除草稿异常（已忽略）:', e) }
     this._sessionUploaded = [] // 已保存：丢弃会话上传清单（保留文件已入库；清理动作在保存出口完成）
     const todayKey = util.getDateKey()
     this.setData({
@@ -1510,6 +1700,7 @@ Page({
     const finish = () => {
       if (resolved) return
       resolved = true
+      this._entityCheckActive = false // 实体识别流程结束：解除「在途」标记
       console.log('[write] 实体识别结束, showEntityPrompt =', this.data.showEntityPrompt, '，准备跳转')
       if (!this.data.showEntityPrompt) {
         this.afterSaveNavigate()

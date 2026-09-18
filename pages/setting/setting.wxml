@@ -3,7 +3,8 @@
   <view class="menu-section">
     <view class="menu-title">设置</view>
     <view class="menu-card">
-      <view class="menu-item" bindtap="onToggleTheme">
+      <!-- id=guide-theme：新手引导第 5 步的定位锚点（id 唯一，勿改） -->
+      <view class="menu-item" id="guide-theme" bindtap="onToggleTheme">
         <text class="menu-icon ri ri-palette-line"></text><text class="menu-text">主题</text>
         <text class="menu-value">{{themeLabel}}</text>
         <text class="menu-arrow ri {{themePanelOpen ? 'ri-arrow-up-s-line' : 'ri-arrow-down-s-line'}}"></text>
@@ -33,6 +34,12 @@
         <text class="menu-icon ri ri-information-line"></text><text class="menu-text">关于</text>
         <text class="menu-arrow ri ri-arrow-right-s-line"></text>
       </view>
+      <!-- 新手引导（重看入口）：清掉「已看过」标记 → 回写日记页，由那一页自动开播 -->
+      <view class="menu-item" bindtap="restartGuide">
+        <text class="menu-icon ri ri-book-open-line"></text><text class="menu-text">新手引导</text>
+        <text class="menu-value">再看看主要功能</text>
+        <text class="menu-arrow ri ri-arrow-right-s-line"></text>
+      </view>
     </view>
     <view class="menu-card theme-card" wx:if="{{themePanelOpen}}">
       <view class="theme-opts">
@@ -53,4 +60,15 @@
       </view>
     </view>
   </view>
+
+  <!-- 新手引导遮罩：第 5 步（主题）在本页续接（从写日记页「去设置」跨页过来）；
+       位置计算在 utils/guide.js，交互回到本页处理 -->
+  <guide-mask
+    visible="{{guideVisible}}"
+    step="{{guideStep}}"
+    rect="{{guideRect}}"
+    shape="{{guideShape}}"
+    bind:next="onGuideNext"
+    bind:skip="onGuideSkip"
+  />
 </view>

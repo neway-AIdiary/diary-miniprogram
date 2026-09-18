@@ -1,0 +1,15 @@
+<!-- 每日一签 · 全篇页：正文来自 utils/dailyQuote.js，本页只负责排版 -->
+<view class="page {{themeClass}}">
+  <view class="quote-wrap">
+    <view class="quote-kind">{{kind}}</view>
+    <view class="quote-head">{{head}}</view>
+    <view class="quote-byline" wx:if="{{byline}}">{{byline}}</view>
+
+    <view class="quote-rule"></view>
+
+    <view class="quote-body">{{body}}</view>
+
+    <view class="quote-btn" bindtap="copyAll" hover-class="quote-btn-hover">复制全文</view>
+    <view class="quote-foot">{{appName}} · 每日一签</view>
+  </view>
+</view>

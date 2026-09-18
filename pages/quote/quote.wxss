@@ -1,0 +1,81 @@
+/* 每日一签全篇页 —— 颜色一律走主题令牌（--ink/--ink-soft/--brand 等），
+   深色模式由根节点 theme-dark 覆盖令牌生效，本文件不写死任何色值 */
+
+.quote-wrap {
+  padding: 56rpx 48rpx 60rpx;
+}
+
+/* 类型标：诗词 / 名言（琥珀系小字，作视觉分隔用） */
+.quote-kind {
+  display: inline-block;
+  padding: 6rpx 18rpx;
+  font-size: 22rpx;
+  color: var(--brand);
+  letter-spacing: 2rpx;
+  border: 1rpx solid var(--brand-tint-25);
+  border-radius: var(--r-pill);
+  background: var(--brand-tint-08);
+}
+
+/* 主标题：诗词名 / 作者名，衬线体，与「关于」页的命名层级一致 */
+.quote-head {
+  margin-top: 28rpx;
+  font-family: var(--font-display);
+  font-size: var(--title-1);
+  font-weight: var(--title-w);
+  color: var(--ink);
+  letter-spacing: 4rpx;
+  line-height: 1.35;
+}
+
+/* 副题：朝代 · 作者 / 国别 · 出处 */
+.quote-byline {
+  margin-top: 14rpx;
+  font-size: 24rpx;
+  color: var(--ink-soft);
+  letter-spacing: 1rpx;
+}
+
+/* 细分隔线：把「题」与「正文」分开 */
+.quote-rule {
+  margin: 36rpx 0 40rpx;
+  height: 1rpx;
+  background: var(--line);
+}
+
+/* 正文：衬线体 + 宽松行高；pre-line 保留诗词换行（数据里用 \n 分行时不被吞） */
+.quote-body {
+  font-family: var(--font-display);
+  font-size: 32rpx;
+  color: var(--ink-mid);
+  line-height: 2.1;
+  letter-spacing: 2rpx;
+  white-space: pre-line;
+}
+
+/* 复制全文 */
+.quote-btn {
+  margin-top: 56rpx;
+  height: 88rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 28rpx;
+  color: var(--brand);
+  border: 1rpx solid var(--brand-tint-25);
+  border-radius: var(--r-pill);
+  background: var(--brand-tint-08);
+  transition: background var(--dur) var(--ease);
+}
+
+.quote-btn-hover {
+  background: var(--brand-tint-12);
+}
+
+.quote-foot {
+  margin-top: 32rpx;
+  font-size: 22rpx;
+  color: var(--ink-faint);
+  text-align: center;
+  letter-spacing: 1rpx;
+}

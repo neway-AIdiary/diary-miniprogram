@@ -34,9 +34,8 @@ ok(textRules.DEFAULT_LINES.length === 3, '默认文案 3 行')
 ok(textRules.MAX_LINES === 3, '最多 3 行')
 ok(textRules.COLLECTION === 'text_rules', '集合名 = text_rules')
 ok(textRules.COUNT_KEY === 'launchCount', '打开次数存储键')
-ok(textRules.DEFAULT_LINES[0] === '您可以语音或手动输入内容，自动记录和融合到当天的日记', '默认第 1 行与改造前一致（零回归）')
-ok(textRules.DEFAULT_LINES[1] === '输入改动指令直接更改内容，如：把王威改成王伟，删除第一句', '默认第 2 行与改造前一致')
-ok(textRules.DEFAULT_LINES[2] === '最终还可以通过点击AI优化按钮，完善您的日记', '默认第 3 行与改造前一致')
+ok(textRules.DEFAULT_LINES[0] === '按住说话，记录生活就这么简单！', '默认文案 = 单句（2026-09-18 二次改版）')
+ok(textRules.DEFAULT_LINES[1] === '' && textRules.DEFAULT_LINES[2] === '', '第 2、3 行留空（沿用填充逻辑，渲染为不可见空行）')
 
 // 默认文案长度约束：覆盖层逐行渲染，单行过长会折行撑高，压到下方说明文字
 textRules.DEFAULT_LINES.forEach((line, i) => {

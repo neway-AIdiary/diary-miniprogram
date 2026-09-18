@@ -18,6 +18,13 @@ Page({
     backupModalShow: false,
     backupMode: 'enable',   // 'enable' | 'restore'
     reenableMode: false,    // 重新开启（本地密钥还在，校验原密码续用）：只输一次密码
+    // 云端探测（换机 / 卸载重装后本机没有任何备份状态，仍需发现「云端已有备份」）
+    cloudExists: false,
+    cloudItemCount: 0,
+    // 恢复入口显隐：本机已开启 / 本地密钥还在 / 换机但云端已有备份 —— 三种都要能进
+    showRestore: false,
+    // 用户已确认「设新密码覆盖云端已有备份」→ 放行 enable 的覆盖护栏
+    allowOverwrite: false,
     pwd1: '',
     pwd2: ''
   },
@@ -47,10 +54,14 @@ Page({
 
     // 云端备份状态提示
     const state = backup.getState()
+    const enabled = backup.isEnabled()
+    const savedKey = backup.hasSavedKey()
     let backupHint = ''
     if (state && state.enabled) {
       const last = state.lastSyncAt ? util.formatDate(state.lastSyncAt) : ''
       backupHint = '已开启 · 上次备份 ' + (state.lastCount || 0) + ' 篇' + (last ? '（' + last + '）' : '') + ' · 日记改动后自动同步\n明文永不上传，服务器只存加密密文'
+    } else if (savedKey) {
+      backupHint = '云端备份已关闭，云端历史备份保留；点「开启云端备份」输入原备份密码即可继续同步'
     } else {
       backupHint = '默认只存在本机，不上传任何数据；开启后仅上传 AES 加密密文'
     }
@@ -59,8 +70,37 @@ Page({
       userInfo: userInfo,
       hasUserInfo: !!userInfo,
       stats: stats,
-      backupEnabled: backup.isEnabled(),
-      backupHint: backupHint
+      backupEnabled: enabled,
+      backupHint: backupHint,
+      showRestore: !!(enabled || savedKey || this.data.cloudExists)
+    })
+
+    this.probeCloud()
+  },
+
+  // 云端探测：只读云端 meta 元数据（不需要本机密钥），失败静默、不改任何状态
+  probeCloud() {
+    // 本机状态已明确（已开启 / 本地还有密钥）时不必探测，省一次云请求
+    if (backup.isEnabled() || backup.hasSavedKey()) return
+    const seq = (this._probeSeq || 0) + 1
+    this._probeSeq = seq
+    backup.cloudStatus().then((st) => {
+      if (seq !== this._probeSeq) return // 快速重进本页时，旧请求结果作废
+      const exists = !!(st && st.exists)
+      this.setData({
+        cloudExists: exists,
+        cloudItemCount: exists ? (st.itemCount || 0) : 0,
+        showRestore: !!(backup.isEnabled() || backup.hasSavedKey() || exists)
+      })
+      if (exists) {
+        this.setData({
+          backupHint: '云端已有 ' + (st.itemCount || 0) + ' 篇加密备份' +
+            (st.updatedAt ? '（' + (util.formatDate(st.updatedAt) || '') + '）' : '') +
+            '，本机未开启；点「从云端恢复」输入原备份密码即可取回'
+        })
+      }
+    }).catch(() => {
+      // 探测失败：不改状态也不弹窗（本页无红字位；备份页有明确提示，不想打扰用户）
     })
   },
 
@@ -104,12 +144,61 @@ Page({
 
   // 开启备份：弹出密码设置弹框（首次设置输两次；重新开启校验原密码只输一次）
   openEnableBackup() {
+    // 本机还留着备份密钥 → 走原密码校验续用，不涉及覆盖
+    if (backup.hasSavedKey()) {
+      this.showEnableModal(false)
+      return
+    }
+    // 换机 / 卸载重装：本机没有备份密钥 —— 设新密码会清空云端历史备份，必须先警示。
+    // 探测是异步的，此处按需补查一次，避免「刚进页面手快一点」时漏掉警示（消竞态）。
+    if (this.data.cloudExists) {
+      this.confirmOverwriteEnable(this.data.cloudItemCount)
+      return
+    }
+    wx.showLoading({ title: '正在查询云端…', mask: true })
+    backup.cloudStatus().then((st) => {
+      wx.hideLoading()
+      if (!(st && st.exists)) {
+        this.showEnableModal(false) // 云端确实没有备份 → 正常开启
+        return
+      }
+      this.setData({ cloudExists: true, cloudItemCount: st.itemCount || 0 })
+      this.confirmOverwriteEnable(st.itemCount || 0)
+    }).catch(() => {
+      wx.hideLoading()
+      // 查不到云端状态：宁可拦住，也不放行可能覆盖云端备份的操作
+      wx.showModal({
+        title: '无法确认云端状态',
+        content: '没有查到云端备份状态（可能网络不稳定）。为避免覆盖云端已有备份，已停止本次操作；请检查网络后重试。',
+        showCancel: false,
+        confirmText: '知道了'
+      })
+    })
+  },
+
+  // 打开密码设置弹框
+  // @param {boolean} allowOverwrite 用户是否已确认「覆盖云端已有备份」；未确认一律 false → enable 护栏会拦下
+  showEnableModal(allowOverwrite) {
     this.setData({
       backupModalShow: true,
       backupMode: 'enable',
       reenableMode: backup.hasSavedKey(),
+      allowOverwrite: !!allowOverwrite,
       pwd1: '',
       pwd2: ''
+    })
+  },
+
+  // 覆盖警示：确认后才允许设新密码（覆盖 = 清空云端历史版本，不可逆）
+  confirmOverwriteEnable(count) {
+    wx.showModal({
+      title: '云端已有备份',
+      content: '云端已存在 ' + count + ' 篇加密备份。\n\n设置新备份密码会清空云端历史备份并用新密码重建；如果还记得原备份密码，请改用「从云端恢复」。',
+      cancelText: '取消',
+      confirmText: '设新密码',
+      success: (res) => {
+        if (res.confirm) this.showEnableModal(true) // 用户明确确认 → 显式授权本次覆盖
+      }
     })
   },
 
@@ -119,7 +208,8 @@ Page({
   },
 
   closeBackupModal() {
-    this.setData({ backupModalShow: false, pwd1: '', pwd2: '' })
+    // 关闭弹框即撤销覆盖授权：下次再点「开启」必须重新确认一次
+    this.setData({ backupModalShow: false, pwd1: '', pwd2: '', allowOverwrite: false })
   },
 
   onPwd1Input(e) {
@@ -163,12 +253,24 @@ Page({
         return
       }
       wx.showLoading({ title: '加密并上传中…', mask: true })
-      backup.enable(pwd).then((r) => {
+      // 覆盖授权随调用一起显式传入：没有用户在警示弹窗里的确认，utils 层会直接拒绝
+      backup.enable(pwd, { allowOverwrite: !!this.data.allowOverwrite }).then((r) => {
         wx.hideLoading()
         this.loadData()
         wx.showToast({ title: '已开启，首次备份 ' + r.itemCount + ' 篇', icon: 'success', duration: 2000 })
       }).catch((e) => {
         wx.hideLoading()
+        // 被覆盖护栏拦下：说清原因并指路（不给「重试」死循环 —— 重试多少次都会被拦）
+        if (e && e.code === 'CLOUD_EXISTS') {
+          this.loadData()
+          wx.showModal({
+            title: '云端已有备份',
+            content: '为避免覆盖云端已有备份，本次「开启」没有执行。\n\n如果还记得原备份密码，请点「从云端恢复」取回数据；确实想重新来过，请先「清空云端备份」。',
+            showCancel: false,
+            confirmText: '知道了'
+          })
+          return
+        }
         wx.showModal({
           title: '开启失败',
           content: (e && e.message) || '网络异常，请稍后重试',

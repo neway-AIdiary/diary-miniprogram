@@ -1,0 +1,94 @@
+/* 新手引导遮罩：颜色全部走主题令牌（--surface / --ink / --brand…），深浅色自动适配 */
+.gm-root {
+  position: fixed;
+  left: 0;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  /* 高于侧栏（sidebar 101）、低于任务态弹层（分享面板 / AI 优化结果 1000） */
+  z-index: 150;
+}
+
+.gm-catch {
+  position: absolute;
+  left: 0;
+  top: 0;
+  right: 0;
+  bottom: 0;
+}
+
+/* 聚光灯：用超大外阴影画出遮罩，中间留出目标的形状 → 孔外是暗的、孔内是亮的 */
+.gm-spot {
+  position: absolute;
+  box-shadow: 0 0 0 9999rpx rgba(0, 0, 0, 0.62);
+  border: 1rpx solid var(--brand-tint-25);
+  pointer-events: none;
+  transition: left .28s ease, top .28s ease, width .28s ease, height .28s ease, border-radius .28s ease;
+}
+
+.gm-card {
+  position: absolute;
+  box-sizing: border-box;
+  padding: 26rpx 30rpx 24rpx;
+  background: var(--surface);
+  border: 1rpx solid var(--line-soft);
+  border-radius: var(--r-lg);
+  box-shadow: var(--shadow-md);
+  transition: left .28s ease, top .28s ease;
+}
+
+.gm-step {
+  font-size: 22rpx;
+  line-height: 1.2;
+  color: var(--ink-soft);
+  letter-spacing: 1rpx;
+}
+
+.gm-title {
+  margin-top: 12rpx;
+  font-size: 30rpx;
+  font-weight: 500;
+  line-height: 1.35;
+  color: var(--ink);
+}
+
+.gm-desc {
+  margin-top: 12rpx;
+  font-size: 26rpx;
+  line-height: 1.6;
+  color: var(--ink-mid);
+}
+
+.gm-actions {
+  margin-top: 26rpx;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.gm-skip {
+  padding: 10rpx 6rpx;
+  font-size: 26rpx;
+  color: var(--ink-soft);
+}
+
+.gm-hover {
+  opacity: .6;
+}
+
+/* 主按钮：复刻全局 .btn-primary 的视觉（渐变 + 品牌阴影 + 反白字） */
+.gm-next {
+  margin: 0;
+  padding: 0 40rpx;
+  height: 74rpx;
+  line-height: 74rpx;
+  font-size: 28rpx;
+  color: var(--ink-invert);
+  background: linear-gradient(135deg, var(--brand-bright) 0%, var(--brand) 55%, var(--brand-deep) 100%);
+  border-radius: var(--r-pill);
+  box-shadow: var(--shadow-brand);
+}
+
+.gm-next::after {
+  border: none;
+}

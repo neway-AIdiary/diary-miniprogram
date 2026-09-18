@@ -77,24 +77,23 @@
         <view class="menu-text">开启云端备份（加密）</view>
         <view class="menu-arrow ri ri-arrow-right-s-line"></view>
       </view>
-      <block wx:else>
-        <view class="menu-item" bindtap="backupNow">
-          <view class="menu-text">立即备份到云端</view>
-          <view class="menu-arrow ri ri-arrow-right-s-line"></view>
-        </view>
-        <view class="menu-item" bindtap="restoreFromCloud">
-          <view class="menu-text">从云端恢复</view>
-          <view class="menu-arrow ri ri-arrow-right-s-line"></view>
-        </view>
-        <view class="menu-item" bindtap="clearCloudBackup">
-          <view class="menu-text">清空云端备份</view>
-          <view class="menu-arrow ri ri-arrow-right-s-line"></view>
-        </view>
-        <view class="menu-item" bindtap="disableBackup">
-          <view class="menu-text">关闭云端备份</view>
-          <view class="menu-arrow ri ri-arrow-right-s-line"></view>
-        </view>
-      </block>
+      <view class="menu-item" wx:if="{{backupEnabled}}" bindtap="backupNow">
+        <view class="menu-text">立即备份到云端</view>
+        <view class="menu-arrow ri ri-arrow-right-s-line"></view>
+      </view>
+      <!-- 恢复入口按 showRestore 显隐：换机（本机无密钥但云端有备份）也要能进来取回数据 -->
+      <view class="menu-item" wx:if="{{showRestore}}" bindtap="restoreFromCloud">
+        <view class="menu-text">从云端恢复</view>
+        <view class="menu-arrow ri ri-arrow-right-s-line"></view>
+      </view>
+      <view class="menu-item" wx:if="{{backupEnabled}}" bindtap="clearCloudBackup">
+        <view class="menu-text">清空云端备份</view>
+        <view class="menu-arrow ri ri-arrow-right-s-line"></view>
+      </view>
+      <view class="menu-item" wx:if="{{backupEnabled}}" bindtap="disableBackup">
+        <view class="menu-text">关闭云端备份</view>
+        <view class="menu-arrow ri ri-arrow-right-s-line"></view>
+      </view>
     </view>
     <view class="backup-hint">{{backupHint}}</view>
   </view>

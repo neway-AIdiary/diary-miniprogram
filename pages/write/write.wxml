@@ -98,8 +98,9 @@
       </view>
 
       <!-- 工具行：AI 优化（最小范围）+ 保存（钉在卡片下方，卡片封顶后不再下移） -->
+      <!-- id=guide-optimize：新手引导第 2 步的定位锚点（id 唯一，勿改） -->
       <view class="tool-row">
-        <view class="tool-btn optimize-btn {{content.length < 20 ? 'disabled' : ''}}" bindtap="onOptimize">AI 优化</view>
+        <view id="guide-optimize" class="tool-btn optimize-btn {{content.length < 20 ? 'disabled' : ''}}" bindtap="onOptimize">AI 优化</view>
         <button class="save-btn" bindtap="onSave" disabled="{{saving || !content}}" loading="{{saving}}">{{saving ? '保存中...' : '保存日记'}}</button>
       </view>
 
@@ -205,8 +206,10 @@
       </view>
 
       <!-- 中间区：按住说话（默认语音输入；如需打字，点击上方正文输入区调起系统键盘） -->
+      <!-- id=guide-hold-talk：新手引导第 1 步的定位锚点（id 唯一，勿改） -->
       <view class="input-middle">
         <view
+          id="guide-hold-talk"
           class="hold-talk {{recording ? 'recording' : ''}} {{voiceCanceling ? 'canceling' : ''}}"
           bindtouchstart="onHoldStart"
           bindtouchend="onHoldEnd"
@@ -231,18 +234,19 @@
   <view class="sidebar {{showSidebar ? 'open' : ''}}" style="padding-top: {{statusBarHeight}}px;">
     <view class="sidebar-header">
       <view class="sidebar-close ri ri-close-line" bindtap="closeSidebar"></view>
-      <view class="sidebar-title">AI日记</view>
+      <view class="sidebar-title">{{appName}}</view>
     </view>
 
-    <!-- 用户登录：侧栏最上方 -->
-    <view class="sidebar-user-top" bindtap="getUserProfile" hover-class="sidebar-user-top-hover">
-      <image wx:if="{{hasUserInfo && userInfo.nickName && userInfo.nickName !== '微信用户'}}" class="s-avatar" src="{{userInfo.avatarUrl}}" mode="aspectFill" />
-      <view wx:else class="s-avatar-default ri ri-user-3-line"></view>
-      <view class="s-user-info">
-        <view class="s-user-name">{{hasUserInfo ? userInfo.nickName : '点击登录'}}</view>
-        <view class="s-user-desc">{{hasUserInfo ? '一灯照隅' : '授权后展示头像昵称'}}</view>
+    <!-- [dailyquote v2] 每日一签（文化推广位）：内容来自 utils/dailyQuote.js。
+         两行固定口径 —— 第一行＝诗词名 / 作者，第二行＝正文前 16 字（超长由 JS 补省略号）。
+         点击进「每日一签」全篇页；不放 scroll-view 里，避免被日记列表挤走。
+         v2：原「头像-点击登录」区已移除，本卡上移为侧栏第一块（紧随 header） -->
+    <view class="sidebar-quote" bindtap="goToDailyQuote" hover-class="sidebar-quote-hover">
+      <text class="sq-icon ri ri-book-open-line"></text>
+      <view class="sq-body">
+        <view class="sq-line1">{{dailyQuote.line1}}</view>
+        <view class="sq-line2">{{dailyQuote.line2}}</view>
       </view>
-      <text class="s-arrow ri ri-arrow-right-s-line"></text>
     </view>
 
     <scroll-view class="sidebar-scroll" scroll-y>
@@ -288,12 +292,15 @@
       <view class="sidebar-section">
         <view class="sidebar-section-title">我的</view>
         <view class="s-menu">
-          <view class="s-menu-item" bindtap="goToArchive">
+          <!-- id=guide-archive / guide-summary：新手引导第 3、4 步的定位锚点。
+               侧栏共 5 个 .s-menu-item（档案/智能总结/设置/本地备份/云端备份），类名不唯一，
+               所以引导一律用 id 定位；新增菜单项时勿动这两个 id -->
+          <view class="s-menu-item" id="guide-archive" bindtap="goToArchive">
             <view class="s-menu-icon ri ri-archive-line"></view>
             <text class="s-menu-text">档案</text>
             <text class="s-arrow ri ri-arrow-right-s-line"></text>
           </view>
-          <view class="s-menu-item s-menu-item-ai" bindtap="goToSummary">
+          <view class="s-menu-item s-menu-item-ai" id="guide-summary" bindtap="goToSummary">
             <view class="s-menu-icon ri ri-quill-pen-line"></view>
             <text class="s-menu-text">智能总结</text>
             <text class="s-arrow ri ri-arrow-right-s-line"></text>
@@ -441,5 +448,20 @@
       </view>
     </view>
   </view>
+
+  <!-- 微信隐私协议弹窗：首次使用前征求同意（needAuthorization 为 true 才显示） -->
+  <!-- bind:close：关闭后若引导还在等（首次进入的两个弹层不能叠着弹），立刻接上 -->
+  <privacy-popup id="privacyPopup" bind:close="onPrivacyClosed" />
+
+  <!-- 新手引导遮罩：5 步（写日记页 2 步 + 侧栏 2 步 + 设置页 1 步）。
+       位置计算在 utils/guide.js 的纯函数里，本组件只负责渲染；next/skip 回到本页处理导航 -->
+  <guide-mask
+    visible="{{guideVisible}}"
+    step="{{guideStep}}"
+    rect="{{guideRect}}"
+    shape="{{guideShape}}"
+    bind:next="onGuideNext"
+    bind:skip="onGuideSkip"
+  />
 
 </view>
