@@ -4,8 +4,6 @@ App({
     needRefresh: false,
     // AI 能力状态：'cloud'（云函数可用）| 'local'（仅本地规则）
     aiMode: 'cloud',
-    // 导入结果传递：{ count: N, toast: '提示文案' }，日记本页 onShow 消费后清空
-    importResult: null,
     // 语音输入目标：{ label: '正文', handle: fn }，页面 onShow 注册、onHide 注销
     voiceTarget: null,
     // 无目标页面时的语音草稿，写日记页 onShow 消费

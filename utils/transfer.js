@@ -8,6 +8,9 @@
 
 const storage = require('./storage.js')
 const util = require('./util.js')
+const appInfo = require('./appInfo.js')
+// [loose-import v1][t1] 宽泛导入引擎（非标准格式的自由文本）
+const looseImport = require('./looseImport.js')
 
 /**
  * 导出所有日记为标准 Word 文件（.docx）
@@ -221,31 +224,76 @@ function exportToClipboard(onEmpty) {
   return true
 }
 
+// [import-refresh v1] 导入落点提示：导入成功后必须告诉用户「去哪找」
+function importPlacementTip(list, added) {
+  if (!(added > 0) || !Array.isArray(list) || !list.length) return ''
+  const keys = list
+    .map(d => (d && d.created_at) ? util.getDateKey(new Date(d.created_at)) : '')
+    .filter(k => /^\d{4}-\d{2}-\d{2}$/.test(k))
+    .sort()
+  if (!keys.length) return ''
+  const fmt = k => parseInt(k.slice(5, 7), 10) + '月' + parseInt(k.slice(8, 10), 10) + '日'
+  const first = keys[0]
+  const last = keys[keys.length - 1]
+  const span = first === last ? fmt(first) : fmt(first) + ' – ' + fmt(last)
+  return '已在日记本中按日期插入 ' + span + '，共 ' + added + ' 篇'
+}
+
+// [import-refresh v2] 直接置「日记本页需要刷新」标志：
+// 不依赖调用方是否在 onFinish 里刷新 —— 回调曾被提前 return 吃掉，
+// 表现为「弹了导入成功、日记本里却没有」。
+function markHomeRefresh() {
+  try {
+    if (typeof getApp !== 'function') return false
+    const app = getApp()
+    if (app && app.globalData) {
+      app.globalData.needRefresh = true
+      return true
+    }
+  } catch (e) { /* 刷新标志失败不影响导入结果本身 */ }
+  return false
+}
+
+// 导入结果文案：基础结果 + 落点 + 刷新提示 + 解析说明
+function buildImportResult(added, extraMsg, list) {
+  const base = added === -1
+    ? '本地存储已满，导入失败。\n\n请先导出备份，再删除部分旧日记腾出空间后重试。'
+    : (added > 0
+      ? '已导入 ' + added + ' 条日记'
+      : '没有新增日记（内容已存在，无需重复导入）')
+  const extras = []
+  const place = importPlacementTip(list, added)
+  if (place) extras.push(place)
+  if (added > 0) extras.push('若日记本列表未立即显示，下拉刷新即可看到')
+  if (extraMsg) extras.push(extraMsg)
+  const extra = extras.join('\n')
+  return { base: base, extra: extra, message: extra ? base + '\n\n' + extra : base }
+}
+
 /**
  * 导入日记完整流程（选择文件 → 解析 → 导入 → 结果上报）
  * @param {object} opts
- *   - onFinish(added:number, toast:string) 导入完成（含“没有新增”的情况）
+ *   - onFinish(added:number, message:string, extra:string) 导入完成（含“没有新增”的情况）
+ *     message = 完整展示文案（基础结果 + 落点 + 说明）；extra = 仅说明部分
  *   - onError(msg:string) 导入失败
  */
 function importFromFile(opts) {
   opts = opts || {}
-  const finish = (added, extraMsg) => {
-    const toast = added === -1
-      ? '本地存储已满，导入失败。\n\n请先导出备份，再删除部分旧日记腾出空间后重试。'
-      : (added > 0
-        ? '已导入 ' + added + ' 条日记'
-        : '没有新增日记（内容已存在，无需重复导入）')
-    const title = added === -1 ? '导入失败' : (added > 0 ? '导入完成' : '导入提示')
-    if (extraMsg) {
+  // [import-refresh v1] finish 内**不得出现 return**（静态断言 S-1 守着）：
+  // 必须无条件通知调用方，否则调用方挂在 onFinish 里的「刷新列表」永不执行。
+  const finish = (added, extraMsg, list) => {
+    if (added !== -1) markHomeRefresh()
+    const r = buildImportResult(added, extraMsg, list)
+    if (opts.onFinish) {
+      opts.onFinish(added, r.message, r.extra)
+    } else {
       wx.showModal({
-        title: title,
-        content: toast + '\n\n' + extraMsg,
+        title: added === -1 ? '导入失败' : (added > 0 ? '导入完成' : '导入提示'),
+        content: r.message,
         showCancel: false,
         confirmText: '知道了'
       })
-      return
     }
-    if (opts.onFinish) opts.onFinish(added, toast)
   }
   const error = (msg) => {
     if (opts.onError) opts.onError(msg)
@@ -269,9 +317,37 @@ function importFromFile(opts) {
             encoding: 'utf8',
             success: (docRes) => {
               try {
-                const parsed = storage.parseDocxXml(String(docRes.data || ''))
+                let parsed = storage.parseDocxXml(String(docRes.data || ''))
+                // [dhv2#17] 保险丝：XML 级解析可能漏认日期头，把多篇日记并成一篇
+                // （症状：单篇超长 + 可见日期头数明显多于已识别篇数）
+                // → 用归一化垫层抹平「号/括号备注/周X」后走文本级重解析，取篇数更多者
+                // [dhv2#24] 只在「可见结构回退」时生效：full=true 表示隐藏 JSON 完整备份，
+                // 其 diaries 才是权威，绝不能被文本级重解析替换
+                if (parsed.diaries.length && !parsed.full) {
+                  const guardText = storage.docxXmlToText(String(docRes.data || ''))
+                  if (looseImport.isSuspectHeaderSplit(parsed.diaries, guardText)) {
+                    const reparsed = storage.parseDiariesFromText(looseImport.normalizeDateHeaders(guardText))
+                    if (reparsed.length > parsed.diaries.length) {
+                      parsed = { diaries: reparsed, full: false, notes: [], archives: [] }
+                    }
+                  }
+                }
                 if (!parsed.diaries.length) {
-                  error('未能从 Word 文档中识别出日记内容。\n\n请确认选择的是 AI日记 导出的 .docx 备份文件。')
+                  // [loose-import v1][t2] 标准备份与可见结构都未识别 → 宽泛识别可见文本
+                  const looseText = storage.docxXmlToText(String(docRes.data || ''))
+                  const loose = looseImport.parseLooseDiaries(looseText)
+                  if (loose.diaries.length) {
+                    // [loose-shortdrop#5] 过短忽略如实上报（有则报，无则空）
+                    const looseMsg = '文档不是本小程序的备份格式，已按宽泛识别导入：有日期 ' + loose.stats.dated +
+                      ' 篇、无日期 ' + loose.stats.undated + ' 篇（无日期的排在列表最后）' +
+                      looseImport.statsSuffix(loose.stats) + '；图片与视频未能自动还原。'
+                    enrichDiariesWithMeta(loose.diaries, () => {
+                      const r = storage.importDiaryObjects(loose.diaries, mode === 'replace')
+                      finish(r.added, looseMsg, loose.diaries)
+                    })
+                    return
+                  }
+                  error('未能从 Word 文档中识别出日记内容。\n\n请确认选择的是 ' + appInfo.APP_NAME + ' 导出的 .docx 备份文件。')
                   return
                 }
                 if (parsed.full) {
@@ -288,12 +364,12 @@ function importFromFile(opts) {
                       extra = (extra ? extra + '\n' : '') + '并导入档案 ' + n + ' 条（新增 ' + (ar.added || 0) + '、合并 ' + (ar.updated || 0) + '）'
                     }
                   }
-                  finish(added, extra)
+                  finish(added, extra, parsed.diaries)
                 } else {
                   // 回退解析：新 id，按「日期+内容」去重合并；先 AI 补全 心情/天气/标签
                   enrichDiariesWithMeta(parsed.diaries, () => {
                     const r = storage.importDiaryObjects(parsed.diaries, mode === 'replace')
-                    finish(r.added, parsed.notes && parsed.notes.length ? parsed.notes.join('\n') : '')
+                    finish(r.added, parsed.notes && parsed.notes.length ? parsed.notes.join('\n') : '', parsed.diaries)
                   })
                 }
               } catch (e) {
@@ -364,6 +440,7 @@ function importFromFile(opts) {
 
                 let added = 0
                 let recognized = false
+                let jsonList = null   // [import-refresh v1] 旧 .json 备份的清单，用于算导入落点
 
                 // 1) 兼容旧版 .json 备份（以 { 或 [ 开头且是合法 JSON）
                 if (trimmed.charAt(0) === '{' || trimmed.charAt(0) === '[') {
@@ -372,6 +449,7 @@ function importFromFile(opts) {
                     const list = Array.isArray(parsed) ? parsed : (parsed && parsed.diaries)
                     if (list) {
                       added = mode === 'replace' ? storage.replaceAllDiaries(list) : storage.importDiaries(list)
+                      jsonList = list
                       recognized = true
                     }
                   } catch (e) {
@@ -397,7 +475,7 @@ function importFromFile(opts) {
                         added = r.added
                       }
                       recognized = true
-                      finish(added, parsed.notes && parsed.notes.length ? parsed.notes.join('\n') : '')
+                      finish(added, parsed.notes && parsed.notes.length ? parsed.notes.join('\n') : '', list)
                     }).catch((e) => {
                       wx.hideLoading()
                       error('导入过程中发生错误：' + (e && e.message || e) + '。\n\n数据未改动，请重试。')
@@ -410,19 +488,31 @@ function importFromFile(opts) {
                 if (!recognized) {
                   const list = storage.parseDiariesFromText(raw)
                   if (list.length === 0) {
-                    // 本地解析失败 → 直接调 AI 智能识别文本中的日记（识别结果确认后再导入）
-                    aiParseFlow(raw, mode, opts)
+                    // [loose-import v1][t3] 标准格式没认出来 → 宽泛识别（认出日期/标题/段落即成篇）
+                    const loose = looseImport.parseLooseDiaries(raw)
+                    if (loose.diaries.length) {
+                      // [loose-shortdrop#6] 过短忽略如实上报（有则报，无则空）
+                      const looseMsg = '宽泛识别：有日期 ' + loose.stats.dated + ' 篇、无日期 ' + loose.stats.undated +
+                        ' 篇（无日期的按导入顺序排在列表最后）' + looseImport.statsSuffix(loose.stats)
+                      enrichDiariesWithMeta(loose.diaries, () => {
+                        const result = storage.importDiaryObjects(loose.diaries, mode === 'replace')
+                        finish(result.added, looseMsg, loose.diaries)
+                      })
+                      return
+                    }
+                    // 宽泛识别也无产出 → AI 智能识别兜底（识别结果确认后再导入）
+                    aiParseFlow(raw, mode, opts, finish)
                     return
                   }
                   // 本地切块成功 → 逐篇 AI 补全 心情/天气/标签 后再导入
                   enrichDiariesWithMeta(list, () => {
                     const result = storage.importDiaryObjects(list, mode === 'replace')
-                    finish(result.added)
+                    finish(result.added, '', list)
                   })
                   return
                 }
 
-                finish(added)
+                finish(added, '', jsonList)
               } catch (e) {
                 error('导入过程中发生错误：' + (e && e.message || e) + '。\n\n数据未改动，请重试；若仍失败，可把文件发给我们排查。')
               }
@@ -491,7 +581,8 @@ function enrichDiariesWithMeta(list, onDone) {
 }
 
 // AI 智能识别导入（本地解析失败时兜底）
-function aiParseFlow(raw, mode, opts) {
+// finish 由 importFromFile 传入：AI 这条路也走同一套「上报 + 置刷新」逻辑，不另开分支
+function aiParseFlow(raw, mode, opts, finish) {
   const aiCloud = require('./aiCloud.js')
   wx.showLoading({ title: 'AI 识别中…', mask: true })
   // 轻量清洗：去 HTML 标签 / Markdown 符号 / 连续空白，提升 AI 识别准确率
@@ -533,7 +624,11 @@ function aiParseFlow(raw, mode, opts) {
         }
         try {
           const r = storage.importDiaryObjects(list, mode === 'replace')
-          if (opts.onFinish) opts.onFinish(r.added, r.added > 0 ? '已导入 ' + r.added + ' 条日记' : '没有新增日记（内容已存在，无需重复导入）')
+          if (typeof finish === 'function') {
+            finish(r.added, '', list)
+          } else if (opts.onFinish) {
+            opts.onFinish(r.added, r.added > 0 ? '已导入 ' + r.added + ' 条日记' : '没有新增日记（内容已存在，无需重复导入）')
+          }
         } catch (e) {
           if (opts.onError) opts.onError('写入日记本时出错：' + (e && e.message || e) + '。\n\n数据未改动，请重试。')
         }
@@ -542,4 +637,11 @@ function aiParseFlow(raw, mode, opts) {
   })
 }
 
-module.exports = { exportToWord, exportToClipboard, importFromFile }
+module.exports = {
+  exportToWord,
+  exportToClipboard,
+  importFromFile,
+  // 供回归测试直接调用的纯函数（不影响小程序运行）
+  importPlacementTip,
+  buildImportResult
+}

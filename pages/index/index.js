@@ -1,4 +1,5 @@
 const storage = require('../../utils/storage.js')
+const dateRange = require('../../utils/dateRange.js') // [range-toolbar v1] 日期范围公共口径
 const util = require('../../utils/util.js')
 const transfer = require('../../utils/transfer.js')
 const app = getApp()
@@ -6,6 +7,7 @@ const app = getApp()
 const fontSetting = require('../../utils/fontSetting.js')
 const theme = require('../../utils/theme.js')
 const lock = require('../../utils/lock.js')
+const appInfo = require('../../utils/appInfo.js')
 
 Page({
   data: {
@@ -15,7 +17,14 @@ Page({
     allDiaries: [],
     isEmpty: false,
     loading: true,
-    stats: null,
+    // 日期范围（由 range-picker 组件 change 回传；all = 无筛选）[range-toolbar v1]
+    rangeKey: 'all',
+    rangeCs: '',
+    rangeCe: '',
+    rangeLabel: '全部时间',
+    rangeDiaries: [],
+    rangeCount: 0,
+    undatedCount: 0,
     // 搜索
     searchKeyword: '',
     isSearching: false,
@@ -36,30 +45,17 @@ Page({
       app.globalData.needRefresh = false
       this.loadData()
     }
-    // 从【我的】页导入完成后跳转过来：弹窗提示导入结果
-    const imp = app.globalData.importResult
-    if (imp) {
-      app.globalData.importResult = null
-      wx.showModal({
-        title: imp.count > 0 ? '导入成功' : '导入提示',
-        content: imp.toast,
-        showCancel: false,
-        confirmText: '知道了'
-      })
-    }
   },
 
   loadData() {
     const diaries = storage.getAllDiaries()
-    const stats = storage.getStats()
 
     // 格式化显示
     diaries.forEach(d => {
       d.dateText = util.formatRelativeTime(d.created_at)
-      // 标题兜底：无标题时用日期生成默认标题，避免导入/旧数据缺失 title 显示"无题"
-      if (!d.title) {
-        d.title = util.getDefaultTitle(util.getDateKey(new Date(d.created_at)))
-      }
+      // 标题兜底 [title-content-fallback v1]：空 title → 正文开头 ≤7 字 → 日期标题
+      // 与 storage.getAllDiaries 共用同一口径（util.resolveDiaryTitle），避免两处脱节
+      d.title = util.resolveDiaryTitle(d)
       d.moodText = util.getMoodLabel(d.mood)
       d.moodColor = util.getMoodColor(d.mood)
       d.moodBg = util.getMoodBg(d.mood)
@@ -79,18 +75,16 @@ Page({
       d.mediaPreview = d.media.filter(m => m && m.fileID).slice(0, 3)
     })
 
+    // [range-toolbar v1] 无日期日记数（created_at 非法）：范围筛选下被排除，空态提示用
+    const undated = diaries.filter(d => isNaN(new Date(d.created_at).getTime())).length
     this.setData({
       diaries: diaries,
       allDiaries: diaries,
       isEmpty: diaries.length === 0,
       loading: false,
-      stats: stats
+      undatedCount: undated
     })
-
-    // 如果有搜索关键词，重新过滤
-    if (this.data.searchKeyword) {
-      this.applySearch(this.data.searchKeyword)
-    }
+    this.applyRange()
   },
 
   onPullDownRefresh() {
@@ -110,8 +104,53 @@ Page({
       searchKeyword: '',
       isSearching: false,
       searchCount: 0,
-      diaries: this.data.allDiaries
+      diaries: this.data.rangeDiaries
     })
+  },
+
+  // ===== 日期范围 [range-toolbar v1] =====
+  // 组件 change → 更新范围状态；切换范围时清空搜索（搜索总是在当前范围内进行）
+  onRangeChange(e) {
+    const d = (e && e.detail) || {}
+    this.setData({
+      rangeKey: d.range || 'all',
+      rangeCs: d.customStart || '',
+      rangeCe: d.customEnd || '',
+      rangeLabel: d.label || '全部时间',
+      searchKeyword: '',
+      isSearching: false,
+      searchCount: 0
+    })
+    this.applyRange()
+  },
+
+  // 清除范围：走组件 reset（会再发 change，状态统一从 onRangeChange 进来）
+  clearRange() {
+    const rp = this.selectComponent('#rangePicker')
+    if (rp && rp.reset) {
+      rp.reset()
+    } else {
+      this.setData({ rangeKey: 'all', rangeCs: '', rangeCe: '', rangeLabel: '全部时间' })
+      this.applyRange()
+    }
+  },
+
+  // 清空搜索 + 日期范围（导入成功后防「新日记被旧筛选挡住看不见」）[range-toolbar v1]
+  resetFilters() {
+    const rp = this.selectComponent('#rangePicker')
+    if (rp && rp.reset) rp.reset() // reset 会 emit change，范围状态统一从 onRangeChange 进来
+    this.setData({ rangeKey: 'all', rangeCs: '', rangeCe: '', rangeLabel: '全部时间', searchKeyword: '', isSearching: false, searchCount: 0 })
+  },
+
+  // 全量 → 范围集（无日期日记在非 all 范围下被排除）；再套搜索
+  applyRange() {
+    const list = dateRange.filterByRange(this.data.allDiaries, this.data.rangeKey, this.data.rangeCs, this.data.rangeCe)
+    this.setData({ rangeDiaries: list, rangeCount: list.length })
+    if (this.data.searchKeyword) {
+      this.applySearch(this.data.searchKeyword)
+    } else {
+      this.setData({ diaries: list, isSearching: false, searchCount: 0 })
+    }
   },
 
   applySearch(keyword) {
@@ -119,12 +158,12 @@ Page({
       this.setData({
         isSearching: false,
         searchCount: 0,
-        diaries: this.data.allDiaries
+        diaries: this.data.rangeDiaries
       })
       return
     }
     const kw = keyword.toLowerCase()
-    const filtered = this.data.allDiaries.filter(d => {
+    const filtered = this.data.rangeDiaries.filter(d => {
       const titleMatch = (d.title || '').toLowerCase().indexOf(kw) !== -1
       const contentMatch = (d.content || '').toLowerCase().indexOf(kw) !== -1
       // 天气也可搜索（如搜「雨」「晴」找到对应天气的日记）
@@ -146,18 +185,36 @@ Page({
 
 
   // ===== 导出 / 导入（自侧栏迁移到日记本）=====
+  // [range-toolbar v1] 导出口径 =「导出当前列表」四态：全部 / 日期范围 / 搜索结果 / 范围内搜索结果
   onExportDiaries() {
+    const hasRange = this.data.rangeKey !== 'all'
     const searching = this.data.isSearching && this.data.searchKeyword
-    if (searching && this.data.searchCount === 0) {
-      wx.showToast({ title: '当前搜索无结果，无可导出', icon: 'none' })
+    if (searching) {
+      if (this.data.searchCount === 0) {
+        wx.showToast({ title: '当前搜索无结果，无可导出', icon: 'none' })
+        return
+      }
+      // 搜索态：只导出当前搜索结果（范围+搜索时为两者交集）
+      const list = this.data.diaries
+      const title = hasRange ? '导出范围内搜索结果' : '导出搜索结果'
+      wx.showModal({
+        title: title,
+        content: '将导出' + (hasRange ? '范围内搜索结果 ' : '搜索结果 ') + list.length + ' 篇日记',
+        success: (res) => {
+          if (res.confirm) transfer.exportToWord(null, list)
+        }
+      })
       return
     }
-    if (searching) {
-      // 搜索态：只导出当前搜索结果（diaries 即全量过滤集，本页无分页）
-      const list = this.data.diaries
+    if (hasRange) {
+      if (this.data.rangeCount === 0) {
+        wx.showToast({ title: '该日期范围内没有日记，无可导出', icon: 'none' })
+        return
+      }
+      const list = this.data.rangeDiaries
       wx.showModal({
-        title: '导出搜索结果',
-        content: '将导出搜索结果 ' + list.length + ' 篇日记',
+        title: '导出该日期范围的日记',
+        content: '将导出所选日期范围内的 ' + list.length + ' 篇日记',
         success: (res) => {
           if (res.confirm) transfer.exportToWord(null, list)
         }
@@ -185,8 +242,8 @@ Page({
   onImportDiaries() {
     transfer.importFromFile({
       onFinish: (added, toast) => {
-        // 导入成功后先清空搜索态再刷新，避免新日记被搜索条件挡住看不见
-        this.setData({ searchKeyword: '', isSearching: false, searchCount: 0 })
+        // [range-toolbar v1] 导入成功后清空搜索与日期范围再刷新，避免新日记被旧筛选挡住看不见
+        this.resetFilters()
         this.loadData()
         wx.showModal({
           title: added === -1 ? '导入失败' : (added > 0 ? '导入成功' : '导入提示'),
@@ -223,7 +280,7 @@ Page({
 
   onShareAppMessage() {
     return {
-      title: 'AI日记 — 记录每一天的故事',
+      title: appInfo.APP_NAME + ' — 记录每一天的故事',
       path: '/pages/index/index'
     }
   }

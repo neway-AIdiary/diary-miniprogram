@@ -10,7 +10,8 @@
  *          兜底读 app.globalData.summaryResult。
  *
  * 保存规则（关键）：
- *   - 只有点【保存】、或【编辑】后保存，才写入日记本；直接返回不保存；
+ *   - 点【保存】/【编辑】/【确认分享】（海报·复制）/转发卡片，都会写入日记本（[summary-share-align v1]：
+ *     确认分享成功后与【保存】同款回到日记本）；直接返回不保存；
  *   - 【编辑】为了让日记详情页的编辑态能复用，先把这篇落库成「草稿」再跳详情页编辑；
  *     若用户在详情页取消或未保存返回，详情页会回滚删除这篇草稿（传 draft=1 参数识别）；
  *   - 保存的总结日记带 entryType: 'summary' + tags: ['AI总结']：不参与后续 AI 总结（见 summary 页 isAiSummaryDiary）。
@@ -75,6 +76,13 @@ Page({
     this._inited = true
     const createdAt = util.formatFullDate(new Date().toISOString())
     const title = util.getDefaultTitle().replace(/日记$/, 'AI总结')
+    // [summary-share-align v1] 说明头数据源：setData 尚未执行，须用 payload 局部值而非 this.data
+    const src = {
+      prompt: String(p.prompt || '').trim(),
+      rangeText: p.rangeText || '所选时间段',
+      diaryCount: p.diaryCount || 0,
+      truncated: !!p.truncated
+    }
     this.setData({
       prompt: String(p.prompt || '').trim(),
       content: content,
@@ -84,15 +92,17 @@ Page({
       rangeText: p.rangeText || '所选时间段',
       diaryCount: p.diaryCount || 0,
       truncated: !!p.truncated,
-      // 分享组件所需的 diary view model（形态与详情页一致）
+      // [summary-share-align v1] 分享视图模型与落库口径对齐：
+      //   正文 = 说明头（总结需求/分析范围）+ 总结正文（与 buildDiaryData 同一拼装，幂等）
+      //   心情标签 = 与保存后同源（mood 'neutral' → util.getMood*），海报/复制与保存后的分享完全一致
       shareDiary: {
         id: '',
         title: title,
         createdAt: createdAt,
-        content: content,
-        moodText: '',
-        moodColor: '',
-        moodBg: '',
+        content: (content.indexOf('【总结需求】') === 0) ? content : this.buildBriefBlock(src) + '\n\n' + content,
+        moodText: util.getMoodLabel('neutral'),
+        moodColor: util.getMoodColor('neutral'),
+        moodBg: util.getMoodBg('neutral'),
         tags: ['AI总结'],
         images: [],
         locationText: '',
@@ -112,19 +122,63 @@ Page({
     this.setData({ showSharePanel: false })
   },
 
-  // 分享卡片内容：未保存的总结没有详情页可打开，退回写日记主页，避免分享出失效链接
+  // [summary-share-align v1] 转发卡片先落库（拍板③）：卡片直达这篇日记的详情页；
+  // 落库失败退回写日记主页（与旧兜底一致）。不配「取消分享删草稿」（拍板③明确）
   onShareAppMessage() {
-    const id = this._savedId || ''
+    const id = this.ensureDiarySaved()
     return {
       title: this.data.title || '我的 AI 总结',
       path: id ? '/pages/detail/detail?id=' + encodeURIComponent(id) + '&share=1' : '/pages/write/write'
     }
   },
 
+  // [summary-share-align v1] 未落库则先落库（幂等），返回日记 id（失败空串）。
+  // 确认分享与转发共用：分享即定稿，落库后后续动作（海报二维码/转发路径）都指向这篇日记
+  ensureDiarySaved() {
+    if (this._savedId) return this._savedId
+    const saved = storage.saveDiary(this.buildDiaryData())
+    if (!saved) return ''
+    this._savedId = saved.id
+    app.globalData.needRefresh = true
+    return saved.id
+  },
+
+  // [summary-share-align v1] 组件请求先落库（need-saved-diary）：落库后带新 id 让组件继续原分享动作
+  onShareNeedSave() {
+    const id = this.ensureDiarySaved()
+    if (!id) {
+      wx.showToast({ title: '保存失败', icon: 'none' })
+      this.setData({ showSharePanel: false })
+      return
+    }
+    const sd = Object.assign({}, this.data.shareDiary, { id: id })
+    this.setData({ shareDiary: sd })
+    const sheet = this.selectComponent('#shareSheet')
+    if (sheet) sheet.continueShare(sd)
+  },
+
+  // [summary-share-align v1] 分享动作完成（海报已存相册/文字已复制）：与【保存】同款回到日记本
+  onShareSheetShared() {
+    const id = this.ensureDiarySaved()
+    if (!id || this._saving) return
+    this._saving = true
+    this.setData({ busy: true })
+    reminder.callMarkWritten(util.getDateKey())
+    wx.showToast({ title: '已保存到日记本', icon: 'success' })
+    // reLaunch 清掉智能总结/结果页栈，避免返回看到旧状态（与 onSave 一致）
+    setTimeout(() => wx.reLaunch({ url: '/pages/index/index' }), 600)
+  },
+
   // ===================== 编辑 =====================
   // 先落库成草稿 → 进日记详情编辑页（复用其完整编辑能力）；未保存返回则草稿被回滚删除
   onEdit() {
     if (this._saving) return
+    // [summary-share-align v1] 已因分享落库过：直接编辑那篇真日记（不带 draft=1，取消不删除），
+    // 避免再落库产生第二份相同内容
+    if (this._savedId) {
+      wx.navigateTo({ url: '/pages/detail/detail?id=' + this._savedId + '&edit=1' })
+      return
+    }
     const draft = storage.saveDiary(this.buildDiaryData())
     if (!draft) {
       wx.showToast({ title: '保存失败', icon: 'none' })
@@ -140,6 +194,14 @@ Page({
   // ===================== 保存 =====================
   onSave() {
     if (this._saving) return
+    // [summary-share-align v1] 已因分享落库过：不重复落库，直接按保存完成的流程回日记本
+    if (this._savedId) {
+      this._saving = true
+      this.setData({ busy: true })
+      wx.showToast({ title: '已保存到日记本', icon: 'success' })
+      setTimeout(() => wx.reLaunch({ url: '/pages/index/index' }), 600)
+      return
+    }
     const saved = storage.saveDiary(this.buildDiaryData())
     if (!saved) {
       wx.showToast({ title: '保存失败', icon: 'none' })
@@ -158,8 +220,9 @@ Page({
 
   // 说明头（两行式）：落库时拼到正文顶部，日记本里可追溯本次总结的需求与数据范围。
   // 页面展示与分享都不用它——结果页顶部有独立的说明卡，分享只发纯总结正文。
-  buildBriefBlock() {
-    const d = this.data
+  buildBriefBlock(src) {
+    // [summary-share-align v1] 支持传入数据源（initFromPayload 时 this.data 还没更新）
+    const d = src || this.data
     const range = '共读取' + (d.rangeText || '所选时间段') + ' ' + (d.diaryCount || 0) + ' 篇日记进行分析' +
       (d.truncated ? '（日记较多，已选取最近部分）' : '')
     return '【总结需求】' + (d.prompt || '（未填写需求）') + '\n【分析范围】' + range

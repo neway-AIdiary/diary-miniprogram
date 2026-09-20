@@ -1,4 +1,7 @@
 {
+  "usingComponents": {
+    "range-picker": "/components/range-picker/range-picker"
+  },
   "navigationBarTitleText": "智能总结",
   "navigationBarBackgroundColor": "#F8F4EE",
   "navigationBarTextStyle": "black",

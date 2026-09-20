@@ -5,6 +5,7 @@ const aiEdit = require('../../utils/aiEdit.js')
 const mediaGuard = require('../../utils/mediaGuard.js')
 const aiCloud = require('../../utils/aiCloud.js')
 const reminder = require('../../utils/reminder.js')
+const appInfo = require('../../utils/appInfo.js')
 const app = getApp()
 
 // 编辑模式媒体限额（与写日记页一致）：图片最多 6 张、视频最多 2 个（按日记所属日期统计）
@@ -204,6 +205,10 @@ Page({
       if (diary.title) diary.title = util.stripDiaryTitleSuffix(diary.title)
       this.setData({
         diary: diary,
+        // [title-content-fallback v1] 浏览态标题：title 空时取正文开头 ≤7 字。
+        // 只用于展示 —— this.data.title 是编辑字段，保持原值，
+        // 否则「进一次详情页」就会把兜底标题当成用户输入保存回去。
+        displayTitle: util.resolveDiaryTitle(diary),
         contentBlocks: util.buildContentLines(diary.content),
         title: diary.title || '',
         content: diary.content || '',
@@ -924,6 +929,21 @@ Page({
       }
       wx.showToast({ title: '保存成功', icon: 'success' })
     } else {
+      // [nodeadend-v1] updateDiary 返回 null 有两种原因：① 本地存储写入失败；② **这篇日记已不在本机**。
+      // 「同日融合」保存时会把同一天的其它日记删掉；若用户当时正编辑其中一篇（详情页还停在旧 id），
+      // 之后无论点多少次保存都只会弹「保存失败」——必须说清原因并返回日记本，不能把用户困在死循环里。
+      const still = storage.getDiaryById(this.data.id)
+      if (!still) {
+        this.setData({ editing: false, showEmojiPanel: false, showAddPanel: false })
+        wx.showModal({
+          title: '日记已不存在',
+          content: '这篇日记已被「同日融合」合并进当天的另一篇日记，或已被删除。\n\n返回日记本查看最新内容。',
+          showCancel: false,
+          confirmText: '返回日记本',
+          complete: () => wx.reLaunch({ url: '/pages/index/index' })
+        })
+        return
+      }
       wx.showToast({ title: '保存失败', icon: 'none' })
     }
   },
@@ -990,7 +1010,7 @@ Page({
     const d = this.data.diary
     const id = this.data.id
     return {
-      title: d ? (d.title || '我的日记') : '我的AI日记',
+      title: d ? (util.resolveDiaryTitle(d) || '我的日记') : '我的' + appInfo.APP_NAME,
       path: id ? '/pages/detail/detail?id=' + encodeURIComponent(id) + '&share=1' : '/pages/write/write'
     }
   }

@@ -82,6 +82,55 @@ ok(lastContent.indexOf('档案') === -1, '「档案」标题行不混入正文')
 ok(lastContent.indexOf('· 小明的猫') === -1, '「· 名字：描述」行不混入正文')
 ok(lastContent.indexOf('今天去了海边') !== -1, '日记正文完整')
 
+console.log('== 回退路径：title 必须在解析时就写入（[parse-title v1]） ==')
+const util = require(path.join(__dirname, '..', 'utils', 'util.js'))
+const titleOf = (iso) => util.getDefaultTitle(util.getDateKey(new Date(iso)))
+const stripHidden = (x) => x.replace(/<w:p>(?:(?!<\/w:p>)[\s\S])*?<w:vanish[\s\S]*?<\/w:p>/g, '')
+ok(!!p2.diaries[0].title, '单篇回退：title 非空（实际 ' + JSON.stringify(p2.diaries[0].title) + '）')
+ok(p2.diaries[0].title === titleOf('2026-09-01T08:00:00.000Z'),
+  'title 与展示层兜底同口径「X月X日 日记」（实际 ' + p2.diaries[0].title + '）')
+{
+  const three = [
+    { id: 'm1', title: '', content: '第一篇。', mood: '', tags: [], media: [], weather: null, created_at: '2026-03-31T12:00:00.000Z' },
+    { id: 'm2', title: '', content: '第二篇。', mood: '', tags: [], media: [], weather: null, created_at: '2026-04-01T12:00:00.000Z' },
+    { id: 'm3', title: '', content: '第三篇。', mood: '', tags: [], media: [], weather: null, created_at: '2026-04-02T12:00:00.000Z' }
+  ]
+  const fb3 = storage.parseDocxXml(stripHidden(extractDocumentXml(storage.buildDocx(three, {}, {}, null))))
+  const ts3 = fb3.diaries.map(d => d.title)
+  ok(fb3.diaries.length === 3, '多篇回退解析出 3 篇', fb3.diaries.length)
+  ok(ts3.every(t => !!t), '非最后一条也必须有 title（旧版只给最后一条补）', ts3)
+  ok(ts3[0] === titleOf('2026-03-31T12:00:00.000Z') && ts3[2] === titleOf('2026-04-02T12:00:00.000Z'),
+    '首/末条 title 各按自身日期生成', ts3)
+}
+
+console.log('== [brand-rename v1] 导出物走新品牌名 + 旧备份仍可导入 ==')
+{
+  const appInfo = require(path.join(__dirname, '..', 'utils', 'appInfo.js'))
+  const brandTitle = appInfo.APP_NAME + ' · 日记备份'
+
+  // 1) 新导出的文档用新品牌名
+  const nx = extractDocumentXml(storage.buildDocx([diary], {}, {}, null))
+  ok(nx.indexOf(brandTitle) !== -1, '新导出文档标题为「' + brandTitle + '」')
+  ok(nx.indexOf('AI日记') === -1, '新导出文档不再出现旧品牌名')
+  ok(nx.indexOf('由 ' + appInfo.APP_NAME + ' 小程序导出') !== -1, '副标题「由 X 小程序导出」用新名')
+
+  // 2) 用户手机上已有的旧文档（标题是旧品牌名）仍必须被判据吞掉、不混入正文
+  const legacyXml = stripHidden(extractDocumentXml(storage.buildDocx([diary], {}, {}, null)))
+    .replace(new RegExp(appInfo.APP_NAME + ' · 日记备份', 'g'), 'AI日记 · 日记备份')
+  const lg = storage.parseDocxXml(legacyXml)
+  ok(lg.diaries.length === 1, '旧品牌名文档仍能解析出 1 篇', lg.diaries.length)
+  ok(lg.diaries.length === 1 && lg.diaries[0].content.indexOf('AI日记 · 日记备份') === -1,
+    '旧品牌名标题行被判据吞掉、不混入正文', lg.diaries.length ? lg.diaries[0].content : null)
+  ok(lg.diaries.length === 1 && lg.diaries[0].content.indexOf('今天去了海边') !== -1, '正文完整')
+
+  // 3) 静态护栏：判据必须同时保留新旧两个品牌名
+  const storageSrc = fs.readFileSync(path.join(__dirname, '..', 'utils', 'storage.js'), 'utf8')
+  ok(storageSrc.indexOf("t.indexOf(appInfo.APP_NAME + ' · 日记备份') !== -1 ||") !== -1,
+    '导入判据含新品牌名')
+  ok(storageSrc.indexOf("t.indexOf('AI日记 · 日记备份') !== -1 ||") !== -1,
+    '导入判据保留旧品牌名（删掉会让用户老备份再也导入不进）')
+}
+
 console.log('== transfer.js 接线（源码断言） ==')
 const transferSrc = fs.readFileSync(path.join(__dirname, '..', 'utils', 'transfer.js'), 'utf8')
 ok(transferSrc.indexOf('isFullExport') !== -1, 'exportToWord 区分全量/子集')

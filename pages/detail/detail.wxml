@@ -7,7 +7,7 @@
   <block wx:if="{{diary && !editing}}">
     <view class="detail-card">
       <!-- 固定区：标题 + 日期/标签（不随内容滚动） -->
-      <view class="detail-title">{{diary.title || '无题'}}</view>
+      <view class="detail-title">{{displayTitle || '无题'}}</view>
 
       <!-- 日期和标签 -->
       <view class="detail-meta">

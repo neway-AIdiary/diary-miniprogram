@@ -10,7 +10,7 @@
           <view class="nav-line"></view>
         </view>
       </view>
-      <view class="nav-title">AI日记</view>
+      <view class="nav-title" style="{{navTitleStyle}}">{{navTitle}}</view>
       <view class="nav-right"></view>
     </view>
   </view>
@@ -242,7 +242,8 @@
          点击进「每日一签」全篇页；不放 scroll-view 里，避免被日记列表挤走。
          v2：原「头像-点击登录」区已移除，本卡上移为侧栏第一块（紧随 header） -->
     <view class="sidebar-quote" bindtap="goToDailyQuote" hover-class="sidebar-quote-hover">
-      <text class="sq-icon ri ri-book-open-line"></text>
+      <!-- [dailyquote v3] 卡片头图标换品牌圆形 logo（assets/logo-square.jpg，与小程序头像同图） -->
+      <image class="sq-logo" src="/assets/logo-square.jpg" mode="aspectFill" />
       <view class="sq-body">
         <view class="sq-line1">{{dailyQuote.line1}}</view>
         <view class="sq-line2">{{dailyQuote.line2}}</view>
@@ -267,16 +268,7 @@
             <view class="s-label">连续天数</view>
           </view>
         </view>
-        <view class="sidebar-search">
-          <input
-            class="s-search-input"
-            placeholder="{{sidebarEmpty ? '打开日记本导入您之前的日记' : '搜索日记'}}"
-            value="{{sidebarKeyword}}"
-            bindinput="onSidebarSearch"
-            confirm-type="search"
-          />
-          <text wx:if="{{sidebarKeyword}}" class="s-search-clear ri ri-close-line" bindtap="clearSidebarSearch"></text>
-        </view>
+        <!-- [sidebar-search-removed v1] 侧栏搜索框已删，搜索只在「打开日记本」页 -->
         <view class="sidebar-diary-list" wx:if="{{sidebarDiaries.length > 0}}">
           <view class="s-diary" wx:for="{{sidebarDiaries}}" wx:key="id" bindtap="openDiary" data-id="{{item.id}}">
             <view class="s-diary-title">{{item.title}}</view>
@@ -285,7 +277,12 @@
           </view>
         </view>
         <view class="sidebar-empty" wx:else>暂无日记，写下第一篇吧</view>
-        <view class="sidebar-more" bindtap="goToIndex">打开日记本 <text class="ri ri-login-box-line"></text></view>
+        <!-- [sidebar-more-btn v3] 去「·」；本/开之间空 4 格宽（wxml 连续空格会折叠，用 margin 等宽实现） -->
+        <view class="sidebar-more" bindtap="goToIndex">
+          <text class="ri ri-book-open-line sidebar-more-icon"></text>
+          <text class="sidebar-more-text">打开日记本</text>
+          <text class="sidebar-more-suffix">开启你的数字化人生</text>
+        </view>
       </view>
 
       <!-- 我的模块 -->

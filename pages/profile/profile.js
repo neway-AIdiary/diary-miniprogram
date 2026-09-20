@@ -4,10 +4,12 @@ const transfer = require('../../utils/transfer.js')
 const backup = require('../../utils/backup.js')
 const theme = require('../../utils/theme.js')
 const lock = require('../../utils/lock.js')
+const appInfo = require('../../utils/appInfo.js')
 const app = getApp()
 
 Page({
   data: {
+    appName: appInfo.APP_NAME,
     userInfo: null,
     stats: null,
     hasUserInfo: false,
@@ -425,8 +427,8 @@ Page({
   // 关于
   showAbout() {
     wx.showModal({
-      title: '关于AI日记',
-      content: 'AI日记 v1.0\n\n记录每一天的故事，写完可以用 AI 优化润色，让表达更生动。\n\n日记默认只存在你的手机里；如需跨设备同步，可在「云端备份」中主动开启（AES 加密，明文永不上传，可随时关闭并删除云数据）。',
+      title: '关于' + appInfo.APP_NAME,
+      content: appInfo.APP_NAME + ' v1.0\n\n记录每一天的故事，写完可以用 AI 优化润色，让表达更生动。\n\n日记默认只存在你的手机里；如需跨设备同步，可在「云端备份」中主动开启（AES 加密，明文永不上传，可随时关闭并删除云数据）。',
       showCancel: false,
       confirmText: '知道了'
     })
@@ -435,7 +437,7 @@ Page({
   // 分享
   onShareAppMessage() {
     return {
-      title: 'AI日记 — 记录每一天的故事',
+      title: appInfo.APP_NAME + ' — 记录每一天的故事',
       path: '/pages/write/write'
     }
   }

@@ -4,6 +4,7 @@ const backup = require('../../utils/backup.js')
 const mediaGuard = require('../../utils/mediaGuard.js')
 const theme = require('../../utils/theme.js')
 const lock = require('../../utils/lock.js')
+const appInfo = require('../../utils/appInfo.js')
 const app = getApp()
 
 Page({
@@ -526,7 +527,7 @@ Page({
 
   onShareAppMessage() {
     return {
-      title: 'AI日记 — 记录每一天的故事',
+      title: appInfo.APP_NAME + ' — 记录每一天的故事',
       path: '/pages/write/write'
     }
   }

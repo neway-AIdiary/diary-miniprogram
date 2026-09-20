@@ -42,7 +42,8 @@ const MODEL = 'deepseek-chat'
 // 心情中文映射
 const MOOD_CN = {
   happy: '开心', calm: '平静', neutral: '平淡', sad: '难过',
-  angry: '生气', love: '温暖', tired: '疲惫', excited: '兴奋'
+  angry: '生气', love: '温暖', tired: '疲惫', excited: '兴奋',
+  conflicted: '纠结', melancholy: '惆怅', mixed: '百感', gloomy: '郁闷', proud: '得意' // MARK:mood-v2-cn
 }
 
 /**
@@ -109,6 +110,61 @@ function buildSystemPrompt(action, ctx) {
     ].join('\n')
   }
 
+  // 素材补全（2026-09-20 新增）：只做「检索 + 核对」，不创作、不续写、不意译。
+  // 客户端已做四层判定（前置否决 / 触发词 / 素材锚点 / 归类）并把指令句剥离，
+  // 这里只负责查原文与出处。**查不到出处一律返回 error，客户端不落正文**。
+  if (action === 'recite') {
+    const kindCn = { poem: '古典诗文', quote: '名人名言', allusion: '典籍典故', line: '现代作品台词' }[ctx.kind] || '不限'
+    const modeCn = {
+      full: '要完整内容', nextFew: '要接下来的 1-3 句（≤100 字）',
+      nextOne: '只要紧接的一句（≤50 字）', lookup: '检索类：某人关于某主题说过的话'
+    }[ctx.mode] || '不限'
+    return [
+      '你是一位严谨的中国古典文学与名人名言的检索核对助手。用户写日记时记不全一句诗文/名言/典故/台词，向你求助。',
+      '你的任务是**检索与核对**，不是创作。',
+      '',
+      '【最高原则（违反即视为失败）】',
+      '1. 只输出你有把握的原文与出处。**说不准出处就把 recited 和 source 都留空**，绝不编造、绝不伪托、绝不意译改写、绝不"补一句像样的"。',
+      '2. 不用「大意如此」「有说法认为」「出自某某之说」这类模糊表述凑答案。',
+      '3. 不创作、不续写、不仿写、不润色用户的文字。',
+      '',
+      '【本次类别与范围】',
+      '类别：' + kindCn,
+      '范围：' + modeCn,
+      '',
+      '【同名系列文本必须区分（重要，违反即视为失败）】',
+      '1. 同一部作品、同一个人物，常有**多套并列且互不相同**的文本：正册判词 / 判词 / 十二支曲 / 曲 / 歌 / 花名签 / 灯谜 / 诗 / 词。',
+      '2. 必须严格按用户点名的**文体**给出对应的那一套；不得用同一人物、同一回目的另一套文本顶替。',
+      '3. 用户点名文体（判词 / 曲 / 歌 / 诗 / 词 …）时，recited 只填该文体的文本，且要给完整的那一套（该体裁多长就给多长，不受「只给名段」影响）。',
+      '4. 用户没点名文体时，给该人物流传最广、最短的那一套（通常就是判词或名句），并在 note 里写明这是哪一套。',
+      '5. 正例：用户要「惜春的判词」→ recited 必须是「勘破三春景不长，缁衣顿改昔年妆。可怜绣户侯门女，独卧青灯古佛旁。」，source 写「《红楼梦》第五回 · 金陵十二钗正册」。',
+      '6. 反例（**绝不允许**）：用户要「惜春的判词」却给出《虚花悟》（「将那三春看破，桃红柳绿待如何？…」）—— 那是第五回十二支曲之一，是**曲**不是判词，虽然同写惜春、同出第五回。同理「黛玉的判词」不能给《葬花吟》（那是诗）。',
+      '',
+      '【四类素材的长度上限】',
+      '1. 古典诗文（诗/词/曲/赋/文）：可给全文，但不超过 300 字；超过 300 字的长篇只给最著名的一段，并在 note 注明「全文较长，此处为名段」。',
+      '2. 典籍典故（四书五经、诸子、史书、笔记等）：可给原文，不超过 300 字。',
+      '3. 名人名言：单条不超过 100 字，**必须说得出处**（作品名或场合）。',
+      '4. 现代作品台词（小说、影视、歌词、中译本）：**只给那一句**，不超过 50 字；不得整段搬运、不得给续后文或全文。若用户要全文，recited 只给这一句，note 说明「该作品仍在版权保护期内，仅提供这一句」。',
+      '',
+      '【出处写法】',
+      '- 古典诗文与典籍：如「《师说》· 韩愈」「《论语·述而》」；',
+      '- 名人名言：如「尼采《偶像的黄昏》」；',
+      '- 影视或现代作品：如「《百年孤独》· 加西亚·马尔克斯」。',
+      '- source 里**不要**带「——」，客户端会自己加。',
+      '',
+      '【用户已写出的部分】',
+      '- 用户正文里已经写出的原文片段**不要重复**，只给接下来的内容；若用户已把这条素材写完整，recited 留空并在 note 说明「后面没有了」。',
+      '',
+      '【检索类提问的处理】',
+      '- 用户问「某人说过关于某主题的什么话」时：给出该人**确实说过**的一句并附出处。',
+      '- 若流传版本有伪托风险（网上常见但查不到原始出处），**宁可不给**（recited 与 source 留空，note 说明「未能确认可靠出处」）。',
+      '- 确有多条流传较广时，最多取 2 条放进 candidates，每条都要带出处。',
+      '',
+      '请严格按以下 JSON 格式返回（不要输出任何其他文字）：',
+      '{"recited":"原文，不含出处行、不含引号","source":"出处","note":"一句简短说明（无内容时说明原因）","kind":"poem|quote|allusion|line","candidates":[{"recited":"","source":""}]}'
+    ].join('\n')
+  }
+
   if (action === 'extractEntities') {
     return [
     '你是一位文本分析助手。请从用户的日记中找出"用户对某个名词做了解释或说明"的内容，提取名词及其解释。',
@@ -144,9 +200,10 @@ function buildSystemPrompt(action, ctx) {
     '5. 每个实体包含 name（名称）、description（概括解释）、explanation（原文解释片段）、type（person/place/org/other）；',
     '6. name 字段里不能出现"是/去/上/让/带/做/吃/待/等/为了/然后"等叙述词或连接词，必须是纯粹的名词；',
     '7. 不要提取常见动词、形容词、普通名词（如"工作"、"开心"、"日记"）；',
-    '8. 不要提取时间词（如"今天"、"昨天"、"8月14日"）；',
-    '9. 同一名词只出现一次；',
-    '10. 如果日记中没有任何带解释的名词，返回空数组。',
+    '8. 绝不提取数量词（一个/一趟/十斤/百分之一/第一次等一切「数词+量词」组合和纯数字表达）、代词（我/你/他/她/它/我们/大家/她们/它们/自己/对方/彼此等）、动词（吃饭/出发/见面/坚持等）、形容词（开心/高兴/疲惫/热闹等）——这些词即使后面紧跟"是/叫"等引导词也不是名词，一律不提取；',
+    '9. 不要提取时间词（如"今天"、"昨天"、"8月14日"）；',
+    '10. 同一名词只出现一次；',
+    '11. 如果日记中没有任何带解释的名词，返回空数组。',
     '',
     '请严格按以下 JSON 格式返回（不要输出任何其他文字）：',
     '{"entities":[{"name":"王磊","description":"我的大学同学","explanation":"他是我大学同学","type":"person"},{"name":"海洋大学","description":"我的母校","explanation":"这是我的母校","type":"place"}]}'
@@ -178,7 +235,7 @@ function buildSystemPrompt(action, ctx) {
     '1. 从文本中识别出每天的记录，尽量按天拆分为多篇日记；如果整段文本就是一篇日记，则整理为一篇；',
     '2. 每篇日记包含三个字段：',
     '   - date: 日记日期，格式 YYYY-MM-DD。根据文本内容推断（如"8月14日"、"2026-08-14"、"昨天"、"今天"；今天是 ' + ctx.today + '）。实在无法推断的留空字符串；',
-    '   - mood: 当天心情，用中文词（开心/平静/一般/难过/生气/幸福/疲倦/兴奋 之一），文本中没有心情信息则留空字符串；',
+    '   - mood: 当天心情，用中文词（开心/平静/一般/难过/生气/幸福/疲倦/兴奋/纠结/惆怅/百感/郁闷/得意 之一），文本中没有心情信息则留空字符串；',
     '   - content: 日记正文，尽量保留原文语句，可做轻微整理使其通顺，但不要虚构原文里没有的内容；',
     '3. 明显与日记无关的内容（广告、系统消息、纯寒暄问候、无意义的重复）应忽略，不要生成日记；',
     '4. 如果整段文本明显就是一篇日记或随笔，即使没有明确日期，也要整理为至少一篇日记（date 可用 ' + ctx.today + ' 推断或留空，但不要返回空数组）；',
@@ -191,7 +248,7 @@ function buildSystemPrompt(action, ctx) {
     '你是一位日记整理助手。用户提供了 ' + ctx.itemCount + ' 篇已切分好的日记（每篇已标注 index 编号、日期和正文），请只做一件事：为每一篇分别提取「日期 / 心情 / 天气 / 标签」四个字段。',
     '字段说明（每篇独立提取，绝不要把不同篇的内容混在一起）：',
     '   - date: 日记日期，格式 YYYY-MM-DD。优先沿用该篇「已提供日期」；仅当正文明确写了另一个日期时才纠正它；无法确定则留空字符串；',
-    '   - mood: 当天心情，从「开心/平静/一般/难过/生气/幸福/疲倦/兴奋」中选一个；正文没有心情描述则留空字符串；',
+    '   - mood: 当天心情，从「开心/平静/一般/难过/生气/幸福/疲倦/兴奋/纠结/惆怅/百感/郁闷/得意」中选一个；正文没有心情描述则留空字符串；',
     '   - weather: 天气描述，如「晴」「多云」「下雨」「阴天」等，可带温度（如「晴 28°」）；正文没提天气则留空字符串；',
     '   - tags: 中文关键词标签，每个 2-4 个字，最多 5 个，从该篇正文实际提到的主题/事件/人物/心情提炼；正文确实无主题则返回空数组；',
     '     严禁虚词/代词/碎片词（反例：一家、是一、好的、这个、我们），必须是实义词或专名；',
@@ -279,6 +336,52 @@ function buildSystemPrompt(action, ctx) {
 /**
  * 构造 parse（AI 识别文本为日记列表）的 prompt
  */
+// ===== 素材补全（recite）专用：文体词 =====
+// 客户端把锚点 E（文体词）命中的词暂存在 target.title 里；这些词本身是**文体**
+// 而不是篇名，单列出来告诉模型，避免它去凑一部叫《判词》的作品。
+// 只放「单独出现时必然是文体词」的词 —— 「师说」「赤壁赋」这类真篇名不在表内。
+const RECITE_GENRE_WORDS = [
+  '判词', '诗词', '诗', '词', '曲', '赋', '古文', '名句', '台词', '原文',
+  '全篇', '篇', '碑文', '祭文', '对联', '檄文', '散文', '诗经'
+]
+
+/**
+ * 素材补全（recite）的 user prompt：只放动态上下文（类别/范围/作者/篇名/主题/原文片段）与正文。
+ * 角色与规则已分层至 buildSystemPrompt('recite')。
+ */
+function buildRecitePrompt(content, payload) {
+  const p = payload || {}
+  const t = p.target || {}
+  const lines = []
+  const kindCn = { poem: '古典诗文', quote: '名人名言', allusion: '典籍典故', line: '现代作品台词' }[p.kind]
+  const modeCn = {
+    full: '完整内容', nextFew: '接下来的 1-3 句', nextOne: '紧接的一句',
+    lookup: '检索：该人关于该主题说过的话'
+  }[p.mode]
+  if (kindCn) lines.push('用户要的类别：' + kindCn)
+  if (modeCn) lines.push('用户要的范围：' + modeCn)
+  // [genre-v1] 人物与文体分列：客户端已把「惜春的判词」解析成 人物=惜春 / 文体=判词。
+  // 旧实现把人物塞进「作者」、把文体塞进「篇名」，模型据此去找一部叫《判词》的作品，
+  // 结果拿同回目同人物的《虚花悟》（曲）顶替了判词。
+  if (t.author) lines.push('涉及作者：' + t.author)
+  if (t.person) lines.push('涉及人物：' + t.person)
+  if (t.genre) lines.push('要求的文体：' + t.genre + '（必须严格按此文体给出，不得用同一人物的其他文体顶替）')
+  // 兼容旧客户端：文体词曾被塞进 t.title，这里单列提示，避免模型误当成一部叫《判词》的作品
+  if (t.title) {
+    if (RECITE_GENRE_WORDS.indexOf(String(t.title).trim()) !== -1) {
+      lines.push('提到的文体（不是篇名，请据此推断用户的真实指向，如「惜春的判词」→《红楼梦》第五回惜春判词）：' + t.title)
+    } else {
+      lines.push('涉及篇名：' + t.title)
+    }
+  }
+  if (t.keyword) lines.push('涉及主题：' + t.keyword)
+  if (t.snippet) lines.push('用户提到的原文片段：' + t.snippet)
+  lines.push('')
+  lines.push('用户日记正文（可能夹杂与本次求助无关的内容，只处理补全请求那一部分）：')
+  lines.push(String(content || '（用户只写了求助本身，没有其他正文）'))
+  return lines.join('\n')
+}
+
 function buildParsePrompt(text, today) {
   return [
     '待整理文本：',
@@ -541,6 +644,42 @@ exports.main = async (event, context) => {
       if (r.error) return { error: r.error }
       const diaries = (r.parsed && Array.isArray(r.parsed.diaries)) ? r.parsed.diaries : []
       return { diaries: diaries, count: diaries.length }
+    } catch (err) {
+      return { error: '调用 AI 失败: ' + (err && err.message || err) }
+    }
+  }
+
+  // ===== recite：日记素材补全（诗文 / 名言 / 典故 / 台词）=====
+  // 客户端已完成四层判定并把指令句剥离，这里只查原文与出处。
+  // **查不到出处一律返回 error**（不返回半真半假的答案，客户端据此不落正文）。
+  if (action === 'recite') {
+    const body = String((event && event.content) || '').trim()
+    const payload = (event && event.payload) || {}
+    // 纯求助句（如「尼采说过那句关于生活的什么话来着，你帮我补充一下」）剥离指令后
+    // 净正文本来就为空 —— 这是**合法请求**，故只在「正文与目标信息都空」时判空；
+    // 否则用户会看到「需要连接 AI 服务」的假故障（客户端降级误报）。
+    const tg = payload.target || {}
+    const hasTarget = !!(String(tg.author || '').trim() || String(tg.title || '').trim() ||
+      String(tg.keyword || '').trim() || String(tg.snippet || '').trim())
+    if (!body && !hasTarget) return { error: '内容为空' }
+    if (!API_KEY) return { error: '服务端未配置 DEEPSEEK_API_KEY' }
+    try {
+      const r = await runPrompt(buildRecitePrompt(body, payload), 1200, 0.2, buildSystemPrompt('recite', payload))
+      if (r.error) return { error: r.error }
+      const p = r.parsed || {}
+      const recited = String(p.recited || '').trim()
+      const source = String(p.source || '').trim()
+      const note = String(p.note || '').trim()
+      // 无出处不出（用户拍板 3.A）：宁可让用户看到「未能确认出处」，也不给伪托内容
+      if (!recited) return { error: note || '未能确认出处，未补全' }
+      if (!source) return { error: note || '未能确认出处，未补全' }
+      return {
+        recited: recited,
+        source: source,
+        note: note,
+        kind: String(p.kind || payload.kind || '').trim(),
+        candidates: Array.isArray(p.candidates) ? p.candidates.slice(0, 2) : []
+      }
     } catch (err) {
       return { error: '调用 AI 失败: ' + (err && err.message || err) }
     }

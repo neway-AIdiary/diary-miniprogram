@@ -1,5 +1,7 @@
 {
-  "usingComponents": {},
+  "usingComponents": {
+    "range-picker": "/components/range-picker/range-picker"
+  },
   "enablePullDownRefresh": true,
   "navigationBarTitleText": "日记本"
 }

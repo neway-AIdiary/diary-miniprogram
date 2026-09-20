@@ -1,0 +1,130 @@
+/* components/range-picker
+   样式沿用旧 pages/summary 内联版本（视觉不变），类名加 rp- 前缀防冲突。
+   颜色一律走 app.wxss 令牌（CSS 变量随 DOM 继承，跨组件边界可用）。 */
+.rp-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 16rpx;
+  width: 100%;
+  min-width: 0;
+}
+
+.rp-pill {
+  display: inline-flex;
+  align-items: center;
+  background: rgba(0, 0, 0, 0.06);
+  border-radius: 30rpx;
+  padding: 10rpx 28rpx;
+  font-size: 24rpx;
+  color: var(--ink-soft);
+  flex-shrink: 0;
+}
+
+.rp-hover {
+  opacity: 0.65;
+}
+
+.rp-arrow {
+  margin-left: 8rpx;
+  font-size: 20rpx;
+  color: var(--ink-soft);
+}
+
+.rp-detail {
+  font-size: 22rpx;
+  color: var(--ink-soft);
+  flex-shrink: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ===== 时间范围选择弹层 ===== */
+.rp-mask {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.4);
+  z-index: 200;
+}
+
+.rp-sheet {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 201;
+  background: var(--surface);
+  border-radius: 24rpx 24rpx 0 0;
+  padding: 28rpx 32rpx;
+  padding-bottom: calc(28rpx + env(safe-area-inset-bottom));
+}
+
+.rp-title {
+  text-align: center;
+  font-size: var(--title-2);
+  font-weight: var(--title-w);
+  color: var(--title-ink);
+  font-family: var(--font-display);
+  letter-spacing: var(--title-track);
+  margin-bottom: 16rpx;
+}
+
+.rp-options {
+  display: flex;
+  flex-direction: column;
+}
+
+.rp-option {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 26rpx 8rpx;
+  font-size: 28rpx;
+  color: var(--ink);
+  border-bottom: 1rpx solid var(--line-soft);
+}
+
+.rp-option:last-child {
+  border-bottom: none;
+}
+
+.rp-option.active {
+  color: var(--brand);
+  font-weight: 500;
+}
+
+.rp-check {
+  font-size: 28rpx;
+  color: var(--brand);
+}
+
+.rp-custom {
+  display: flex;
+  align-items: center;
+  gap: 16rpx;
+  margin-top: 24rpx;
+  padding: 0 8rpx;
+}
+
+.rp-chip {
+  padding: 16rpx 24rpx;
+  background: var(--bg-soft);
+  border: 1rpx solid var(--line);
+  border-radius: var(--r-md);
+  font-size: 26rpx;
+  color: var(--ink);
+}
+
+.rp-chip.placeholder {
+  color: var(--ink-faint);
+}
+
+.rp-sep {
+  font-size: 24rpx;
+  color: var(--ink-soft);
+}

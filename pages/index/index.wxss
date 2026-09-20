@@ -7,48 +7,49 @@
   background: var(--bg);
 }
 
-/* ---------- 顶部统计栏：杂志数据条 ---------- */
-.stats-bar {
+/* ---------- 工具行：日期范围胶囊（左）+ 导出/导入（右）[range-toolbar v1] ---------- */
+.toolbar-row {
   display: flex;
-  align-items: stretch;
-  justify-content: space-around;
-  background: var(--surface);
-  border: 1rpx solid var(--line-soft);
-  border-radius: var(--r-lg);
-  padding: 32rpx 24rpx 28rpx;
-  margin: 24rpx 24rpx 0;
-  box-shadow: var(--shadow-sm);
+  align-items: center;
+  gap: 16rpx;
+  padding: 24rpx 24rpx 0;
 }
 
-.stat-item {
+/* 胶囊占剩余宽度；组件根 rp-row 已 width:100%，flex-wrap 兜底换行 */
+.toolbar-picker {
+  flex: 1;
+  min-width: 0;
+}
+
+/* 导出/导入：图标上、名称下的小操作块（名称都显示，20rpx 小字） */
+.toolbar-actions {
+  display: flex;
+  flex-shrink: 0;
+}
+
+.toolbar-action {
   display: flex;
   flex-direction: column;
   align-items: center;
-  flex: 1;
+  width: 124rpx;
+  padding: 4rpx 0 2rpx;
 }
 
-/* 数字用衬线展示字 + 琥珀色，形成视觉锚点 */
-.stat-num {
-  font-family: var(--font-display);
-  font-size: 52rpx;
-  font-weight: 600;
-  color: var(--brand);
-  line-height: 1.05;
-  letter-spacing: 1rpx;
-}
-
-.stat-label {
-  font-size: 22rpx;
+.toolbar-action .ri {
+  font-size: 36rpx;
   color: var(--ink-soft);
-  margin-top: 12rpx;
-  letter-spacing: 1rpx;
+  line-height: 1.2;
 }
 
-.stat-divider {
-  width: 1rpx;
-  background: var(--line-soft);
-  align-self: center;
-  height: 56rpx;
+.toolbar-action-text {
+  font-size: 20rpx;
+  color: var(--ink-faint);
+  margin-top: 2rpx;
+  white-space: nowrap;
+}
+
+.toolbar-action-hover {
+  opacity: 0.6;
 }
 
 /* ---------- 搜索栏：暖灰槽 ---------- */
@@ -79,11 +80,6 @@
   font-size: 28rpx;
   color: var(--ink);
 }
-
-/* 搜索栏右侧：导出 / 导入图标按钮 */
-.search-action { width: 72rpx; height: 72rpx; border-radius: 50%; background: var(--bg-soft); display: flex; align-items: center; justify-content: center; flex-shrink: 0; margin-left: 16rpx; }
-.search-action .ri { font-size: 32rpx; color: var(--ink-soft); }
-.search-action-hover { opacity: 0.6; }
 
 /* 空日记本下的导入入口 */
 .empty-import { margin-top: 24rpx; font-size: 26rpx; color: var(--brand); display: flex; align-items: center; padding-bottom: 4rpx; }

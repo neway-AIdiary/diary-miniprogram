@@ -49,11 +49,17 @@
   background: var(--ink);
 }
 
+/* [nav-title-30 v1] 顶栏标题 30rpx（用户指定的半档字号，刻度 42/32/26 里无此档）；
+   字重/颜色/字距/字体均不变。
+   [nav-title-center v1] 视觉居中：这里的 left:50% + translateX(-50%) 只保证「数学居中」，
+   右侧微信胶囊是系统层覆盖、左侧只有汉堡图标 ⇒ 实际看着偏右。真实偏移由 utils/navbar.js
+   计算后经 wxml 内联 style 的 margin-left 施加（取不到胶囊信息时 style 为空 = 退回数学居中，
+   所以内联样式失效也不会把标题推到不可预期的位置）。 */
 .nav-title {
   position: absolute;
   left: 50%;
   transform: translateX(-50%);
-  font-size: var(--title-2);
+  font-size: 30rpx;
   font-weight: var(--title-w);
   color: var(--title-ink);
   font-family: var(--font-display);
@@ -1094,19 +1100,14 @@
   background: var(--bg-soft);
 }
 
-.sidebar-quote .sq-icon {
+/* [dailyquote v3] 卡片头换成品牌照片 logo：44rpx 圆形（border-radius 50%，无需预裁圆图） */
+.sidebar-quote .sq-logo {
   flex-shrink: 0;
-  width: 52rpx;
-  height: 52rpx;
+  width: 44rpx;
+  height: 44rpx;
   margin-right: 18rpx;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 28rpx;
-  color: var(--brand-mute);
+  border-radius: 50%;
   background: var(--brand-tint-08);
-  border: 1rpx solid var(--brand-tint-25);
-  border-radius: var(--r-pill);
 }
 
 .sq-body {
@@ -1178,29 +1179,7 @@
   margin-top: 4rpx;
 }
 
-/* 日记本：搜索 */
-.sidebar-search {
-  display: flex;
-  align-items: center;
-  background: var(--line-soft);
-  border-radius: 12rpx;
-  padding: 12rpx 20rpx;
-  margin-bottom: 16rpx;
-}
-
-.s-search-input {
-  flex: 1;
-  font-size: 26rpx;
-  color: var(--ink);
-  min-height: 40rpx;
-}
-
-.s-search-clear {
-  font-size: 24rpx;
-  color: var(--ink-faint);
-  padding: 4rpx 0 4rpx 12rpx;
-}
-
+/* [sidebar-search-removed v1] 侧栏搜索框样式已删，搜索只在「打开日记本」页 */
 /* 日记本：列表（侧栏只显示最近 3 篇，其余在日记本页查看） */
 .s-diary {
   display: flex;
@@ -1259,11 +1238,39 @@
   padding: 32rpx 0;
 }
 
+/* [sidebar-more-btn v4] 去「·」，本/开之间空 3 格宽（26rpx 字号下 1 格 ≈ 13rpx，3 格 = 39rpx margin）；
+   副句弱化色阶，一行放得下（560 侧栏 − 56 内边距 ≈ 504rpx 可用） */
 .sidebar-more {
-  text-align: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  white-space: nowrap;
+  margin: 20rpx 0 8rpx;
+  padding: 18rpx 0;
+  border: 1rpx solid var(--line);
+  border-radius: 12rpx;
+  background: transparent;
   font-size: 28rpx;
   color: var(--brand);
-  padding: 24rpx 0 8rpx;
+}
+
+.sidebar-more:active {
+  background: var(--bg-soft);
+}
+
+.sidebar-more-icon {
+  font-size: 30rpx;
+  margin-right: 10rpx;
+}
+
+.sidebar-more-text {
+  font-weight: 500;
+}
+
+.sidebar-more-suffix {
+  margin-left: 39rpx;
+  font-size: 26rpx;
+  color: var(--ink-faint);
 }
 
 /* 我的：用户卡片 */

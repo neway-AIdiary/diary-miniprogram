@@ -8,6 +8,7 @@
 // diary 需为详情页同款 view model：
 //   createdAt / content / moodText / moodColor / moodBg / tags / images / weatherText / weatherIcon
 const share = require('../../utils/share.js')
+const appInfo = require('../../utils/appInfo.js') // [poster-brand v1] 海报品牌行改走唯一来源，不再硬编码「AI 日记」
 
 // 分享弹窗「自定义展示开关」本地记忆键：跨会话保留最后一次设置
 // v2：天气/心情默认开，标签/图片默认关——bump 一版让历史全开的用户也回到新默认
@@ -23,7 +24,10 @@ Component({
     // 面板标题（日记详情默认「分享我的日记」，总结结果页可传「分享我的 AI 总结」）
     sheetTitle: { type: String, value: '分享我的日记' },
     // 海报小程序码 scene 用的日记 id（未落库的总结可传空，海报自动按无码布局）
-    wxacodeId: { type: String, value: '' }
+    wxacodeId: { type: String, value: '' },
+    // [summary-share-align v1] 页面声明「确认分享前必须先落库」：为真且 diary 无 id 时，
+    // 确认分享先触发 needsave 事件请页面落库，落库后页面回调 continueShare 继续
+    needSavedDiary: { type: Boolean, value: false }
   },
 
   data: {
@@ -78,9 +82,28 @@ Component({
 
     confirmShare() {
       const a = this.data.shareAction
+      if (a === 'poster') {
+        if (this._needSavedDiary()) { this.triggerEvent('needsave'); return } // [summary-share-align v1] 先落库再出海报（二维码指向这篇日记）
+        this.saveSharePoster(); return
+      }
+      if (a === 'text') {
+        if (this._needSavedDiary()) { this.triggerEvent('needsave'); return } // [summary-share-align v1] 先落库再复制
+        this.copyShareText(); return
+      }
+      wx.showToast({ title: '请先选择一种分享方式', icon: 'none' })
+    },
+
+    // [summary-share-align v1] 是否需要页面先落库（仅声明 need-saved-diary 且日记未落库时）
+    _needSavedDiary() {
+      return !!this.data.needSavedDiary && !(this.data.diary && this.data.diary.id)
+    },
+
+    // [summary-share-align v1] 页面落库完成后回调：带最新 diary 继续「确认分享」原动作
+    continueShare(diaryOverride) {
+      if (diaryOverride) this.setData({ diary: diaryOverride })
+      const a = this.data.shareAction
       if (a === 'poster') { this.saveSharePoster(); return }
       if (a === 'text') { this.copyShareText(); return }
-      wx.showToast({ title: '请先选择一种分享方式', icon: 'none' })
     },
 
     // ===== 复制完整文字（默认配置：日期+天气+心情+标签+全文，保留段落） =====
@@ -95,6 +118,7 @@ Component({
         success: () => {
           this.triggerEvent('close')
           wx.showToast({ title: '已复制，可粘贴到任意平台', icon: 'none' })
+          this.triggerEvent('shared', { action: 'text' }) // [summary-share-align v1] 通知页面「分享动作已完成」
         }
       })
     },
@@ -119,6 +143,7 @@ Component({
         wx.hideLoading()
         this.triggerEvent('close')
         await this.saveImageWithAuth(tmp)
+        this.triggerEvent('shared', { action: 'poster' }) // [summary-share-align v1] 通知页面「分享动作已完成」
       } catch (e) {
         wx.hideLoading()
         const msg = (e && (e.errMsg || e.message)) || ''
@@ -345,7 +370,7 @@ Component({
                 ctx.fill()
                 ctx.fillStyle = '#2A2622'
                 ctx.font = '500 30px sans-serif'
-                ctx.fillText(model.date || 'AI 日记', PAD + 22, b.y)
+                ctx.fillText(model.date || appInfo.APP_NAME, PAD + 22, b.y)
               } else if (b.kind === 'mood') {
                 ctx.fillStyle = model.moodBg || 'rgba(138,143,140,0.12)'
                 rrectPath(PAD, b.y - 25, b.w, 50, 25)
@@ -409,7 +434,8 @@ Component({
                   ctx.drawImage(codeImg, cx, cy, cs, cs)
                   ctx.fillStyle = '#A05F27'
                   ctx.font = '500 26px sans-serif'
-                  ctx.fillText('来自 AI 日记 · 记录每一天', PAD, b.y + 26)
+                  // [poster-slogan v1] 品牌行后缀改由 appInfo.APP_SLOGAN 提供（与顶栏标题同一拼法），不再硬编码「记录每一天」
+                  ctx.fillText('来自 ' + appInfo.APP_NAME + '·' + appInfo.APP_SLOGAN, PAD, b.y + 26)
                   ctx.fillStyle = '#BCB0A3'
                   ctx.font = '400 20px sans-serif'
                   ctx.fillText('内容摘要已脱敏 · 部分内容可能由 AI 生成', PAD, b.y + 64)
@@ -419,7 +445,8 @@ Component({
                 } else {
                   ctx.fillStyle = '#A05F27'
                   ctx.font = '500 26px sans-serif'
-                  const brand = '来自 AI 日记 · 记录每一天'
+                  // [poster-slogan v1] 同上：品牌行后缀走唯一来源
+                  const brand = '来自 ' + appInfo.APP_NAME + '·' + appInfo.APP_SLOGAN
                   ctx.fillText(brand, (W - ctx.measureText(brand).width) / 2, b.y + 22)
                   ctx.fillStyle = '#BCB0A3'
                   ctx.font = '400 20px sans-serif'

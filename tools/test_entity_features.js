@@ -190,6 +190,34 @@ check('ng-5 正例「王喜兰」仍备案', entityClean.isExplainedNoun('王喜
 check('ng-6 正例「披萨」仍备案', entityClean.isExplainedNoun('披萨', '这是披萨，就是一种意大利饼。'), true)
 // 否定句即使主语是真专名也不弹备案（日记原文保持不变，无副作用）
 check('ng-7 专名+否定句不备案', entityClean.isExplainedNoun('王喜兰', '王喜兰不是本地人。'), false)
+// [entity-adv-v1] 2026-09-20 用户侧 bug：「简直是专门为我准备的。」弹出备案「简直」——
+// 语气/强调/转折副词与介词整类不备案（两句在旧规则下都会被「是」开头误判为定义句）
+check('ng-9 语气副词「简直」不备案', entityClean.isExplainedNoun('简直', '简直是专门为我准备的。'), false)
+check('ng-10 强调副词「根本」不备案', entityClean.isExplainedNoun('根本', '他根本是我的知己。'), false)
+
+/* ===== 8. 虚词横展 [entity-vc-v1]（2026-09-20 用户指令）：副词/介词/连词/助词/叹词整类不备案 ===== */
+// 每类抽代表，句子均构造为「虚词 + 是…」的旧规则必误判形状（红灯自检能咬中）
+check('ng-11 时间副词「渐渐」不备案', entityClean.isExplainedNoun('渐渐', '我渐渐是他最信任的人。'), false)
+check('ng-12 连词「如果」不备案', entityClean.isExplainedNoun('如果', '如果这是命运的安排。'), false)
+check('ng-13 介词「自从」不备案', entityClean.isExplainedNoun('自从', '我一直记得那天，自从，是我们第一次见面。'), false)
+check('ng-14 助词「而已」不备案', entityClean.isExplainedNoun('而已', '而已，是我们之间才懂的暗号。'), false)
+check('ng-15 叹词「哎哟」不备案', entityClean.isExplainedNoun('哎哟', '哎哟，是我的老朋友！'), false)
+check('ng-16 方位约词「左右」不备案', entityClean.isExplainedNoun('左右', '等左右是十分钟后，我们出发。'), false)
+// 正例护栏不误伤：真专名仍放行（横展只拦虚词整词，不碰含同字的专名）
+check('ng-17 正例「果然山」不受横展影响', entityClean.isExplainedNoun('果然山', '果然山是我们村后的大山。'), true)
+
+/* ===== 9. 词性整类拦截 [entity-num/pron/verb/adj-v1]（2026-09-20 用户指令）：
+   数量词/代词/动词/形容词一律不备案。句子均为旧版必红形状（句首或「，是」凑成定义句） ===== */
+check('ng-18 数量词「一个」不备案', entityClean.isExplainedNoun('一个', '一个是阆苑仙葩。'), false)
+check('ng-19 数字表达式「百分之一」不备案', entityClean.isExplainedNoun('百分之一', '百分之一是我的诚意。'), false)
+check('ng-20 数量短语「十斤」不备案', entityClean.isExplainedNoun('十斤', '十斤是我这周的目标。'), false)
+check('ng-21 序数「第一次」不备案', entityClean.isExplainedNoun('第一次', '第一次是我搞错了。'), false)
+check('ng-22 时间量词「三年」不备案', entityClean.isExplainedNoun('三年', '三年是我全部的青春。'), false)
+check('ng-23 动词「吃饭」不备案', entityClean.isExplainedNoun('吃饭', '吃饭是我一天中最期待的事。'), false)
+check('ng-24 形容词「开心」不备案', entityClean.isExplainedNoun('开心', '开心是我今天的主旋律。'), false)
+check('ng-25 代词「大家」不备案', entityClean.isExplainedNoun('大家', '大家是我的家人。'), false)
+// 正例护栏：含数字的专名不被数量词规则误伤
+check('ng-26 正例「三里屯」不受数量词规则影响', entityClean.isExplainedNoun('三里屯', '三里屯是我们常去的商场。'), true)
 
   console.log('\n===== 结果: pass', pass, 'fail', fail, '=====')
   process.exit(fail > 0 ? 1 : 0)

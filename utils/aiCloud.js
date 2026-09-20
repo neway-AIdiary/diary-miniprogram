@@ -54,21 +54,50 @@ function localTags(content) {
  * @param {string} action 'optimize'（润色）| 'continue'（续写补全）
  * @param {Array<{name,description}>} archives 档案列表（可空，用于 AI 纠错人名地名）
  * @param {string} instruction 用户自定义纠错指令（可空，语音或文字输入）
- * @returns {Promise<{optimized:string, changes:string[], from:'cloud'|'local', error?:string, unsupported?:boolean}>}
+ * @param {Object} payload 素材补全（action='recite'）的结构化请求：{kind,mode,target,existing}
+ * @returns {Promise<Object>} 润色/续写：{optimized,changes,from,...}；
+ *                            素材补全：{recited,source,note,kind,candidates,from,...}
  */
-function callAI(content, mood, action, archives, instruction) {
+function callAI(content, mood, action, archives, instruction, payload) {
   return new Promise((resolve) => {
     const doCall = () => {
       if (!wx.cloud) {
         console.warn('[aiCloud] 当前环境无 wx.cloud，已降级本地规则')
-        resolve(localFallback(content, mood, action, '当前环境未启用云开发'))
+        resolve(localFallback(content, mood, action, '当前环境未启用云开发', true))
         return
       }
       wx.cloud.callFunction({
         name: 'optimizeDiary',
-        data: { content: content, mood: mood || '', action: action || 'optimize', archives: archives || [], instruction: instruction || '' }
+        data: {
+          content: content,
+          mood: mood || '',
+          action: action || 'optimize',
+          archives: archives || [],
+          instruction: instruction || '',
+          payload: payload || null
+        }
       }).then(res => {
         const r = res && res.result
+        // 素材补全（recite）返回的是「补全片段」而不是整篇优化稿，
+        // 拼装优化稿由客户端做（strip 与拼装在客户端，才能单测）
+        if (action === 'recite') {
+          if (r && !r.error && r.recited) {
+            console.log('[aiCloud] 素材补全 from=cloud')
+            resolve({
+              recited: String(r.recited),
+              source: r.source || '',
+              note: r.note || '',
+              kind: r.kind || '',
+              candidates: r.candidates || [],
+              from: 'cloud'
+            })
+          } else {
+            console.warn('[aiCloud] 素材补全云端返回异常:', (r && r.error) || '无 recited 字段')
+            // 云端**在线**但没给内容（查不到出处 / 接口报错）→ offline=false，如实透传原因
+            resolve(localFallback(content, mood, action, (r && r.error) || '未能确认出处', false))
+          }
+          return
+        }
         if (r && !r.error && r.optimized) {
           console.log('[aiCloud] 云函数调用成功 from=cloud')
           resolve({
@@ -82,22 +111,25 @@ function callAI(content, mood, action, archives, instruction) {
         }
       }).catch(err => {
         console.warn('[aiCloud] 调用云函数失败，降级本地:', err && err.errMsg)
-        resolve(localFallback(content, mood, action, (err && err.errMsg) || '调用云函数失败'))
+        resolve(localFallback(content, mood, action, (err && err.errMsg) || '调用云函数失败', true))
       })
     }
     // 云函数冷启动时可能较慢，给予最长等待
     const timer = setTimeout(() => {
       console.warn('[aiCloud] AI 响应超时(30s)，降级本地')
-      resolve(localFallback(content, mood, action, 'AI 响应超时'))
+      resolve(localFallback(content, mood, action, 'AI 响应超时', true))
     }, 30000)
     Promise.resolve(doCall()).then(() => clearTimeout(timer))
   })
 }
 
 /**
- * 本地规则降级：润色可用本地引擎；续写本地不支持
+ * 本地规则降级：润色可用本地引擎；续写 / 素材补全本地不支持
+ * @param {boolean} offline 是否属于「连不上 AI 服务」（无云环境 / 调用失败 / 超时）；
+ *                          云端**在线但明确查不到出处**时为 false —— 两者提示语不同，
+ *                          混为一谈会把「云端说查不到」误报成连接故障（用户侧表现为假故障）
  */
-function localFallback(content, mood, action, reason) {
+function localFallback(content, mood, action, reason, offline) {
   if (action === 'continue') {
     return {
       optimized: '',
@@ -105,6 +137,19 @@ function localFallback(content, mood, action, reason) {
       from: 'local',
       error: reason || '续写需要连接 AI 服务',
       unsupported: true
+    }
+  }
+  // 素材补全：本地**绝不瞎拼**（池内条目已由 utils/quoteAsk.js 直出，
+  // 走到这里一定是池外素材 —— 本地规则拼不出可信的诗文与出处）
+  if (action === 'recite') {
+    return {
+      recited: '',
+      source: '',
+      note: '',
+      kind: '',
+      from: 'local',
+      offline: !!offline,
+      error: reason || '补全诗文需要连接 AI 服务'
     }
   }
   const result = localAI.optimize(content, mood)

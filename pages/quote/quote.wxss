@@ -43,13 +43,15 @@
   background: var(--line);
 }
 
-/* 正文：衬线体 + 宽松行高；pre-line 保留诗词换行（数据里用 \n 分行时不被吞） */
+/* 正文：衬线体 + 宽松行高；pre-line 保留诗词换行（数据里用 \n 分行时不被吞）；
+   首行缩进 1 字宽（[quote-indent v1] 用户要求首文字前空一个字） */
 .quote-body {
   font-family: var(--font-display);
   font-size: 32rpx;
   color: var(--ink-mid);
   line-height: 2.1;
   letter-spacing: 2rpx;
+  text-indent: 1em;
   white-space: pre-line;
 }
 

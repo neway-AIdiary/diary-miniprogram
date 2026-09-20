@@ -1,0 +1,41 @@
+<!-- 日期范围选择胶囊 + 底部弹层（日记本页 / 智能总结页共用）
+     自持状态：对外只发 change 事件（detail 已含解析好的区间）；
+     「自定义起止日期」选完起止立即生效并关闭（无「确定」按钮）；
+     弹层打开期间仅切换草稿选项，点遮罩关闭不落任何未完成的选择。 -->
+<view class="rp-row">
+  <view class="rp-pill" hover-class="rp-hover" bindtap="openSheet">
+    <text><text class="ri ri-calendar-line"></text> {{label}}</text>
+    <text class="rp-arrow ri ri-arrow-down-s-line"></text>
+  </view>
+  <text class="rp-detail" wx:if="{{detail}}">{{detail}}</text>
+
+  <!-- 时间范围选择弹层 -->
+  <view class="rp-mask" wx:if="{{showSheet}}" bindtap="closeSheet"></view>
+  <view class="rp-sheet" wx:if="{{showSheet}}">
+    <view class="rp-title">选择时间范围</view>
+
+    <view class="rp-options">
+      <view
+        class="rp-option {{draftKey === item.key ? 'active' : ''}}"
+        wx:for="{{rangeList}}"
+        wx:key="key"
+        data-key="{{item.key}}"
+        bindtap="selectOption"
+      >
+        <text>{{item.label}}</text>
+        <text class="rp-check ri ri-check-line" wx:if="{{draftKey === item.key}}"></text>
+      </view>
+    </view>
+
+    <!-- 自定义起止日期（弹层内草稿选项为「自定义」时展开；两个都选完立即生效） -->
+    <view class="rp-custom" wx:if="{{draftKey === 'custom'}}">
+      <picker mode="date" value="{{draftStart}}" bindchange="onDraftStart">
+        <view class="rp-chip {{draftStart ? '' : 'placeholder'}}">{{draftStart || '开始日期'}}</view>
+      </picker>
+      <view class="rp-sep">至</view>
+      <picker mode="date" value="{{draftEnd}}" bindchange="onDraftEnd">
+        <view class="rp-chip {{draftEnd ? '' : 'placeholder'}}">{{draftEnd || '结束日期'}}</view>
+      </picker>
+    </view>
+  </view>
+</view>

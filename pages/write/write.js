@@ -8,6 +8,7 @@ const voice = require('../../utils/voice.js')
 const weather = require('../../utils/weather.js')
 const mediaGuard = require('../../utils/mediaGuard.js')
 const transfer = require('../../utils/transfer.js')
+const navbar = require('../../utils/navbar.js')
 const app = getApp()
 
 // 侧栏日记本默认显示的日记条数（其余通过「查看全部」进日记本页）
@@ -41,6 +42,7 @@ const guide = require('../../utils/guide.js')
 const appInfo = require('../../utils/appInfo.js')
 // [dailyquote v1] 侧栏「每日一签」内容源（本地池 + 按日期确定性轮换）
 const dailyQuote = require('../../utils/dailyQuote.js')
+const quoteAsk = require('../../utils/quoteAsk.js')
 
 // 保存后的「非关键步骤」统一兜底：任何一步异常都不得影响「日记已保存」这个事实，
 // 更不得吞掉实体识别（备案提醒）——它是保存流程里唯一的交互步骤。
@@ -59,6 +61,10 @@ Page({
   data: {
     // 应用名（唯一来源 utils/appInfo.js）：侧栏标题使用，禁止在 wxml 里写死字面量
     appName: appInfo.APP_NAME,
+    // 顶栏标题（品牌名 + 标语，同样只从 appInfo 取）：[nav-slogan v1]
+    navTitle: appInfo.APP_NAME + '·' + appInfo.APP_SLOGAN,
+    // 顶栏标题的内联样式（视觉居中偏移 / 溢出缩字）：[nav-title-center v1]，onLoad 计算
+    navTitleStyle: '',
     // 「日记字体」设置注入的 CSS 变量串：字号/字体作用于本页 UGC 正文
     fontStyle: '',
     // 系统栏适配
@@ -116,9 +122,8 @@ Page({
     // ===== 侧边栏（日记本 / 我的）=====
     showSidebar: false,
     stats: { total: 0, monthCount: 0, streak: 0 },
-    allSidebarDiaries: [],
+    /* [sidebar-search-removed v1] 侧栏搜索的两个数据字段随搜索框一并移除 */
     sidebarDiaries: [],
-    sidebarKeyword: '',
     userInfo: null,
     hasUserInfo: false,
     // [dailyquote v1] 每日一签卡片：{ index, type, icon, line1, line2 }，
@@ -171,10 +176,26 @@ Page({
     const win = wx.getWindowInfo ? wx.getWindowInfo() : wx.getSystemInfoSync()
     const statusBarHeight = win.statusBarHeight || 20
     const safeAreaTop = Math.max((win.safeArea && win.safeArea.top) || 0, statusBarHeight, 20)
+    // [nav-title-center v1] 顶栏标题视觉居中 + 溢出护栏
+    // 右侧微信胶囊是系统层覆盖、左侧只有汉堡图标 ⇒ 严格数学居中会看着偏右，
+    // 故按「图标可视线右缘 与 胶囊左缘 的中点」左移；标题过长则自动缩字/截断。
+    let capsuleLeft = 0
+    try {
+      const menuRect = wx.getMenuButtonBoundingClientRect ? wx.getMenuButtonBoundingClientRect() : null
+      if (menuRect && menuRect.left) capsuleLeft = menuRect.left
+    } catch (e) {
+      capsuleLeft = 0 // 取不到就按兜底估算，绝不因此阻塞页面加载
+    }
+    const navTitleLayout = navbar.computeNavTitle({
+      screenW: win.windowWidth,
+      capsuleLeft: capsuleLeft,
+      text: this.data.navTitle
+    })
     this.setData({
       statusBarHeight: statusBarHeight,
       safeAreaTop: safeAreaTop,
-      safeAreaBottom: (win.safeArea && win.screenHeight - win.safeArea.bottom) || 0
+      safeAreaBottom: (win.safeArea && win.screenHeight - win.safeArea.bottom) || 0,
+      navTitleStyle: navTitleLayout.style
     })
 
     const todayKey = util.getDateKey()
@@ -1122,8 +1143,7 @@ Page({
     const list = storage.getAllDiaries().map(d => ({
       id: d.id,
       title: util.stripDiaryTitleSuffix(d.title || '无题'),
-      // 仅供搜索匹配用（不展示）
-      preview: String(d.content || '').replace(/\n/g, ' ').slice(0, 100),
+      // [sidebar-search-removed v1] preview（仅供搜索匹配）随搜索框一并移除
       // AI 概括的当日日记关键字（最多4字，AI 概括不出为空则不显示）
       keyword: pickSidebarKeyword(d.tags),
       dateText: util.formatRelativeTime(d.created_at)
@@ -1131,39 +1151,15 @@ Page({
     const userInfo = app.globalData.userInfo || wx.getStorageSync('userInfo')
     this.setData({
       stats: { total: stats.total, monthCount: stats.monthCount, streak: stats.streak },
-      allSidebarDiaries: list,
-      sidebarEmpty: list.length === 0,
-      sidebarDiaries: this.applySidebarSearch(this.data.sidebarKeyword, list),
+      /* [sidebar-search-removed v1] 无搜索后固定取最近 SIDEBAR_DIARY_LIMIT 篇；空态标记仅搜索占位符在用，一并移除 */
+      sidebarDiaries: list.slice(0, SIDEBAR_DIARY_LIMIT),
       userInfo: userInfo,
       hasUserInfo: !!userInfo
     })
   },
 
-  applySidebarSearch(keyword, list) {
-    const kw = (keyword || '').trim().toLowerCase()
-    // 无搜索词：只显示最近 3 篇
-    if (!kw) return list.slice(0, SIDEBAR_DIARY_LIMIT)
-    // 搜索时在全部日记中匹配（标题 + 内容）
-    return list.filter(d =>
-      (d.title || '').toLowerCase().indexOf(kw) !== -1 ||
-      (d.preview || '').toLowerCase().indexOf(kw) !== -1
-    )
-  },
-
-  onSidebarSearch(e) {
-    const keyword = e.detail.value
-    this.setData({
-      sidebarKeyword: keyword,
-      sidebarDiaries: this.applySidebarSearch(keyword, this.data.allSidebarDiaries)
-    })
-  },
-
-  clearSidebarSearch() {
-    this.setData({
-      sidebarKeyword: '',
-      sidebarDiaries: this.data.allSidebarDiaries.slice(0, SIDEBAR_DIARY_LIMIT)
-    })
-  },
+  /* [sidebar-search-removed v1] 侧栏搜索的应用/输入/清除三个方法已随搜索框一并移除；
+     搜索能力保留在「打开日记本」页 */
 
   // 点击侧边栏中的日记 → 打开详情
   openDiary(e) {
@@ -1239,8 +1235,8 @@ Page({
 
   showAbout() {
     wx.showModal({
-      title: '关于AI日记',
-      content: 'AI日记\n\n记录每一天的故事，写完可以用 AI 优化润色，让表达更生动。\n\n所有数据存储在本地，保护你的隐私。',
+      title: '关于' + appInfo.APP_NAME,
+      content: appInfo.APP_NAME + '\n\n记录每一天的故事，写完可以用 AI 优化润色，让表达更生动。\n\n所有数据存储在本地，保护你的隐私。',
       showCancel: false,
       confirmText: '知道了'
     })
@@ -1260,6 +1256,8 @@ Page({
 
     // 手写进正文的增删改指令：先执行（指令句不保留在正文中），并高亮改动
     let pending = null
+    // [nodeadend-v1] 指令执行前的正文：指令把正文删空时，结果面板要靠它展示「改之前是什么」
+    const contentBeforeEdit = content
     const embedded = aiEdit.extractEmbedded(content)
     if (embedded.blocked && embedded.blocked.length) {
       wx.showToast({ title: '「前边所有内容」不支持删除，请指明要删的内容', icon: 'none' })
@@ -1278,9 +1276,27 @@ Page({
 
       if (!content) {
         this._setContent(content)
-        wx.showToast({ title: '修改指令已执行，正文为空', icon: 'none' })
+        // [nodeadend-v1] 指令已执行、正文被删空：**仍必须给结果面板**。
+        // 「点了【AI 优化】只弹一句 toast 就停在原地」= 用户眼里的「点了没反应」，
+        // 比提示不准确更严重（提示还会把人引向错误方向）。面板里展示改动前正文 + 现状说明。
+        this.showOptimizeFallback({
+          original: contentBeforeEdit,
+          text: '',
+          notes: this._localEditNotes.concat(['修改指令已执行，正文已为空；可直接在优化稿里继续写']),
+          toast: '修改指令已执行，正文为空'
+        })
         return
       }
+    }
+
+    // ===== 日记素材自动补全（诗文 / 名言 / 典故 / 台词）=====
+    // 只在点【AI 优化】/【重新优化】时执行；命中即走专用通道并**只出优化稿**，
+    // 用户点【应用】才落正文（与手写增删改指令「立即执行」是两种落点，这是拍板口径）。
+    // 判定必须排在 nameMatch 与「内容太短」之前：用户常常只写一句十几字的指令。
+    const recite = quoteAsk.detect(content)
+    if (recite.hit) {
+      this.handleRecite(content, recite)
+      return
     }
 
     // 备案名词匹配纠正（同音/发音接近/拼音串 → 档案中的正确写法）
@@ -1303,8 +1319,28 @@ Page({
       this.showEditHighlight(pending.title, content, pending.words)
     }
 
-    if (content.length < 20) {
-      wx.showToast({ title: '内容太短，先多写几句吧', icon: 'none' })
+    this.runOptimize(content)
+  },
+
+  // ===== 普通润色链路（抽出来给「素材补全失败」的降级路径复用）=====
+  // opts.skipTooShort 跳过长度闸（调用方已自行判定过）；
+  // opts.extraNotes 追加到「优化要点」的说明条目；
+  // opts.onFail(结果) 拿不到润色稿时的兜底回调 —— 素材补全降级用它保证结果面板一定跳出
+  runOptimize(content, opts) {
+    opts = opts || {}
+    // [nodeadend-v1] 长度闸（拍板 1.A + 2.A）：
+    //  * 带指令 / 带补全意图（opts.force 或本地已执行过指令）→ **绝不拦**：用户写了指令
+    //    却被回「内容太短，先多写几句吧」，既像 bug 又把指令结果堵死；
+    //  * 无指令的短正文 → 也 **给结果面板**（只说明「本次未润色」），
+    //    不再出现「点了按钮什么都没有」这第三种结局。
+    const hasIntent = !!opts.force || ((this._localEditNotes || []).length > 0)
+    if (!opts.skipTooShort && !hasIntent && content.length < 20) {
+      this.showOptimizeFallback({
+        original: content,
+        text: content,
+        notes: ['正文仅 ' + content.length + ' 字（不足 20 字），本次未做润色；可在优化稿里补写后再点【AI 优化】'],
+        toast: '正文太短，本次未做润色'
+      })
       return
     }
 
@@ -1322,7 +1358,17 @@ Page({
       this.setData({ optimizing: false })
 
       if (!result.optimized) {
-        wx.showToast({ title: result.error || '优化失败，请重试', icon: 'none' })
+        // [nodeadend-v1] 拿不到润色稿同样是早退：默认走统一兜底（面板 + 真实原因），
+        // 不再只弹一句 toast 就把用户留在原地。调用方传了 onFail 时优先用它的兜底
+        // （素材补全降级路径需要更贴合语境的文案与后续联动）。
+        if (opts.onFail) { opts.onFail(result); return }
+        const why = result.error || '优化失败'
+        this.showOptimizeFallback({
+          original: content,
+          text: content,
+          notes: (this._localEditNotes || []).concat([why + '；已展示现有文字，可直接编辑']),
+          toast: why + '，已展示现有文字'
+        })
         return
       }
       if (result.from === 'local') {
@@ -1346,10 +1392,130 @@ Page({
         showOptimizeResult: true,
         originalContent: content,
         optimizedContent: optimized,
-        // 优化要点 = 本地增删改指令条目 + 云端 AI 润色要点
-        optimizeChanges: (this._localEditNotes || []).concat(result.changes || []),
+        // 优化要点 = 本地增删改指令条目 + 云端 AI 润色要点 + 降级说明（如有）
+        optimizeChanges: (this._localEditNotes || []).concat(result.changes || []).concat(opts.extraNotes || []),
         showOriginal: false
       })
+    })
+  },
+
+  // ===== 优化链路的统一兜底（[nodeadend-v1]）=====
+  // 为什么需要：用户点【AI 优化】/【重新优化】后「什么都没发生」是最糟的体验。
+  // 凡走不到正常润色结果的早退路径，一律走这里产出**结果面板**：
+  //   * 有文字 → 当作优化稿（用户可编辑后【应用】）
+  //   * 没有文字 → 展示现状并写清原因（优化要点里说明），绝不把用户堵在原地
+  showOptimizeFallback(opts) {
+    opts = opts || {}
+    this.setData({
+      optimizing: false,
+      showOptimizeResult: true,
+      originalContent: (opts.original === undefined ? '' : opts.original),
+      optimizedContent: (opts.text === undefined ? '' : opts.text),
+      optimizeChanges: (this._localEditNotes || []).concat(opts.notes || []),
+      showOriginal: false
+    })
+    if (opts.toast) wx.showToast({ title: opts.toast, icon: 'none', duration: 2500 })
+  },
+
+  // ===== 日记素材补全：池内直出 / 池外调云 =====
+  // 结果**只进优化稿**（不落正文、不写草稿、不触发同步）；用户点【应用】才写入正文。
+  // 池内命中 → 纯本地直出（0 幻觉 / 0 延迟 / 断网可用）；
+  // 池外 → 云端 recite，必须说得出处，查不到出处就不落正文（拍板 3.A）。
+  handleRecite(content, recite) {
+    const archives = storage.getArchives()
+    const clean0 = quoteAsk.strip(content, recite)
+    // 净正文也过一次档案名词纠正（只影响优化稿，不落盘）
+    const nm = nameMatch.matchArchives(clean0, archives)
+    const clean = nm.replaced.length ? nm.text : clean0
+    const notes = nm.replaced.length ? [this.matchTitle(nm.replaced)] : []
+
+    const show = (block, note) => {
+      const text = quoteAsk.buildOptimized(clean, block)
+      if (!text) {
+        // [nodeadend-v1] 素材已在正文里写全：仍给结果面板说明「无需补全」，
+        // 而不是只弹一句 toast（同样是「点了按钮没反应」的一种）
+        this.showOptimizeFallback({
+          original: content,
+          text: content,
+          notes: notes.concat(['这条素材已经写完整了，无需补全']),
+          toast: '这条素材已经写完整了，无需补全'
+        })
+        return
+      }
+      this.setData({
+        showOptimizeResult: true,
+        originalContent: content,
+        optimizedContent: text,
+        optimizeChanges: notes.concat(note ? [note] : []),
+        showOriginal: false
+      })
+    }
+
+    // ① 池内命中：本地直出
+    if (recite.poolItem) {
+      show(
+        quoteAsk.poolBlock(recite.poolItem, recite.mode, clean),
+        quoteAsk.poolNote(recite.poolItem, recite.mode)
+      )
+      return
+    }
+
+    // ② 池外：交给云端（不瞎拼）
+    // 注意：纯求助句（「尼采说过那句关于生活的什么话来着，你帮我补充一下」）剥离指令后净正文为空，
+    // 若把空串发给云端，云函数第一道闸 `if (!body) return { error: '内容为空' }` 会直接拒绝，
+    // 用户看到的是「需要连接 AI 服务」的假故障 —— 故净正文为空时改发原句作上下文
+    // （云端 prompt 已声明正文可能夹杂与本次求助无关的内容）。
+    const askBody = clean || content
+    // [genre-v1] 用户点名了文体就用用户自己的词（「判词 · 查不到出处就不补」比「诗文 · …」准）
+    const kindText = (recite.target && recite.target.genre) ? recite.target.genre
+      : (recite.kind === 'line' ? '台词'
+        : (recite.kind === 'allusion' ? '典故' : (recite.kind === 'quote' ? '名言' : '诗文')))
+    this.setData({
+      optimizing: true,
+      showOptimizeResult: false,
+      aiLoadingText: '正在核对原文与出处...',
+      aiLoadingSub: kindText + ' · 查不到出处就不补'
+    })
+    aiCloud.callAI(
+      askBody,
+      this.data.mood,
+      'recite',
+      archives.map(a => ({ name: a.name, description: a.description })),
+      '',
+      { kind: recite.kind, mode: recite.mode, target: recite.target, existing: clean }
+    ).then(result => {
+      this.setData({ optimizing: false })
+      if (!result || !result.recited) {
+        // **绝不阻断**：补不上素材也必须给结果面板（用户点了【AI 优化】就得有响应，
+        // 「已按普通润色继续」优先，润色也拿不到时展示现有文字 + 说明原因）。
+        const offline = !!(result && result.offline)
+        const reason = (result && result.error) || ''
+        const note = '素材补全未成：' + (offline ? '连接 AI 服务失败' : (reason || '未能确认出处'))
+        const showFallback = () => {
+          const text = (clean && clean.trim()) ? clean : content
+          this.setData({
+            showOptimizeResult: true,
+            originalContent: content,
+            optimizedContent: text,
+            optimizeChanges: notes.concat([note + '；已展示现有文字，可直接编辑']),
+            showOriginal: false
+          })
+        }
+        if (clean && clean.trim().length >= 20) {
+          wx.showToast({ title: '素材补全未成，已按普通润色继续', icon: 'none', duration: 2500 })
+          this.runOptimize(clean, { skipTooShort: true, extraNotes: [note], onFail: showFallback })
+        } else {
+          wx.showToast({ title: '素材补全未成，已展示现有文字', icon: 'none', duration: 2500 })
+          showFallback()
+        }
+        return
+      }
+      // 长度档（拍板 4.A：单句 50 / 续后文 100 / 全文 300；台词一律 ≤50）
+      const limit = quoteAsk.lenLimitFor(recite.mode, recite.kind)
+      let body = String(result.recited)
+      if (quoteAsk.countPlain(body) > limit) body = quoteAsk.clampText(body, limit)
+      const block = result.source ? body + '\n—— ' + result.source : body
+      show(block, result.note || ('已补全' + (result.source ? '（' + result.source + '）' : '')))
     })
   },
 
@@ -1651,8 +1817,12 @@ Page({
       this._savingMedia = false
       this.setData({ saving: false })
       if (savedOk) {
-        // 同上：融合结果已落库，后续异常不影响数据
+        // 同上：融合结果已落库，后续异常不影响数据。
+        // [nodeadend-v1] 但**必须保证跳转**：日记已进本机日记本，却把用户留在写页，
+        // 用户会以为没保存成功而再点一次（重复写同一天）。守则与另两处一致：
+        // 实体识别在途时不抢先跳（跳走会把备案提醒弹窗吃掉），余下交给 afterSaveNavigate 防重入。
         console.error('[write] 融合已保存，但后续步骤异常（不影响数据）:', err)
+        if (!this._entityCheckActive) this.afterSaveNavigate()
         return
       }
       // AI 融合失败（落库前）：内容保留在输入框可重试
@@ -1843,7 +2013,7 @@ Page({
 
   onShareAppMessage() {
     return {
-      title: 'AI日记 — 记录每一天的故事',
+      title: appInfo.APP_NAME + ' — 记录每一天的故事',
       path: '/pages/write/write'
     }
   }

@@ -231,8 +231,114 @@ function getDetail(index, date) {
   }
 }
 
+/* ===== 素材补全反查（2026-09-20 新增，供 utils/quoteAsk.js 使用）=====
+   只读纯函数：不动 QUOTES、不改既有导出的语义，侧栏日签与全篇页完全不受影响。 */
+
+// 归一化：去空白与标点（与 quoteAsk.norm 同一口径，用于篇名/正文的宽松比对）
+function plain(s) {
+  return String(s == null ? '' : s)
+    .replace(/[\s\u3000]+/g, '')
+    .replace(/[，,。.、；;：:！!？?…~～\-—－_/\\|]+/g, '')
+    .replace(/[《》「」『』“”‘’"'【】\[\]（）()]+/g, '')
+}
+
+// 名句相似比对的正文前缀长度
+const SNIP_PREFIX = 5
+
+/**
+ * 按锚点反查池内素材（篇名 → 正文片段 → 作者）
+ * @param {{text?:string,title?:string,author?:string}} opts
+ * @returns {{index:number,item:Object,by:'title'|'author'|'text',label:string,title:string,type:string}|null}
+ */
+function findByAnchor(opts) {
+  const o = opts || {}
+  const text = plain(o.text || '')
+  const title = plain(o.title || '')
+  const author = plain(o.author || '')
+  const pack = function (i, by, label) {
+    const item = QUOTES[i]
+    return {
+      index: i,
+      item: item,
+      by: by,
+      label: label,
+      title: item.type === 'poem' ? item.title : (item.from || item.author || ''),
+      type: item.type
+    }
+  }
+  // 0) 文本里直接出现的池内篇名（没有书名号也认）。只认 ≥3 字的篇名：
+  //    「山行」「春晓」「相思」这类两字名在无关句子里极易误命中（「我去山里行走」）
+  if (text) {
+    for (let i = 0; i < QUOTES.length; i++) {
+      if (QUOTES[i].type !== 'poem' || !QUOTES[i].title) continue
+      const t = plain(QUOTES[i].title)
+      if (t.length >= 3 && text.indexOf(t) >= 0) return pack(i, 'title', QUOTES[i].title)
+    }
+  }
+  // 1) 书名号里的篇名（含只说了一半的篇名：如「赤壁」→「赤壁赋」）
+  if (title) {
+    for (let i = 0; i < QUOTES.length; i++) {
+      if (QUOTES[i].type !== 'poem' || !QUOTES[i].title) continue
+      const t = plain(QUOTES[i].title)
+      if (t === title || t.indexOf(title) >= 0 || title.indexOf(t) >= 0) return pack(i, 'title', QUOTES[i].title)
+    }
+    for (let i = 0; i < QUOTES.length; i++) {
+      const f = plain(QUOTES[i].from || '')
+      if (f && (f.indexOf(title) >= 0 || title.indexOf(f) >= 0)) return pack(i, 'title', QUOTES[i].from)
+    }
+  }
+  // 2) 正文片段 → 名句相似
+  if (text) {
+    for (let i = 0; i < QUOTES.length; i++) {
+      const body = plain(QUOTES[i].text)
+      const head = body.slice(0, SNIP_PREFIX)
+      if (head.length >= SNIP_PREFIX && text.indexOf(head) >= 0) {
+        return pack(i, 'text', QUOTES[i].title || QUOTES[i].author || '')
+      }
+    }
+  }
+  // 3) 作者
+  if (author) {
+    for (let i = 0; i < QUOTES.length; i++) {
+      if (plain(QUOTES[i].author || '').indexOf(author) >= 0) {
+        if (text) {
+          const body = plain(QUOTES[i].text)
+          const head = body.slice(0, SNIP_PREFIX)
+          if (head && text.indexOf(head) >= 0) return pack(i, 'text', QUOTES[i].title || QUOTES[i].author)
+        }
+        return pack(i, 'author', QUOTES[i].author)
+      }
+    }
+  }
+  return null
+}
+
+/**
+ * 按「作者 + 主题词」检索池内素材（检索类专用；给了主题就必须命中主题）
+ * @returns {Array<{index:number,item:Object,score:number}>}
+ */
+function findByTopic(author, keyword) {
+  const a = plain(author || '')
+  const k = plain(keyword || '')
+  const out = []
+  for (let i = 0; i < QUOTES.length; i++) {
+    const item = QUOTES[i]
+    if (a && plain(item.author || '').indexOf(a) < 0) continue
+    let score = a ? 1 : 0
+    if (k) {
+      const hay = plain(item.text + (item.from || '') + (item.title || '') + (item.author || ''))
+      if (hay.indexOf(k) < 0) continue
+      score += 2
+    }
+    if (score > 0) out.push({ index: i, item: item, score: score })
+  }
+  return out
+}
+
 module.exports = {
   MAX_LEN,
+  findByAnchor,
+  findByTopic,
   PREVIEW_LEN,
   ICON,
   QUOTES,

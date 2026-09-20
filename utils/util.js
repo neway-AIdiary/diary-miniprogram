@@ -11,7 +11,12 @@ const MOOD_MAP = {
   angry: { label: '😤 生气', color: '#EF5350', bg: 'rgba(239,83,80,0.1)' },
   love: { label: '🥰 幸福', color: '#EC407A', bg: 'rgba(236,64,122,0.1)' },
   tired: { label: '😴 疲倦', color: '#7E57C2', bg: 'rgba(126,87,194,0.1)' },
-  excited: { label: '🤩 兴奋', color: '#FF7043', bg: 'rgba(255,112,67,0.1)' }
+  excited: { label: '🤩 兴奋', color: '#FF7043', bg: 'rgba(255,112,67,0.1)' },
+  conflicted: { label: '🤔 纠结', color: '#8D6E63', bg: 'rgba(141,110,99,0.1)' },
+  melancholy: { label: '😞 惆怅', color: '#78909C', bg: 'rgba(120,144,156,0.1)' },
+  mixed: { label: '🫤 百感', color: '#9575CD', bg: 'rgba(149,117,205,0.1)' },
+  gloomy: { label: '😒 郁闷', color: '#5C6BC0', bg: 'rgba(92,107,192,0.1)' },
+  proud: { label: '😏 得意', color: '#D81B60', bg: 'rgba(216,27,96,0.1)' } // MARK:mood-v2-add
 }
 
 function getMoodLabel(mood) {
@@ -71,6 +76,60 @@ function formatRelativeTime(dateStr) {
 function getDefaultTitle(dateStr) {
   const now = dateStr ? new Date(dateStr + 'T12:00:00') : new Date()
   return (now.getMonth() + 1) + '月' + now.getDate() + '日 日记'
+}
+
+// [title-content-fallback v1] 展示层标题兜底：日记标题为空时，取正文字开头几字当标题。
+// 仅用于展示与分享；不主动写回存储（用户下次保存日记时经 getAllDiaries 自然固化，属既有行为）。
+const CONTENT_TITLE_MAX = 7
+const TITLE_TRIM_TAIL_RE = /[\s，。、；：！？…—～·,.!?;:()（）《》【】“”‘’"'-]+$/
+// [title-content-fallback v2] 断句标点优先于长度上限：遇到第一个断句标点就停。
+// 刻意**不含**引号/括号/书名号 —— 它们是「包裹」不是「断句」，
+// 在它们处停下会把左引号带进标题（“今天天气不错），或开头即清空。
+const TITLE_STOP_RE = /[，。、；：！？…—～·,.!?;:-]/
+
+/**
+ * 从正文提取标题片段：开头最多 max 个字，且**遇到第一个断句标点就停**
+ * - 换行与连续空白压成单个空格后 trim（正文常以换行开头）
+ * - 按「码点」逐字遍历，避免把 emoji/代理对截成半个字符
+ * - 断句标点优先于长度上限：「早上很堵，我开车去公司」→「早上很堵」（不是「早上很堵，我开车」）
+ * - 开头的标点直接跳过、不计入已取内容（「，今天很堵」→「今天很堵」）
+ * - 去掉结尾残留的标点（引号/括号类兜底：「今天很好”’」→「今天很好」）
+ * @param {string} content 日记正文
+ * @param {number} [max=7] 最多几个字
+ * @returns {string} 取不到时返回空串
+ */
+function titleFromContent(content, max) {
+  const limit = (typeof max === 'number' && max > 0) ? max : CONTENT_TITLE_MAX
+  const s = String(content == null ? '' : content).replace(/\s+/g, ' ').trim()
+  if (!s) return ''
+  const chars = Array.from(s)
+  const out = []
+  for (let i = 0; i < chars.length; i++) {
+    if (TITLE_STOP_RE.test(chars[i])) {
+      if (!out.length) continue
+      break
+    }
+    out.push(chars[i])
+    if (out.length >= limit) break
+  }
+  return out.join('').replace(TITLE_TRIM_TAIL_RE, '').trim()
+}
+
+/**
+ * 解析日记的展示标题 —— **所有展示出口的唯一口径**
+ *   ① 自身 title 非空（含非纯空白）→ 原样返回
+ *   ② 正文取得到字 → 正文开头 ≤7 字
+ *   ③ 实在没有 → 日期标题「X月X日 日记」
+ * @param {object} diary
+ * @returns {string}
+ */
+function resolveDiaryTitle(diary) {
+  if (!diary) return ''
+  const own = String(diary.title == null ? '' : diary.title).trim()
+  if (own) return own
+  const fromContent = titleFromContent(diary.content)
+  if (fromContent) return fromContent
+  return getDefaultTitle(getDateKey(new Date(diary.created_at)))
 }
 
 // 显示侧栏/详情页时，统一去掉旧数据里夹带的"的"字
@@ -154,6 +213,8 @@ module.exports = {
   formatFullDate,
   formatRelativeTime,
   getDefaultTitle,
+  titleFromContent,
+  resolveDiaryTitle,
   stripDiaryTitleSuffix,
   getCurrentTimeText,
   getDateKey,

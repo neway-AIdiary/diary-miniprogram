@@ -6,16 +6,8 @@
 const storage = require('../../utils/storage.js')
 const util = require('../../utils/util.js')
 const voice = require('../../utils/voice.js')
+const dateRange = require('../../utils/dateRange.js') // [range-toolbar v1] 日期范围公共口径
 const app = getApp()
-
-// 时间范围选项（弹层内选择，选择「自定义起止日期」时再展开两个日期 picker）
-const RANGE_LIST = [
-  { key: 'all', label: '全部时间' },
-  { key: 'month', label: '本月' },
-  { key: 'lastMonth', label: '上月' },
-  { key: 'week7', label: '近 7 天' },
-  { key: 'custom', label: '自定义起止日期' }
-]
 
 // 快捷模板（点击自动填充输入框）
 const SHORTCUTS = [
@@ -42,12 +34,6 @@ Page({
     fontStyle: '',
     // 底部安全区适配
     safeAreaBottom: 0,
-    rangeList: RANGE_LIST,
-    range: 'all',           // all | month | lastMonth | week7 | custom
-    rangeLabel: '全部时间',
-    showRangePicker: false,
-    customStart: '',
-    customEnd: '',
     prompt: '',
     loading: false,
     hasResult: false,
@@ -66,6 +52,8 @@ Page({
   },
 
   onLoad() {
+    // [range-toolbar v1] 日期范围状态：由 range-picker 组件 change 事件维护
+    this._rangeState = { range: 'all', customStart: '', customEnd: '' }
     // 底部安全区适配（与写日记主页 / 详情编辑页 / 档案页一致）
     const win = wx.getWindowInfo ? wx.getWindowInfo() : wx.getSystemInfoSync()
     this.setData({
@@ -143,75 +131,10 @@ Page({
     this.setData({ voiceCanceling: false })
   },
 
-  // ===== 时间范围（弹层内选择）=====
-  openRangePicker() {
-    this.setData({ showRangePicker: true })
-  },
-
-  closeRangePicker() {
-    this.setData({ showRangePicker: false })
-  },
-
-  // 点选某个范围：非「自定义」直接生效并关闭；「自定义」展开日期区，等用户选完点确定
-  selectRange(e) {
-    const key = e.currentTarget.dataset.key
-    const item = RANGE_LIST.find(r => r.key === key)
-    if (!item) return
-    if (key === 'custom') {
-      // 胶囊上显示短文案，完整区间由弹层/右侧提示展示
-      this.setData({ range: 'custom', rangeLabel: '自定义日期' })
-      return
-    }
-    this.setData({ range: key, rangeLabel: item.label, showRangePicker: false })
-  },
-
-  confirmRange() {
-    const { customStart, customEnd } = this.data
-    if (!customStart || !customEnd) {
-      wx.showToast({ title: '请选择开始和结束日期', icon: 'none' })
-      return
-    }
-    if (customStart > customEnd) {
-      wx.showToast({ title: '开始日期不能晚于结束日期', icon: 'none' })
-      return
-    }
-    this.setData({ showRangePicker: false })
-  },
-
-  onCustomStart(e) {
-    this.setData({ customStart: e.detail.value })
-  },
-
-  onCustomEnd(e) {
-    this.setData({ customEnd: e.detail.value })
-  },
-
-  // 按时间范围筛选日记（返回倒序数组，新的在前）
-  filterDiaries(list) {
-    const now = new Date()
-    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime()
-    const range = this.data.range
-    if (range === 'month') {
-      const s = new Date(now.getFullYear(), now.getMonth(), 1).getTime()
-      return list.filter(d => new Date(d.created_at).getTime() >= s)
-    }
-    if (range === 'lastMonth') {
-      const s = new Date(now.getFullYear(), now.getMonth() - 1, 1).getTime()
-      const e = new Date(now.getFullYear(), now.getMonth(), 1).getTime()
-      return list.filter(d => { const t = new Date(d.created_at).getTime(); return t >= s && t < e })
-    }
-    if (range === 'week7') {
-      const s = todayStart - 6 * 86400000
-      return list.filter(d => new Date(d.created_at).getTime() >= s)
-    }
-    if (range === 'custom') {
-      const cs = this.data.customStart, ce = this.data.customEnd
-      if (!cs || !ce) return list
-      const s = new Date(cs + 'T00:00:00').getTime()
-      const e = new Date(ce + 'T23:59:59').getTime()
-      return list.filter(d => { const t = new Date(d.created_at).getTime(); return t >= s && t <= e })
-    }
-    return list // all
+  // ===== 时间范围（range-picker 公共组件）[range-toolbar v1] =====
+  onRangeChange(e) {
+    const d = (e && e.detail) || {}
+    this._rangeState = { range: d.range || 'all', customStart: d.customStart || '', customEnd: d.customEnd || '' }
   },
 
   // ===== 快捷模板 =====
@@ -228,10 +151,10 @@ Page({
       return
     }
     if (this.data.loading) return
-    // 自定义范围必须选完起止日期
-    if (this.data.range === 'custom' && (!this.data.customStart || !this.data.customEnd)) {
+    // 自定义范围必须选完起止日期（组件保证 change 只在完整时发出，此处为防御）[range-toolbar v1]
+    const rs = this._rangeState || {}
+    if (rs.range === 'custom' && (!rs.customStart || !rs.customEnd)) {
       wx.showToast({ title: '请先选择起止日期', icon: 'none' })
-      this.setData({ showRangePicker: true })
       return
     }
     // 3 秒防抖
@@ -244,7 +167,7 @@ Page({
     const all = storage.getAllDiaries()
     // 静默排除「AI 总结」生成的日记：总结结果是产出物，不再作为下一轮总结的输入
     const sourceList = all.filter(d => !util.isAiSummaryDiary(d))
-    const filtered = this.filterDiaries(sourceList)
+    const filtered = dateRange.filterByRange(sourceList, rs.range, rs.customStart, rs.customEnd) // [range-toolbar v1]
     if (!filtered.length) {
       this.setData({ error: '所选时间段暂无日记，请更换时间范围或去写日记', hasResult: false, result: '' })
       return
@@ -291,7 +214,7 @@ Page({
       return
     }
 
-    const rangeDate = this.getRangeDate()
+    const rangeDate = dateRange.rangeDateKeys(rs.range, rs.customStart, rs.customEnd) // [range-toolbar v1]
     wx.cloud.callFunction({
       name: 'aiSummary',
       data: {
@@ -307,7 +230,7 @@ Page({
         const payload = {
           content: r.summaryText,
           prompt: prompt,
-          rangeText: this.getRangeText(),
+          rangeText: dateRange.rangeText(rs.range, rs.customStart, rs.customEnd), // [range-toolbar v1]
           diaryCount: r.diaryCount || diaries.length,
           truncated: !!r.truncated || frontTruncated
         }
@@ -341,47 +264,6 @@ Page({
         error: 'AI 调用失败：' + (detail || '网络异常') + '\n（请把错误文案发给 AI 助手定位）'
       })
     })
-  },
-
-  // 当前筛选对应的起止日期（仅用于记录/回显）
-  getRangeDate() {
-    const now = new Date()
-    const pad = n => n < 10 ? '0' + n : '' + n
-    const key = d => d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate())
-    if (this.data.range === 'custom') {
-      return { start: this.data.customStart || '', end: this.data.customEnd || '' }
-    }
-    if (this.data.range === 'month') {
-      return { start: key(new Date(now.getFullYear(), now.getMonth(), 1)), end: key(now) }
-    }
-    if (this.data.range === 'lastMonth') {
-      return { start: key(new Date(now.getFullYear(), now.getMonth() - 1, 1)), end: key(new Date(now.getFullYear(), now.getMonth(), 0)) }
-    }
-    if (this.data.range === 'week7') {
-      const s = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 6)
-      return { start: key(s), end: key(now) }
-    }
-    return { start: '', end: '' }
-  },
-
-  // 数据范围文案（总结结果页展示用，如「本月 / 上月 / 近 7 天 / 全部时间 / 9月1日 至 9月11日」）
-  getRangeText() {
-    const range = this.data.range
-    if (range === 'month') return '本月'
-    if (range === 'lastMonth') return '上月'
-    if (range === 'week7') return '近 7 天'
-    if (range === 'custom') {
-      const cn = (s) => {
-        const d = new Date(s + 'T00:00:00')
-        if (isNaN(d.getTime())) return ''
-        return (d.getMonth() + 1) + '月' + d.getDate() + '日'
-      }
-      const a = cn(this.data.customStart)
-      const b = cn(this.data.customEnd)
-      if (a && b) return a + ' 至 ' + b
-      return '所选时间段'
-    }
-    return '全部时间'
   },
 
   // 结果展示/复制/保存已移至「总结结果」页（pages/summary-result），本页只负责生成

@@ -133,6 +133,99 @@ ok('侧栏标题区已无字面量',
   /<view class="sidebar-title">[^<{]*<\/view>/.test(writeWxml) === false,
   (writeWxml.match(/<view class="sidebar-title">[^<]*<\/view>/) || [''])[0])
 
+// [nav-slogan v1] 写日记主页顶栏标题 = 品牌名 + 标语：两者都必须来自 appInfo
+ok('APP_SLOGAN 非空', typeof info.APP_SLOGAN === 'string' && info.APP_SLOGAN.length > 0,
+  String(info.APP_SLOGAN))
+ok('顶栏标题由 appInfo 拼出（APP_NAME + · + APP_SLOGAN）',
+  writeJs.indexOf("navTitle: appInfo.APP_NAME + '·' + appInfo.APP_SLOGAN,") !== -1)
+ok('顶栏标题绑定 {{navTitle}}（不再硬编码）',
+  writeWxml.indexOf('<view class="nav-title" style="{{navTitleStyle}}">{{navTitle}}</view>') !== -1)
+ok('顶栏标题区已无字面量',
+  /<view class="nav-title"[^>]*>[^<{]*<\/view>/.test(writeWxml) === false,
+  (writeWxml.match(/<view class="nav-title"[^>]*>[^<]*<\/view>/) || [''])[0])
+ok('顶栏实际标题 = 一灯记·让AI照亮此间',
+  info.APP_NAME + '·' + info.APP_SLOGAN === '一灯记·让AI照亮此间',
+  info.APP_NAME + '·' + info.APP_SLOGAN)
+ok('侧栏标题仍绑 appName（未被顶栏改动波及）',
+  writeWxml.indexOf('<view class="sidebar-title">{{appName}}</view>') !== -1)
+
+// [nav-title-30 v1] 顶栏字号 30rpx（用户指定的半档值，不再走标题令牌刻度）
+const writeWxss = read('pages/write/write.wxss')
+const navTitleBlock = (writeWxss.match(/\.nav-title \{[\s\S]*?\}/) || [''])[0]
+const sidebarTitleBlock = (writeWxss.match(/\.sidebar-title \{[\s\S]*?\}/) || [''])[0]
+ok('.nav-title 规则块可定位', navTitleBlock.length > 0)
+ok('顶栏标题字号 = 30rpx（用户指定的半档值，非令牌档位）',
+  navTitleBlock.indexOf('font-size: 30rpx') !== -1 &&
+  navTitleBlock.indexOf('font-size: var(--title-') === -1,
+  navTitleBlock.replace(/\s+/g, ' ').slice(0, 130))
+ok('顶栏其余样式未动（字重/颜色/字距/字体仍是 title 系）',
+  navTitleBlock.indexOf('font-weight: var(--title-w)') !== -1 &&
+  navTitleBlock.indexOf('color: var(--title-ink)') !== -1 &&
+  navTitleBlock.indexOf('letter-spacing: var(--title-track)') !== -1 &&
+  navTitleBlock.indexOf('font-family: var(--font-display)') !== -1)
+ok('侧栏标题字号未被波及（仍 --title-2）',
+  sidebarTitleBlock.indexOf('font-size: var(--title-2)') !== -1)
+
+// [nav-title-center v1] 顶栏标题「视觉居中」（避让微信胶囊）+ 溢出护栏
+// 缘由：右侧胶囊是系统层覆盖、左侧只有汉堡图标 ⇒ 数学居中看着偏右。
+// 口径：标题中心对准「图标可视线右缘 与 胶囊左缘」的中点，偏移经内联 margin-left 施加。
+let navbar = null
+try { navbar = require(path.join(ROOT, 'utils', 'navbar.js')) } catch (e) { navbar = null }
+ok('utils/navbar.js 可加载且导出纯函数',
+  !!(navbar && typeof navbar.computeNavTitle === 'function' && typeof navbar.estimateTextWidthRpx === 'function'))
+
+if (navbar && typeof navbar.computeNavTitle === 'function') {
+  const TITLE = info.APP_NAME + '·' + info.APP_SLOGAN
+  // 375pt 屏：胶囊左缘 = 375 − 7(贴右) − 87(宽) = 281
+  const r375 = navbar.computeNavTitle({ screenW: 375, capsuleLeft: 281, text: TITLE })
+  const iconRight375 = navbar.ICON_RIGHT_RPX * (375 / 750)
+  const mid375 = (iconRight375 + 281) / 2
+  ok('375 屏：偏移为正，且标题中心落在「图标右缘 ↔ 胶囊左缘」中点',
+    r375.shiftPx > 0 && Math.abs((375 / 2 - r375.shiftPx) - mid375) < 0.05,
+    'shift=' + r375.shiftPx + ' 落点=' + (375 / 2 - r375.shiftPx) + ' 目标=' + mid375)
+  ok('375 屏：偏移量 ≈ 27.5px', Math.abs(r375.shiftPx - 27.5) < 0.6, String(r375.shiftPx))
+  ok('375 屏：内联样式用 margin-left（不用 left —— 失效时退回数学居中而非跑飞）',
+    r375.style === 'margin-left: -27.5px', r375.style)
+  ok('375 屏：当前标题不触发缩字（仍有余量）',
+    r375.scaled === false && r375.truncated === false && r375.style.indexOf('font-size') === -1, r375.style)
+
+  const r320 = navbar.computeNavTitle({ screenW: 320, capsuleLeft: 320 - 94, text: TITLE })
+  ok('320 窄屏：偏移按本机算（比 375 更大），当前标题仍不缩字',
+    r320.shiftPx > 27.5 && r320.scaled === false, 'shift=' + r320.shiftPx + ' scaled=' + r320.scaled)
+
+  const rFallback = navbar.computeNavTitle({ screenW: 375, capsuleLeft: 0, text: TITLE })
+  ok('取不到胶囊信息时走兜底估算，结果与显式传入一致',
+    Math.abs(rFallback.shiftPx - r375.shiftPx) < 0.05 && rFallback.capsuleLeft === 281)
+
+  const rWeird = navbar.computeNavTitle({ screenW: 375, capsuleLeft: 400, text: TITLE })
+  ok('胶囊信息异常 → shift=0 且样式不含定位（退回数学居中，不推向不可预期位置）',
+    rWeird.shiftPx === 0 && rWeird.style.indexOf('margin-left') === -1, rWeird.style)
+
+  const LONG = '一灯记·让AI照亮此间这是非常非常长的标题占位'
+  const rLong = navbar.computeNavTitle({ screenW: 375, capsuleLeft: 281, text: LONG })
+  ok('超长标题触发缩字', rLong.scaled === true && rLong.fontRpx < 30, 'font=' + rLong.fontRpx)
+  ok('缩字不低于下限 24rpx', rLong.fontRpx >= navbar.MIN_FONT_RPX, String(rLong.fontRpx))
+  ok('缩到下限仍不够则截断（max-width + 省略号）',
+    rLong.truncated === true &&
+    rLong.style.indexOf('max-width:') !== -1 &&
+    rLong.style.indexOf('text-overflow: ellipsis') !== -1, rLong.style)
+  ok('估算宽度：全角 1 字号宽、半角 0.55（本标题 ≈ 308.5rpx）',
+    Math.abs(navbar.estimateTextWidthRpx(TITLE, 30) - 308.5) < 1.5,
+    String(navbar.estimateTextWidthRpx(TITLE, 30)))
+}
+
+ok('write.js 已引入 utils/navbar.js', writeJs.indexOf("require('../../utils/navbar.js')") !== -1)
+ok('write.js 调用 computeNavTitle 并把结果写进 navTitleStyle',
+  writeJs.indexOf('navbar.computeNavTitle(') !== -1 &&
+  writeJs.indexOf('navTitleStyle: navTitleLayout.style') !== -1)
+ok('write.js 取胶囊信息包了 try/catch（取不到不阻塞页面）',
+  writeJs.indexOf('getMenuButtonBoundingClientRect') !== -1 &&
+  writeJs.indexOf('catch (e) {\n      capsuleLeft = 0') !== -1)
+ok('write.wxml 顶栏标题绑定内联样式 {{navTitleStyle}}',
+  writeWxml.indexOf('<view class="nav-title" style="{{navTitleStyle}}">{{navTitle}}</view>') !== -1)
+ok('.nav-title 仍保留 left:50% + translateX(-50%)（内联偏移缺失时的降级底）',
+  navTitleBlock.indexOf('left: 50%') !== -1 && navTitleBlock.indexOf('translateX(-50%)') !== -1)
+
 // 白名单：已知的、暂未收敛的硬编码点（值为允许出现次数）
 // 收敛后请把次数改为 0（或从表里删掉），别让白名单变成永久豁免
 const ALLOW_HARDCODED = {

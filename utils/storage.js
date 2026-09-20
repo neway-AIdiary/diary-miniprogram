@@ -9,6 +9,9 @@ const zipWriter = require('./zipWriter.js')
 const archiveEdit = require('./archiveEdit.js')
 // 「日记字体」设置：导出 Word 正文按当前字号档位换算（用户选择导出跟随）
 const fontSetting = require('./fontSetting.js')
+// [brand-rename v1] 导出物品牌名统一走唯一来源。
+// 注意：导入判据仍需兼容旧字面量「AI日记 · 日记备份」，见 parseDocxXml 回退段。
+const appInfo = require('./appInfo.js')
 
 const STORAGE_KEY = 'diaries'
 // 文本导出/导入的分隔线（整行 >=10 个 = 视为分段标记）
@@ -80,15 +83,17 @@ function safeSetStorage(key, value, estimatedBytes, silent) {
 
 /**
  * 获取所有日记（按时间倒序）
- * 同时为 title 字段缺失的旧数据/导入数据生成默认标题，避免全站出现「无题」
+ * 同时为 title 字段缺失的**历史数据**生成默认标题，避免全站出现「无题」
+ * 注：导入/解析链路现在都在解析时即写入 title（标记 [parse-title v1]），
+ *     这里的兜底只服务于更早版本存下的旧数据。
  */
 function getAllDiaries() {
   const list = wx.getStorageSync(STORAGE_KEY) || []
-  // 标题兜底（仅展示层，不写回本地）：缺失 title 的日记按日期生成「X月X日 日记」
+  // 标题兜底（仅展示层，不写回本地）[title-content-fallback v1]：
+  // 空 title → 正文开头 ≤7 字 → 正文也空才用日期标题「X月X日 日记」
+  // 唯一口径 = util.resolveDiaryTitle；index.js / detail.js 走同一函数，别在这里另写一份
   list.forEach(d => {
-    if (!d.title) {
-      d.title = util.getDefaultTitle(util.getDateKey(new Date(d.created_at)))
-    }
+    d.title = util.resolveDiaryTitle(d)
   })
   return list.sort((a, b) => {
     return new Date(b.created_at) - new Date(a.created_at)
@@ -243,7 +248,7 @@ function exportDiaries() {
 
 /* ===== 纯文本导入导出（日期/内容/心情，用日期分段）=====
    格式示例：
-   AI日记 导出备份（共 2 篇）
+   一灯记 导出备份（共 2 篇）
 
    ========================================
    【日期】2026-08-14 16:30
@@ -279,12 +284,12 @@ function parseDateTimeText(str) {
 // 解析中文日期 — 支持 "2026年8月14日" / "8月14日"（无年份按今年，未来超3个月则推断为去年）
 function parseCnDate(str) {
   if (!str) return null
-  let m = str.match(/(\d{4})年(\d{1,2})月(\d{1,2})日/)
+  let m = str.match(/(\d{4})年(\d{1,2})月(\d{1,2})[日号]/) // [dhv2#1] 兼容「号」
   if (m) {
     const dt = new Date(+m[1], +m[2] - 1, +m[3], 12)
     return isNaN(dt.getTime()) ? null : dt
   }
-  m = str.match(/(\d{1,2})月(\d{1,2})日/)
+  m = str.match(/(\d{1,2})月(\d{1,2})[日号]/) // [dhv2#2] 兼容「号」
   if (m) {
     const now = new Date()
     let dt = new Date(now.getFullYear(), +m[1] - 1, +m[2], 12)
@@ -374,7 +379,7 @@ function exportDiariesToText() {
     lines.push(String(d.content || '').trim())
     return lines.join('\n')
   })
-  const header = 'AI日记 导出备份（共 ' + list.length + ' 篇）\n'
+  const header = appInfo.APP_NAME + ' 导出备份（共 ' + list.length + ' 篇）\n'
   const text = header + blocks.join('\n\n========================================\n\n') + '\n'
   return { count: list.length, text: text }
 }
@@ -423,7 +428,7 @@ function wordTitleDate(dateObj, withYear) {
  */
 function buildWordFileName(diaries) {
   const dates = (diaries || []).map(d => new Date(d.created_at)).filter(d => !isNaN(d.getTime()))
-  if (!dates.length) return 'AI日记备份.docx'
+  if (!dates.length) return appInfo.APP_NAME + '备份.docx'
   dates.sort((a, b) => a - b)
   const first = dates[0]
   const last = dates[dates.length - 1]
@@ -478,9 +483,9 @@ function buildWordHtml(diaries, imgMap, videoMap) {
     '.video,.location{font-size:13px;color:#555;margin:6px 0;word-break:break-all}\n' +
     '.video a{color:#10AEFF;text-decoration:none}\n' +
     '</style>\n</head>\n<body>\n' +
-    '<h1 class="doc-title">AI日记 · 日记备份</h1>\n' +
+    '<h1 class="doc-title">' + appInfo.APP_NAME + ' · 日记备份</h1>\n' +
     '<p class="doc-sub">导出时间：' + escapeHtml(util.formatFullDate(new Date().toISOString())) +
-    '　·　共 ' + list.length + ' 篇　·　由 AI日记 小程序导出</p>\n' +
+    '　·　共 ' + list.length + ' 篇　·　由 ' + appInfo.APP_NAME + ' 小程序导出</p>\n' +
     blocks + '\n</body>\n</html>'
 }
 
@@ -642,9 +647,9 @@ function buildDocx(diaries, imgBin, videoMap, archives) {
 
   // 3) 正文段落
   const paras = []
-  paras.push(docxPara('AI日记 · 日记备份', { bold: true, size: '44', center: true, spacing: true }))
+  paras.push(docxPara(appInfo.APP_NAME + ' · 日记备份', { bold: true, size: '44', center: true, spacing: true }))
   paras.push(docxPara('导出时间：' + util.formatFullDate(new Date().toISOString()) +
-    '　·　共 ' + list.length + ' 篇　·　由 AI日记 小程序导出',
+    '　·　共 ' + list.length + ' 篇　·　由 ' + appInfo.APP_NAME + ' 小程序导出',
     { color: '999999', size: '22', center: true }))
 
   list.forEach(d => {
@@ -861,7 +866,9 @@ function parseDocxXml(xml) {
   // 3) 回退：解析可视段落（文件可能被 Word/WPS 编辑过）
   const notes = []
   // 标题行：整行就是「X月X日（日记/合并日记/周几）」等短格式，与 parseNumberedDiaries 一致，额外兼容带年份
-  const titleRe = /^\s*(?:(?:\d{4})年)?\d{1,2}月\d{1,2}日(?:\s*[、,，]\s*(?:\d{1,2}月)?\d{1,2}日)*(?:\s*合并)?\s*(?:日记|周[日一二三四五六])?\s*$/
+  // [dhv2#3] 放宽：兼容「号」、周X+日记双后缀（顺序不限）、行尾括号备注（如「（最终修正版）」）
+  // [dhv2#18] 星期后缀兼容「周五」与「星期五」
+  const titleRe = /^\s*(?:(?:\d{4})年)?\d{1,2}月\d{1,2}[日号](?:\s*[、,，]\s*(?:\d{1,2}月)?\d{1,2}[日号])*(?:\s*合并)?(?:\s*(?:(?:周|星期)[日一二三四五六]|日记))*(?:\s*[（(][^）)]*[）)])?\s*$/
   let cur = null
   const fallback = []
   paras.forEach(pXml => {
@@ -871,6 +878,7 @@ function parseDocxXml(xml) {
     if (titleRe.test(t)) {
       if (cur) fallback.push(cur)
       const ts = parseCnDate(t)
+      const createdAt = ts ? ts.toISOString() : new Date().toISOString()
       cur = {
         id: generateId(),
         content: '',
@@ -879,8 +887,11 @@ function parseDocxXml(xml) {
         location: null,
         media: [],
         weather: null,
-        created_at: ts ? ts.toISOString() : new Date().toISOString(),
-        title: ''
+        created_at: createdAt,
+        // [parse-title v1] 解析时即写入标题：与 parseVisibleBlock / parseDiariesFromText /
+        // parseNumberedDiaries 同一口径（原先留空串、只靠 getAllDiaries 展示层兜底，
+        // 而落库的是对象本身 ⇒ 云备份 / 导出 / 分享里的 title 一直是空）
+        title: util.getDefaultTitle(util.getDateKey(new Date(createdAt)))
       }
       return
     }
@@ -933,25 +944,57 @@ function parseDocxXml(xml) {
       return
     }
     // 头部副标题行跳过
-    if (t.indexOf('AI日记 · 日记备份') !== -1 || t.indexOf('导出时间：') !== -1) return
+    // [brand-rename v1] 兼容旧品牌名：改名后仍要能导入此前导出的老备份文件
+    if (t.indexOf(appInfo.APP_NAME + ' · 日记备份') !== -1 ||
+      t.indexOf('AI日记 · 日记备份') !== -1 || t.indexOf('导出时间：') !== -1) return
     // [docx-archives v1] 档案节可见行（编辑过的文档回退路径）：标题行与「· 名字：描述」行不入正文
     if (t === '档案' || /^·\s/.test(t)) return
     // 正文
     cur.content = cur.content ? cur.content + '\n' + t : t
   })
-  if (cur) {
-    // docx 回退解析生成的日记可能未填 title，用日期兜底生成默认标题
-    if (!cur.title) {
-      cur.title = util.getDefaultTitle(util.getDateKey(new Date(cur.created_at)))
-    }
-    fallback.push(cur)
-  }
+  if (cur) fallback.push(cur)
+  // [parse-title v2] 安全网：标题补全对**全部**条目生效。
+  // 旧写法只给最后一条补 title（前面 push 出去的条目恒为空串、全靠展示层兜底），
+  // 且末尾那条的补法与主路径口径重复。这里统一兜住「标题行缺失」的极端文档。
+  fallback.forEach(d => {
+    if (!d.title) d.title = util.getDefaultTitle(util.getDateKey(new Date(d.created_at)))
+  })
   const valid = fallback.filter(d => d.content)
   if (valid.length) {
     notes.push('文档中没有找到完整备份数据（可能被编辑过），已按可见文本还原；图片与视频未能自动还原。')
     return { diaries: valid, full: false, notes: notes, archives: archives }
   }
   return { diaries: [], full: false, notes: [], archives: archives }
+}
+
+// [loose-import v1][s1] docx 可见段落 → 纯文本（供宽泛导入引擎使用；隐藏数据段剔除，空行保留）
+function docxXmlToText(xml) {
+  if (!xml || typeof xml !== 'string') return ''
+  const paras = []
+  const reP = /<w:p\b[\s\S]*?<\/w:p>/g
+  let m
+  while ((m = reP.exec(xml)) !== null) paras.push(m[0])
+  const lines = []
+  paras.forEach(pXml => {
+    if (pXml.indexOf('<w:vanish') !== -1) return
+    let t = ''
+    const reT = /<w:t[^>]*>([\s\S]*?)<\/w:t>/g
+    let mm
+    while ((mm = reT.exec(pXml)) !== null) t += decodeHtmlEntities(mm[1])
+    lines.push(t.replace(/\s+$/, ''))
+  })
+  return lines.join('\n').replace(/\n{3,}/g, '\n\n').trim()
+}
+
+// [loose-import v1][s2] 安全排序：created_at 无效（无日期条目）沉底，有效日期正常倒序
+function sortDiariesByTimeDesc(list) {
+  list.sort((a, b) => {
+    const ta = new Date(a.created_at).getTime()
+    const tb = new Date(b.created_at).getTime()
+    const va = isNaN(ta) ? -Infinity : ta
+    const vb = isNaN(tb) ? -Infinity : tb
+    return vb - va
+  })
 }
 
 // HTML 内容 → 纯文本（<br>/<p> 变换行，剥离其余标签并解码实体）
@@ -1179,8 +1222,11 @@ function parseNumberedDiaries(text) {
   const diaries = []
   // 标题行：以「X月X日」开头，整行只含日期（可多个顿号/逗号分隔）及可选的「合并」「日记」后缀
   // 「日记」二字可省略，故「8月11日」单独一行也能作为标题识别
-  const titleRe = /^\s*\d{1,2}月\d{1,2}日(?:\s*[、,，]\s*(?:\d{1,2}月)?\d{1,2}日)*(?:\s*合并)?\s*(?:日记)?\s*$/
-  const dateRe = /(\d{1,2})月(\d{1,2})日/
+  // [dhv2#4] 放宽：兼容「号」、周X+日记双后缀（顺序不限）、行尾括号备注
+  // [dhv2#19] 星期后缀兼容「周五」与「星期五」
+  // [dhv2#23] 与 parseDocxXml 可见结构口径一致：也支持带年份
+  const titleRe = /^\s*(?:(?:\d{4})\s*年\s*)?\d{1,2}月\d{1,2}[日号](?:\s*[、,，]\s*(?:\d{1,2}月)?\d{1,2}[日号])*(?:\s*合并)?(?:\s*(?:(?:周|星期)[日一二三四五六]|日记))*(?:\s*[（(][^）)]*[）)])?\s*$/
+  const dateRe = /(\d{1,2})月(\d{1,2})[日号]/ // [dhv2#5] 兼容「号」
   let current = null // { dateStr, contentLines: [] }
 
   const flush = () => {
@@ -1239,7 +1285,7 @@ function importDiariesFromText(text, replace) {
     existing.add(key)
     added++
   })
-  list.sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+    sortDiariesByTimeDesc(list) // [loose-import v1][s2b] 无效日期沉底
   if (!safeSetStorage(STORAGE_KEY, list, null, true)) return { added: -1, total: list.length } // 存储已满
   return { added: added, total: list.length }
 }
@@ -1263,8 +1309,8 @@ function importDiaries(importList) {
     existingIds.add(diary.id)
     added++
   })
-  // 按时间倒序
-  list.sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+  // 按时间倒序（[loose-import v1][s2a] 无效日期沉底）
+  sortDiariesByTimeDesc(list)
   if (!safeSetStorage(STORAGE_KEY, list, null, true)) return -1 // 存储已满
   scheduleCloudBackup()
   return added
@@ -1317,7 +1363,7 @@ function importDiaryObjects(list, replace) {
     existing.add(key)
     added++
   })
-  existingList.sort((a, b) => new Date(b.created_at) - new Date(a.created_at))
+  sortDiariesByTimeDesc(existingList) // [loose-import v1][s2c] 无效日期沉底
   if (!safeSetStorage(STORAGE_KEY, existingList, null, true)) return { added: -1, total: existingList.length } // 存储已满
   scheduleCloudBackup()
   return { added: added, total: existingList.length }
@@ -1550,6 +1596,7 @@ module.exports = {
   parseWordHtml,
   buildDocx,
   parseDocxXml,
+  docxXmlToText, // [loose-import v1][s3] docx 可见段落转纯文本（宽泛导入用）
   buildDiaryFromAI,
   importDiaryObjects,
   moodTextToKey,

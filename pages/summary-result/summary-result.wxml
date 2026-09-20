@@ -42,11 +42,17 @@
     <button class="btn-primary" disabled="{{busy}}" bindtap="onSave">保存</button>
   </view>
 
-  <!-- 分享弹窗：与日记详情页共用同一组件 -->
+  <!-- 分享弹窗：与日记详情页共用同一组件
+       [summary-share-align v1] need-saved-diary：确认分享先落库（needsave→页面落库→continueShare 继续）；
+       shared：海报已存相册/文字已复制后，页面与【保存】同款回到日记本 -->
   <share-sheet
+    id="shareSheet"
     visible="{{showSharePanel}}"
     diary="{{shareDiary}}"
     sheet-title="分享我的 AI 总结"
+    need-saved-diary="{{true}}"
     bind:close="closeSharePanel"
+    bind:needsave="onShareNeedSave"
+    bind:shared="onShareSheetShared"
   />
 </view>
