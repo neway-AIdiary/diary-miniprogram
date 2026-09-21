@@ -144,11 +144,13 @@ ok(ijson.usingComponents && ijson.usingComponents['range-picker'] === '/componen
 const iwxml = rd('pages/index/index.wxml')
 ok(iwxml.indexOf('<range-picker id="rangePicker"') !== -1 && iwxml.indexOf('bind:change="onRangeChange"') !== -1, 'index.wxml 接入组件')
 ok(iwxml.indexOf('stats-bar') === -1 && iwxml.indexOf('总日记') === -1 && iwxml.indexOf('连续天数') === -1, '统计栏整体删除')
-ok(iwxml.indexOf('toolbar-row') !== -1 && iwxml.indexOf('导出以下日记') !== -1 && iwxml.indexOf('导入历史日记') !== -1, '工具行 + 两个操作块名称都显示')
+ok(iwxml.indexOf('toolbar-row') !== -1 && iwxml.indexOf('导出以下日记') !== -1 && iwxml.indexOf('导入以前日记') !== -1, '工具行 + 两个操作块名称都显示（导入文案 = 导入以前日记）[index-ui2 v1]')
 ok(iwxml.indexOf('search-action') === -1, '搜索栏旧图标按钮已移除')
 ok(iwxml.indexOf('rangeKey !== \'all\'') !== -1 && iwxml.indexOf('清除范围') !== -1, '范围提示行（可一键清除）')
 ok(iwxml.indexOf('该日期范围内没有日记') !== -1 && iwxml.indexOf('undatedCount') !== -1, '范围空态 + 无日期篇数提示')
-ok(iwxml.indexOf('empty-import') !== -1, '空态「导入日记」引导保留')
+ok(iwxml.indexOf('class="empty-import"') === -1, '空态「导入日记」按钮已移出日记本页 [empty-import-move v1]')
+ok(iwxml.indexOf('暂无日记，导入你之前的日记或者直接写一篇吧') !== -1,
+  '空态文案与写日记页侧栏统一（拍板 1.B）')
 
 const ijs = rd('pages/index/index.js')
 ok(ijs.indexOf("require('../../utils/dateRange.js')") !== -1, 'index.js 引入公共口径')
@@ -164,6 +166,11 @@ const iwxss = rd('pages/index/index.wxss')
 ok(iwxss.indexOf('.stats-bar') === -1 && iwxss.indexOf('.stat-num') === -1, '统计栏样式删除')
 ok(iwxss.indexOf('.search-action') === -1, '旧图标按钮样式删除')
 ok(iwxss.indexOf('.toolbar-action') !== -1 && iwxss.indexOf('.toolbar-action-text') !== -1, '工具行操作块样式存在')
+// [index-ui2 v1] 名称加粗一号：20 -> 22rpx + 600；同时加宽操作块防 nowrap 溢出
+ok(iwxss.indexOf('.toolbar-action-text {\n  font-size: 22rpx;\n  font-weight: 600;') !== -1,
+  '导出/导入名称加粗一号（22rpx + font-weight 600）')
+ok(iwxss.indexOf('.toolbar-action {') !== -1 && iwxss.indexOf('width: 140rpx;') !== -1,
+  '操作块加宽到 140rpx（容纳 6 字 22rpx 半粗，不溢出）')
 
 // =====================================================================
 console.log('---- D. pages/summary 接线 ----')
@@ -321,6 +328,53 @@ ok(sandbox.__toast && sandbox.__toast.title === '该日期范围内没有日记�
 p.clearRange()
 ok(p.data.rangeKey === 'all' && p.data.rangeCount === 4, '清除范围 → 回全部时间')
 } // end if (hasBehavior)
+
+// =====================================================================
+console.log('---- F. 胶囊右侧说明文字 [range-detail v1] ----')
+const iwxmlF = rd('pages/index/index.wxml')
+ok(iwxmlF.indexOf('diary-detail="{{true}}"') !== -1, 'index.wxml 开启 diary-detail')
+const swxmlF = rd('pages/summary/summary.wxml')
+ok(swxmlF.indexOf('diary-detail') === -1, 'summary.wxml 不开启 diary-detail（保持原样）')
+
+const cpjsF = rd(CP + '.js')
+ok(cpjsF.indexOf('diaryDetail: { type: Boolean, value: false }') !== -1, '组件属性 diaryDetail 默认 false')
+ok(cpjsF.indexOf("this.setData({ detail: '所有日记' })") !== -1, 'attached 初始即显示「所有日记」')
+ok(cpjsF.indexOf("detail: this._detailFor('all', '', '')") !== -1, 'reset() 也回「所有日记」')
+
+let compOptionsF = null
+const sandboxF = {
+  console: console,
+  Component: (o) => { compOptionsF = o }
+}
+sandboxF.require = (p) => require(path.join(ROOT, 'components', 'range-picker', p))
+sandboxF.module = { exports: {} }
+sandboxF.exports = sandboxF.module.exports
+sandboxF.__filename = path.join(ROOT, 'components', 'range-picker', 'range-picker.js')
+sandboxF.__dirname = path.join(ROOT, 'components', 'range-picker')
+vm.createContext(sandboxF)
+vm.runInContext(cpjsF, sandboxF, { filename: 'range-picker.js' })
+const hasDetailFor = !!compOptionsF && typeof compOptionsF.methods._detailFor === 'function'
+ok(hasDetailFor, 'F 组前置：组件 _detailFor 存在（旧版此处精准红）')
+
+if (hasDetailFor) {
+  function makeComp(diaryDetail) {
+    return {
+      properties: { diaryDetail: diaryDetail },
+      _detailFor: compOptionsF.methods._detailFor
+    }
+  }
+  const on = makeComp(true)
+  ok(on._detailFor('all', '', '') === '所有日记', '全部时间 → 所有日记')
+  ok(on._detailFor('month', '', '') === '本月日记', '本月 → 本月日记')
+  ok(on._detailFor('lastMonth', '', '') === '上月日记', '上月 → 上月日记')
+  ok(on._detailFor('week7', '', '') === '近 7 天日记', '近 7 天 → 近 7 天日记')
+  ok(on._detailFor('custom', '2026-09-19', '2026-09-20') === '9月19日 至 9月20日', '自定义 → 起止日期')
+  ok(on._detailFor('custom', '2026-09-19', '2026-09-20').indexOf('日记') === -1, '自定义文案不含「日记」字样')
+  ok(on._detailFor('custom', '', '') === '', '自定义未完成 → 空文案')
+  const off = makeComp(false)
+  ok(off._detailFor('all', '', '') === '' && off._detailFor('month', '', '') === '', '总结页（默认 false）：非自定义无说明文字')
+  ok(off._detailFor('custom', '2026-09-19', '2026-09-20') === '9月19日 至 9月20日', '总结页：自定义仍显示起止')
+}
 
 // =====================================================================
 console.log('---- 结果 ----')

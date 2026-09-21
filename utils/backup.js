@@ -38,6 +38,7 @@ const META_COLL = 'backup_meta'
 const SNAPSHOT_PREFIX = 'backups/'
 const TMP_FILE = '/yidengji-backup-snapshot.tmp'
 const MAX_VERSIONS = 5 // 云端保留的历史快照份数（超出自动删最旧；供「改坏了回滚」用）
+const SYNCED_KEY = 'backup_synced_count' // 最近一次成功云备份时的日记总篇数 [backup-remind v1]
 
 // ===== 本地状态 =====
 
@@ -372,6 +373,7 @@ function enable(password, opts) {
           lastSyncAt: new Date().toISOString(),
           lastCount: enc.itemCount
         })
+        markSyncedCount(enc.itemCount)
         return enc
       })
     })
@@ -423,6 +425,7 @@ function sync() {
           lastCount: enc.itemCount,
           lastSyncError: null // 同步成功：清除失败提示
         }))
+        markSyncedCount(enc.itemCount)
         return enc
       })
     })
@@ -508,6 +511,7 @@ function adoptCloud(password) {
       lastSyncAt: latest.at || new Date().toISOString(),
       lastCount: latest.itemCount || 0
     })
+    markSyncedCount(latest.itemCount || 0)
     return { itemCount: latest.itemCount || 0 }
   })
 }
@@ -591,6 +595,28 @@ function clearCloud() {
   })
 }
 
+// ===== 未备份提醒辅助（storage 层 remindBackupIfNeeded 使用）[backup-remind v1] =====
+
+/**
+ * 记录「最近一次成功云备份时的日记总篇数」
+ *
+ * [backup-remind v1] 档位必须**归零**：backup_alert_level 的语义是「已提醒到第几档未备份量」，
+ * 而备份成功的这一刻未备份量正好归 0。原先写 Math.floor(n / 30)（把「已备份篇数」当档位），
+ * 备份 65 篇后要把未备份量攒到 90 篇才再提醒，与「每满 30 篇提醒一次」的设计意图不符。
+ */
+function markSyncedCount(n) {
+  try {
+    if (typeof n !== 'number' || n < 0) return
+    wx.setStorageSync(SYNCED_KEY, n)
+    wx.setStorageSync('backup_alert_level', 0)
+  } catch (e) { /* 忽略 */ }
+}
+
+/** 最近一次成功云备份时的日记总篇数（从未备份成功过返回 0） */
+function getSyncedCount() {
+  try { return wx.getStorageSync(SYNCED_KEY) || 0 } catch (e) { return 0 }
+}
+
 module.exports = {
   isEnabled: isEnabled,
   getState: getState,
@@ -604,5 +630,7 @@ module.exports = {
   listVersions: listVersions,
   adoptCloud: adoptCloud,
   clearCloud: clearCloud,
-  disable: disable
+  disable: disable,
+  markSyncedCount: markSyncedCount,
+  getSyncedCount: getSyncedCount
 }

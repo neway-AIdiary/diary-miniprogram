@@ -1,0 +1,7 @@
+[--check] utils/weather.js v2-locate-log -> SKIP
+[--check] utils/weather.js v2-fetchcity-log -> SKIP
+[--check] utils/weather.js v2-cloud-log -> SKIP
+[--check] pages/write/write.js v2-fresh-hole -> SKIP
+[--check] cloudfunctions/getWeather/index.js v2-cloud-city-retry -> SKIP
+[--check] tools/test_weather_cache.js v2-assert -> SKIP
+RESULT: ALL OK

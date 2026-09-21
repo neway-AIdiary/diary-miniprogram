@@ -158,6 +158,20 @@ function getDateKey(date) {
   return y + '-' + m + '-' + day
 }
 
+// 导入去重用的「正文指纹」[import-dedup v1.1]：只消除格式差异（换行符 / 行首尾空白 /
+// 纯空白行 / 段间距档位），**不改动入库原文**。同一篇日记经不同格式（docx / txt / 网页复制）
+// 导出后指纹一致 ⇒ 判为重复；正文真有差异（多一段、改一句）时指纹仍不同 ⇒ 照常判两篇。
+// ⚠️ 连续换行统一压成 1 个（段间分隔与单换行等价）：真机 docx 走 parseDocxXml，段间是单个 \n；
+// txt 的空行分段归一后是 \n\n —— 若保留两档，跨格式键必然不等（9-21 实测 31 篇全部键不等）。
+// 分段位置仍保留（换行都在），丢的只是「空行比单换行多一档」的排版信息。
+function contentFingerprint(text) {
+  const raw = String(text == null ? '' : text).replace(/\r\n?/g, '\n')
+  const lines = raw.split('\n').map((line) => {
+    return line.replace(/^[ \t\u3000]+/, '').replace(/[ \t\u3000]+$/, '')
+  })
+  return lines.join('\n').replace(/\n{2,}/g, '\n').trim()
+}
+
 /**
  * 正文拆行（详情页 / 总结结果页逐行渲染用）：
  * 把纯文本正文拆成 [{k, text, heading}] 数组，wxml 用 wx:for 渲染，
@@ -218,6 +232,7 @@ module.exports = {
   stripDiaryTitleSuffix,
   getCurrentTimeText,
   getDateKey,
+  contentFingerprint,
   buildContentLines,
   isAiSummaryDiary
 }

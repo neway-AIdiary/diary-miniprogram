@@ -2,7 +2,7 @@
 <view class="page {{themeClass}}" style="{{fontStyle}}">
   <!-- 工具行：日期范围胶囊（左）+ 导出/导入（右）[range-toolbar v1] -->
   <view class="toolbar-row">
-    <range-picker id="rangePicker" class="toolbar-picker" bind:change="onRangeChange" />
+    <range-picker id="rangePicker" class="toolbar-picker" diary-detail="{{true}}" bind:change="onRangeChange" />
     <view class="toolbar-actions">
       <view class="toolbar-action" hover-class="toolbar-action-hover" bindtap="onExportDiaries">
         <text class="ri ri-upload-2-line"></text>
@@ -10,7 +10,7 @@
       </view>
       <view class="toolbar-action" hover-class="toolbar-action-hover" bindtap="onImportDiaries">
         <text class="ri ri-download-2-line"></text>
-        <text class="toolbar-action-text">导入历史日记</text>
+        <text class="toolbar-action-text">导入以前日记</text>
       </view>
     </view>
   </view>
@@ -26,6 +26,11 @@
         confirm-type="search"
       />
       <text wx:if="{{searchKeyword}}" class="search-clear ri ri-close-line" bindtap="clearSearch"></text>
+      <!-- 排序切换 [index-sort v1]：正序/倒序，作用对象 = 列表当前内容（常驻最右，× 在其左侧） -->
+      <view class="sort-toggle" bindtap="onToggleSort" hover-class="sort-toggle-hover" hover-stay-time="80">
+        <text class="sort-toggle-arrow">{{sortOrder === 'asc' ? '↑' : '↓'}}</text>
+        <text class="sort-toggle-label">{{sortOrder === 'asc' ? '正序' : '倒序'}}</text>
+      </view>
     </view>
   </view>
 
@@ -101,11 +106,10 @@
     <view class="empty-sub" bindtap="clearRange">清除日期范围</view>
   </view>
 
-  <!-- 空状态 -->
+  <!-- 空状态 [empty-import-move v1] 导入入口已迁到写日记页侧栏（工具行右上「导入以前日记」仍在） -->
   <view class="empty-state" wx:if="{{isEmpty && !loading}}">
-    <view class="empty-text">还没有日记，写下第一篇吧</view>
+    <view class="empty-text">暂无日记，导入你之前的日记或者直接写一篇吧</view>
     <view class="btn-primary empty-btn" bindtap="goToWrite">写日记</view>
-    <view class="empty-import" bindtap="onImportDiaries"><text class="ri ri-download-2-line"></text>导入日记</view>
   </view>
 
   <!-- 智能总结悬浮按钮 -->

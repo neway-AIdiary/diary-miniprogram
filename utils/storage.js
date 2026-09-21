@@ -22,8 +22,266 @@ const TEXT_SPLIT = /^={10,}\s*$/m
  * 这里统一做「写入前预检查 + 写入异常兜底」，失败时提示用户先导出备份，
  * 而不是静默失败或让用户误以为保存成功。
  */
-const STORAGE_FULL_TIP = '本地存储已满，保存失败。\n\n请先「导出备份」保存日记，再删除部分旧日记腾出空间。'
+const STORAGE_FULL_TIP = '本地存储已满，请先备份再删除日记腾出空间'
 const STORAGE_SAFE_MARGIN = 200 * 1024 // 预留 200KB 安全余量，避免贴着上限写入
+
+/* ===== 分片存储 [shard-storage v1] =====
+ * 日记按创建年份分格存储（diaries_2024 / diaries_2025 / ...），每格各享 1MB 上限，
+ * 突破旧「diaries 单格 1MB」瓶颈（约 800~1000 篇纯文字即满）。
+ * 旧格 'diaries' 迁移「校验后自动清理」[legacy-clean v1]：复制进年份分片后，
+ * 旧格每篇（有 id）都能在分片中按 id 找到才删旧格；有无法验证的条目（无 id）
+ * 或任何异常都保留旧格。读取按 id 去重、取 updated_at 较新者，旧格在否都可见。
+ * 约定：
+ *  - 新写入一律进年份分片；编辑日期跨年时从旧分格挪到新分格；
+ *  - 删除在所有格（含旧格）中同步移除；
+ *  - 「替换全部 / 清空」语义覆盖旧格（restore / 覆盖导入 / 清除所有日记）。
+ */
+const SHARD_PREFIX = 'diaries_'
+const RE_SHARD_KEY = /^diaries_(\d{4})$/
+const SHARD_LIMIT = 900 * 1024 // 单格软上限（1MB 硬限内留余量），超过即拦截并提示
+const BACKUP_SYNCED_KEY = 'backup_synced_count' // 最近一次成功云备份时的日记总篇数 [backup-remind v1]
+const BACKUP_ALERT_KEY = 'backup_alert_level'   // 已提醒过的档位（30 篇一档）[backup-remind v1]
+const BACKUP_REMIND_STEP = 30
+
+// 日记 → 年份分格 key（created_at 无效/缺省归入今年格）
+function shardKeyFor(diary) {
+  let t = null
+  try { t = new Date(diary && diary.created_at) } catch (e) { t = null }
+  let y = (t && !isNaN(t.getTime())) ? t.getFullYear() : new Date().getFullYear()
+  if (!(y >= 2000 && y <= 2999)) y = new Date().getFullYear()
+  return SHARD_PREFIX + y
+}
+
+// 日记所属年份（shardKeyFor 的数值口径，供提示文案使用）[shard-full v1]
+function shardYearFor(diary) {
+  return parseInt(shardKeyFor(diary).slice(SHARD_PREFIX.length), 10)
+}
+
+// 现存年份分格 key 列表：优先 getStorageInfoSync().keys，缺失时逐 年扫描（桩环境兼容）
+function listShardKeys() {
+  const found = []
+  try {
+    const info = wx.getStorageInfoSync()
+    if (info && Array.isArray(info.keys) && info.keys.length) {
+      info.keys.forEach((k) => { if (RE_SHARD_KEY.test(k)) found.push(k) })
+      found.sort()
+      return found
+    }
+  } catch (e) { /* 走扫描兜底 */ }
+  // 上界放到 2999：与 shardKeyFor 的年份口径（2000~2999）一致，
+  // 未来年份的日记在 getStorageInfoSync 不可用（走本兜底）时也不能漏读
+  for (let y = 2000; y <= 2999; y++) {
+    const k = SHARD_PREFIX + y
+    try { if (wx.getStorageSync(k)) found.push(k) } catch (e) {}
+  }
+  found.sort()
+  return found
+}
+
+// 读一个格（缺省/异常返回空数组）
+function readShard(key) {
+  try {
+    const v = wx.getStorageSync(key)
+    return Array.isArray(v) ? v : []
+  } catch (e) { return [] }
+}
+
+// 全部日记格 key：年份分片 + 迁移保留的旧格（有数据才纳入）
+function allDiaryKeys() {
+  const keys = listShardKeys()
+  try {
+    const legacy = wx.getStorageSync(STORAGE_KEY)
+    if (Array.isArray(legacy) && legacy.length) keys.push(STORAGE_KEY)
+  } catch (e) { /* 旧格读取失败忽略 */ }
+  return keys
+}
+
+// 全部日记并集（分片 + 旧格），按 id 去重取 updated_at 较新者；未排序
+function readAllDiariesRaw() {
+  ensureMigrated()
+  const byId = new Map()
+  const noId = []
+  allDiaryKeys().forEach((k) => {
+    readShard(k).forEach((d) => {
+      if (!d || typeof d !== 'object') return
+      if (d.id != null && d.id !== '') {
+        const prev = byId.get(d.id)
+        if (!prev || new Date(d.updated_at || 0).getTime() > new Date(prev.updated_at || 0).getTime()) {
+          byId.set(d.id, d)
+        }
+      } else {
+        noId.push(d)
+      }
+    })
+  })
+  return Array.from(byId.values()).concat(noId)
+}
+
+// [legacy-clean v1] 旧格迁移完整性校验：旧格每篇（须有 id）都能在年份分片中按 id 找到。
+// 只扫分片 keys —— readAllDiariesRaw 含旧格并集，拿它校验恒真
+function legacyFullyMigrated(legacy) {
+  const ids = new Set()
+  listShardKeys().forEach((k) => {
+    readShard(k).forEach((d) => {
+      if (d && d.id != null && d.id !== '') ids.add(d.id)
+    })
+  })
+  return legacy.every((d) => d && d.id != null && d.id !== '' && ids.has(d.id))
+}
+
+// 旧格一次性迁移：按年份并入分格，id 去重兼容中断重跑；
+// 复制完成后校验 [legacy-clean v1]，通过才清旧格；
+// 任何一步失败/不一致都不动旧格 —— 读路径走并集，旧数据始终可见
+let _shardMigrated = false
+function ensureMigrated() {
+  if (_shardMigrated) return
+  _shardMigrated = true
+  try {
+    const legacy = wx.getStorageSync(STORAGE_KEY)
+    if (!Array.isArray(legacy) || !legacy.length) return
+    const byYear = {}
+    legacy.forEach((d) => {
+      // [legacy-clean v1] 无 id 条目不复制（无法校验）：留在旧格，由读并集兜底
+      if (!d || d.id == null || d.id === '') return
+      const k = shardKeyFor(d)
+      ;(byYear[k] = byYear[k] || []).push(d)
+    })
+    Object.keys(byYear).forEach((k) => {
+      const existing = readShard(k)
+      const ids = new Set(existing.map((d) => d.id))
+      const add = byYear[k].filter((d) => !ids.has(d.id))
+      if (add.length) safeSetStorage(k, existing.concat(add), null, true)
+    })
+    // [legacy-clean v1] 校验后自动清理：逐篇 id 全对上才删旧格；差一篇都保留
+    if (legacyFullyMigrated(legacy)) {
+      try { wx.removeStorageSync(STORAGE_KEY) } catch (e) {}
+    }
+  } catch (e) { /* 迁移异常不影响旧数据读取 */ }
+}
+
+// 「本地存储已满」统一弹窗：带「去导出备份」直达按钮 [shard-storage v1]
+function showStorageFullModal() {
+  wx.showModal({
+    title: '本地存储已满',
+    content: '本地存储已满，请先备份再删除日记腾出空间',
+    confirmText: '去导出备份',
+    cancelText: '知道了',
+    success: (res) => {
+      if (res.confirm) {
+        try { wx.navigateTo({ url: '/pages/backup/backup' }) } catch (e) {}
+      }
+    }
+  })
+}
+
+// 整体替换为分片存储（restore / 覆盖导入 / 清空）[shard-storage v1]
+// 先整组预检（每格不超 SHARD_LIMIT、总量有空间）再写入；成功后清掉未用分格与旧格
+function replaceAllSharded(items) {
+  const groups = {}
+  ;(items || []).forEach((d) => {
+    const sk = shardKeyFor(d)
+    ;(groups[sk] = groups[sk] || []).push(d)
+  })
+  for (const sk in groups) {
+    if (estimateUtf8Bytes(groups[sk]) > SHARD_LIMIT) return false // 该年份分格放不下
+  }
+  // [net-release v1] 整体替换按「新旧总占用」比较：清空 / 用更小的备份覆盖时不受余量闸限制
+  const nextBytes = estimateUtf8Bytes(items || [])
+  const prevBytes = allDiaryKeys().reduce((s, k) => s + readStorageBytes(k), 0)
+  if (!isNetRelease(prevBytes, nextBytes)) {
+    const space = checkStorageSpace(nextBytes)
+    if (!space.ok) return false // 存储已满
+  }
+  for (const sk in groups) {
+    if (!safeSetStorage(sk, groups[sk], null, true, SHARD_LIMIT)) return false
+  }
+  const keep = new Set(Object.keys(groups))
+  listShardKeys().forEach((k) => {
+    if (!keep.has(k)) {
+      try { wx.removeStorageSync(k) } catch (e) {}
+    }
+  })
+  try { wx.removeStorageSync(STORAGE_KEY) } catch (e) {}
+  return true
+}
+
+// 分格合并导入（去重键由调用方给）[shard-storage v1]
+// 先整组预检（每格不超 SHARD_LIMIT、总量有空间），再逐格写入；失败时如实回报已写入数
+function mergeIntoShards(items, keyOf) {
+  const existingList = readAllDiariesRaw()
+  const existing = new Set(existingList.map(keyOf))
+  const addedItems = []
+  items.forEach((d) => {
+    const k = keyOf(d)
+    if (existing.has(k)) return
+    existing.add(k)
+    addedItems.push(d)
+  })
+  // [import-dedup v1] skipped = 本批被判为重复而跳过的篇数（供导入结果如实上报）
+  const skipped = items.length - addedItems.length
+  if (!addedItems.length) return { added: 0, total: existingList.length, skipped: skipped }
+  const groups = {} // shardKey -> 合并后的完整格内容
+  const counts = {} // shardKey -> 该格新增条数
+  addedItems.forEach((d) => {
+    const sk = shardKeyFor(d)
+    if (!groups[sk]) {
+      groups[sk] = readShard(sk).slice()
+      counts[sk] = 0
+    }
+    groups[sk].push(d)
+    counts[sk]++
+  })
+  for (const sk in groups) {
+    if (estimateUtf8Bytes(groups[sk]) > SHARD_LIMIT) {
+      return { added: -1, total: existingList.length } // 该年份分格放不下
+    }
+  }
+  if (!checkStorageSpace(estimateUtf8Bytes(addedItems)).ok) {
+    return { added: -1, total: existingList.length } // 存储已满
+  }
+  let added = 0
+  let total = existingList.length
+  for (const sk in groups) {
+    if (!safeSetStorage(sk, groups[sk], null, true, SHARD_LIMIT)) {
+      // 中途失败：已写入的格各自完整（旧+新），如实回报已写入数
+      return { added: added > 0 ? added : -1, total: total }
+    }
+    added += counts[sk]
+    total += counts[sk]
+  }
+  return { added: added, total: total, skipped: skipped }
+}
+
+// 未备份定期提醒 [backup-remind v1]：未开启云备份且未备份篇数每满 30 提醒一次（30/60/90...）
+// 每个档位只弹一次；「一键开启云备份」跳备份页（开启需输密码，页面承接）
+function remindBackupIfNeeded() {
+  try {
+    const backup = require('./backup.js')
+    if (typeof backup.isEnabled !== 'function' || backup.isEnabled()) return
+    const total = readAllDiariesRaw().length
+    let synced = 0
+    try { synced = wx.getStorageSync(BACKUP_SYNCED_KEY) || 0 } catch (e) {}
+    const unbacked = Math.max(0, total - synced)
+    const level = Math.floor(unbacked / BACKUP_REMIND_STEP)
+    if (level < 1) return
+    let alerted = 0
+    try { alerted = wx.getStorageSync(BACKUP_ALERT_KEY) || 0 } catch (e) {}
+    if (level <= alerted) return
+    try { wx.setStorageSync(BACKUP_ALERT_KEY, level) } catch (e) {}
+    wx.showModal({
+      title: '备份提醒',
+      content: '已 ' + unbacked + ' 篇未备份，建议备份，以免日记丢失。',
+      confirmText: '一键开启云备份',
+      cancelText: '知道了',
+      success: (res) => {
+        if (res.confirm) {
+          try { wx.navigateTo({ url: '/pages/backup/backup' }) } catch (e) {}
+        }
+      }
+    })
+  } catch (e) { /* 提醒失败不影响保存主流程 */ }
+}
+
 
 // 估算对象 JSON 序列化后的 UTF-8 字节数（预检查用，估算失败返回 0 表示跳过预检查）
 function estimateUtf8Bytes(obj) {
@@ -32,6 +290,24 @@ function estimateUtf8Bytes(obj) {
   } catch (e) {
     return 0
   }
+}
+
+// 读某个 key 当前占用的字节数（估算；key 不存在返回 0）[net-release v1]
+function readStorageBytes(key) {
+  try {
+    const v = wx.getStorageSync(key)
+    if (v === '' || v === null || v === undefined) return 0
+    return estimateUtf8Bytes(v)
+  } catch (e) {
+    return 0
+  }
+}
+
+// 净释放判定 [net-release v1]：写入后占用更低 ⇒ 不可能因空间不足失败，应免去余量闸。
+// 否则会死锁：存储满了 → 用户按提示删日记腾空间 → 删除本身也被空间闸挡住。
+// 用 nextBytes > 0 兜住「估算失败返回 0」被误判成净释放的情况。
+function isNetRelease(prevBytes, nextBytes) {
+  return nextBytes > 0 && prevBytes > 0 && nextBytes < prevBytes
 }
 
 // 查询剩余空间是否足够写入 estimatedBytes
@@ -48,35 +324,52 @@ function checkStorageSpace(estimatedBytes) {
   }
 }
 
-// 保存日记前预检：估算「当前列表 + 新日记」序列化后的总字节数，检查剩余空间是否足够
-// 返回 { ok, free, need }；ok=false 时调用方应先提示用户、不进入保存流程
+// 保存日记前预检：目标年份分格 + 新日记估算，检查单格上限与总剩余空间 [shard-storage v1]
+// 返回 { ok, totalFull, shardFull, shardYear, free, need, shardBytes, shardLimit }
+// [shard-full v1] ok=false 时调用方按 totalFull / shardFull 给不同提示，不进入保存流程
 function precheckDiarySave(diary) {
-  const list = getAllDiaries()
-  const estimate = list.slice()
-  estimate.unshift(Object.assign({}, diary, {
-    id: diary.id || 'precheck',
-    created_at: diary.created_at || new Date().toISOString()
+  const key = shardKeyFor(diary)
+  const shard = readShard(key).slice()
+  shard.unshift(Object.assign({}, diary, {
+    id: (diary && diary.id) || 'precheck',
+    created_at: (diary && diary.created_at) || new Date().toISOString()
   }))
-  return checkStorageSpace(estimateUtf8Bytes(estimate))
+  const est = estimateUtf8Bytes(shard)
+  const total = checkStorageSpace(est)
+  // [shard-full v1] 区分「某年分格满」与「整机存储满」：两者处置建议不同，
+  // 只回一个 ok 布尔会把「整机还剩 9MB」也报成「本地存储已满」，用户按提示删往年日记完全无效
+  const shardFull = est > SHARD_LIMIT
+  return {
+    ok: total.ok && !shardFull,
+    totalFull: !total.ok,
+    shardFull: shardFull,
+    shardYear: shardYearFor(diary),
+    free: total.free,
+    need: total.need,
+    shardBytes: est,
+    shardLimit: SHARD_LIMIT
+  }
 }
 
-// 安全写入：预检查 + 异常兜底；失败时返回 false，可按需弹窗（silent=true 时不弹，由调用方提示）
-function safeSetStorage(key, value, estimatedBytes, silent) {
+// 安全写入：预检查（总剩余空间 + 可选单格上限）+ 异常兜底；失败时返回 false
+// maxBytes：单格上限（分片写入传 SHARD_LIMIT），超限同样按「存储已满」处理 [shard-storage v1]
+function safeSetStorage(key, value, estimatedBytes, silent, maxBytes) {
   const est = estimatedBytes != null ? estimatedBytes : estimateUtf8Bytes(value)
-  const check = checkStorageSpace(est)
-  if (!check.ok) {
-    if (!silent) {
-      wx.showModal({ title: '存储空间不足', content: STORAGE_FULL_TIP, showCancel: false, confirmText: '知道了' })
+  // [net-release v1] 净释放空间的写入（删日记 / 去重合并后变小 / 清空）直接放行：
+  // 这类写入只会让总占用更低，套「剩余 ≥ 本次写入 + 200KB」会把它误判成「存储已满」。
+  const release = isNetRelease(readStorageBytes(key), est)
+  if (!release) {
+    const check = checkStorageSpace(est)
+    if (!check.ok || (maxBytes && est > maxBytes)) {
+      if (!silent) showStorageFullModal()
+      return false
     }
-    return false
   }
   try {
     wx.setStorageSync(key, value)
     return true
   } catch (e) {
-    if (!silent) {
-      wx.showModal({ title: '保存失败', content: STORAGE_FULL_TIP, showCancel: false, confirmText: '知道了' })
-    }
+    if (!silent) showStorageFullModal()
     return false
   }
 }
@@ -88,16 +381,17 @@ function safeSetStorage(key, value, estimatedBytes, silent) {
  *     这里的兜底只服务于更早版本存下的旧数据。
  */
 function getAllDiaries() {
-  const list = wx.getStorageSync(STORAGE_KEY) || []
+  const list = readAllDiariesRaw() // [shard-storage v1] 分片并集
   // 标题兜底（仅展示层，不写回本地）[title-content-fallback v1]：
   // 空 title → 正文开头 ≤7 字 → 正文也空才用日期标题「X月X日 日记」
   // 唯一口径 = util.resolveDiaryTitle；index.js / detail.js 走同一函数，别在这里另写一份
   list.forEach(d => {
     d.title = util.resolveDiaryTitle(d)
   })
-  return list.sort((a, b) => {
-    return new Date(b.created_at) - new Date(a.created_at)
-  })
+  // [sd#18] 跨格并集后必须用安全排序：无日期条目（Invalid Date→NaN）沉底；
+  // 分格并集不再天然带着写入时的排序，普通 sort 的 NaN 比较顺序不可靠
+  sortDiariesByTimeDesc(list)
+  return list
 }
 
 /**
@@ -105,47 +399,74 @@ function getAllDiaries() {
  * @param {object} diary - { id, title, content, mood, source, created_at, updated_at }
  */
 function saveDiary(diary) {
-  const list = getAllDiaries()
+  ensureMigrated()
   diary.id = diary.id || generateId()
   diary.created_at = diary.created_at || new Date().toISOString()
   diary.updated_at = new Date().toISOString()
+  const key = shardKeyFor(diary)
+  const list = readShard(key)
   list.unshift(diary)
-  if (!safeSetStorage(STORAGE_KEY, list)) return null // 存储已满：已弹窗提示，返回 null
+  if (!safeSetStorage(key, list, null, false, SHARD_LIMIT)) return null // 存储已满：已弹窗提示，返回 null
   scheduleCloudBackup()
+  remindBackupIfNeeded()
   return diary
 }
 
 /**
- * 更新日记
+ * 更新日记 [shard-storage v1]：先定位所在分格再改；日期改跨年时挪格
  */
 function updateDiary(id, updates) {
-  const list = wx.getStorageSync(STORAGE_KEY) || []
-  const index = list.findIndex(d => d.id === id)
-  if (index !== -1) {
-    list[index] = { ...list[index], ...updates, updated_at: new Date().toISOString() }
-    if (!safeSetStorage(STORAGE_KEY, list)) return null // 存储已满：已弹窗提示，返回 null
+  ensureMigrated()
+  const keys = allDiaryKeys()
+  for (let i = 0; i < keys.length; i++) {
+    const key = keys[i]
+    const list = readShard(key)
+    const index = list.findIndex(d => d.id === id)
+    if (index === -1) continue
+    const updated = { ...list[index], ...updates, updated_at: new Date().toISOString() }
+    const newKey = shardKeyFor(updated)
+    if (newKey === key) {
+      list[index] = updated
+      if (!safeSetStorage(key, list, null, false, SHARD_LIMIT)) return null // 存储已满：已弹窗提示，返回 null
+      scheduleCloudBackup()
+      remindBackupIfNeeded()
+      return updated
+    }
+    // 跨年挪格：先写新格（失败则旧格原样不动），成功后再从旧格移除
+    const target = readShard(newKey)
+    target.unshift(updated)
+    if (!safeSetStorage(newKey, target, null, false, SHARD_LIMIT)) return null // 新格已满：已弹窗提示
+    safeSetStorage(key, list.filter((d, j) => j !== index)) // 释放旧格空间，正常不会失败
     scheduleCloudBackup()
-    return list[index]
+    remindBackupIfNeeded()
+    return updated
   }
   return null
 }
 
 /**
- * 删除日记
+ * 删除日记 [shard-storage v1]：在所有分格（含迁移保留的旧格）中同步移除
+ * @returns {boolean} 是否全部写入成功；false 表示有分格没删掉，调用方**不得**提示「已删除」
  */
 function deleteDiary(id) {
-  let list = wx.getStorageSync(STORAGE_KEY) || []
-  list = list.filter(d => d.id !== id)
-  safeSetStorage(STORAGE_KEY, list) // 删除是释放空间，正常不会失败
+  ensureMigrated()
+  let okDelete = true
+  allDiaryKeys().forEach((key) => {
+    const list = readShard(key)
+    if (!list.some(d => d.id === id)) return
+    // [net-release v1] 删除是净释放空间的写入，正常不会失败；但必须如实回报，
+    // 否则「删了又还在」会被用户当成删除 bug，而且完全没有线索
+    if (!safeSetStorage(key, list.filter(d => d.id !== id))) okDelete = false
+  })
   scheduleCloudBackup()
+  return okDelete
 }
 
 /**
- * 获取单条日记
+ * 获取单条日记 [shard-storage v1]
  */
 function getDiaryById(id) {
-  const list = wx.getStorageSync(STORAGE_KEY) || []
-  return list.find(d => d.id === id)
+  return readAllDiariesRaw().find(d => d.id === id)
 }
 
 /**
@@ -154,7 +475,7 @@ function getDiaryById(id) {
  * @returns {{images: number, videos: number}}
  */
 function countMediaByDate(dateKey) {
-  const list = wx.getStorageSync(STORAGE_KEY) || []
+  const list = readAllDiariesRaw() // [shard-storage v1] 分片并集
   let images = 0
   let videos = 0
   list.forEach(d => {
@@ -284,7 +605,7 @@ function parseDateTimeText(str) {
 // 解析中文日期 — 支持 "2026年8月14日" / "8月14日"（无年份按今年，未来超3个月则推断为去年）
 function parseCnDate(str) {
   if (!str) return null
-  let m = str.match(/(\d{4})年(\d{1,2})月(\d{1,2})[日号]/) // [dhv2#1] 兼容「号」
+  let m = str.match(/(\d{4})\s*年\s*(\d{1,2})月\s*(\d{1,2})[日号]/) // [dhv2#1] 兼容「号」；[sd#17] 年月日间允许空白
   if (m) {
     const dt = new Date(+m[1], +m[2] - 1, +m[3], 12)
     return isNaN(dt.getTime()) ? null : dt
@@ -997,6 +1318,22 @@ function sortDiariesByTimeDesc(list) {
   })
 }
 
+// 时间升序（旧→新），无日期日记仍沉底 —— sortDiariesByTimeDesc 的镜像口径 [index-sort v1]
+// 无日期在 Desc 里记为 -Infinity、在 Asc 里记为 +Infinity ⇒ 两个方向都沉底，
+// 与列表既有「无日期沉底」约定一致（不能靠反转数组，否则无日期会被顶到最上面）。
+// 返回新数组（slice 后再排），不改动入参 —— 调用方的 data 数组可能与本列表同一引用。
+function sortDiariesByTimeAsc(list) {
+  const arr = Array.isArray(list) ? list.slice() : []
+  arr.sort((a, b) => {
+    const ta = new Date(a.created_at).getTime()
+    const tb = new Date(b.created_at).getTime()
+    const va = isNaN(ta) ? Infinity : ta
+    const vb = isNaN(tb) ? Infinity : tb
+    return va - vb
+  })
+  return arr
+}
+
 // HTML 内容 → 纯文本（<br>/<p> 变换行，剥离其余标签并解码实体）
 function htmlContentToText(html) {
   return String(html)
@@ -1226,7 +1563,9 @@ function parseNumberedDiaries(text) {
   // [dhv2#19] 星期后缀兼容「周五」与「星期五」
   // [dhv2#23] 与 parseDocxXml 可见结构口径一致：也支持带年份
   const titleRe = /^\s*(?:(?:\d{4})\s*年\s*)?\d{1,2}月\d{1,2}[日号](?:\s*[、,，]\s*(?:\d{1,2}月)?\d{1,2}[日号])*(?:\s*合并)?(?:\s*(?:(?:周|星期)[日一二三四五六]|日记))*(?:\s*[（(][^）)]*[）)])?\s*$/
-  const dateRe = /(\d{1,2})月(\d{1,2})[日号]/ // [dhv2#5] 兼容「号」
+  const dateRe = /(?:\d{4}\s*年\s*)?\d{1,2}月\d{1,2}[日号]/ // [dhv2#5] 兼容「号」
+  // [sd#16] dateRe 补可选年份：否则「2024年3月1日」标题传给 parseCnDate 的只剩「3月1日」，
+  // 年份被静默丢掉（文本导入落错年份的真 bug，分片测试探针发现）
   let current = null // { dateStr, contentLines: [] }
 
   const flush = () => {
@@ -1262,7 +1601,7 @@ function parseNumberedDiaries(text) {
 }
 
 /**
- * 从纯文本导入日记（按「日期+内容」去重合并，或全部替换）
+ * 从纯文本导入日记（按「日期+内容指纹」去重合并，或全部替换）
  * @param {string} text
  * @param {boolean} replace - true 覆盖现有全部日记
  * @returns {{added: number, total: number}}
@@ -1271,23 +1610,12 @@ function importDiariesFromText(text, replace) {
   const parsed = parseDiariesFromText(text)
   if (!parsed.length) return { added: 0, total: 0 }
   if (replace) {
-    if (!safeSetStorage(STORAGE_KEY, parsed, null, true)) return { added: -1, total: 0 } // 存储已满
+    if (!replaceAllSharded(parsed)) return { added: -1, total: 0 } // 存储已满 [shard-storage v1]
     return { added: parsed.length, total: parsed.length }
   }
-  const list = wx.getStorageSync(STORAGE_KEY) || []
-  const keyOf = d => util.getDateKey(new Date(d.created_at)) + '|' + String(d.content || '').trim()
-  const existing = new Set(list.map(keyOf))
-  let added = 0
-  parsed.forEach(d => {
-    const key = keyOf(d)
-    if (existing.has(key)) return
-    list.push(d)
-    existing.add(key)
-    added++
-  })
-    sortDiariesByTimeDesc(list) // [loose-import v1][s2b] 无效日期沉底
-  if (!safeSetStorage(STORAGE_KEY, list, null, true)) return { added: -1, total: list.length } // 存储已满
-  return { added: added, total: list.length }
+  // [shard-storage v1] 分格合并：按「日期+内容指纹」去重后逐格预检、逐格写入
+  // [import-dedup v1] 键与 importDiaryObjects 同一式（contentFingerprint），两路行为必须一致
+  return mergeIntoShards(parsed, (d) => util.getDateKey(new Date(d.created_at)) + '|' + util.contentFingerprint(d.content))
 }
 
 /**
@@ -1296,24 +1624,25 @@ function importDiariesFromText(text, replace) {
  */
 function importDiaries(importList) {
   if (!Array.isArray(importList)) return 0
-  const list = wx.getStorageSync(STORAGE_KEY) || []
-  const existingIds = new Set(list.map(d => d.id))
-  let added = 0
+  const prepared = []
   importList.forEach(d => {
     if (!d || !d.content) return
     const diary = { ...d }
     if (!diary.id) diary.id = generateId()
     if (!diary.created_at) diary.created_at = new Date().toISOString()
-    if (existingIds.has(diary.id)) return
-    list.push(diary)
-    existingIds.add(diary.id)
-    added++
+    prepared.push(diary)
   })
-  // 按时间倒序（[loose-import v1][s2a] 无效日期沉底）
-  sortDiariesByTimeDesc(list)
-  if (!safeSetStorage(STORAGE_KEY, list, null, true)) return -1 // 存储已满
-  scheduleCloudBackup()
-  return added
+  if (!prepared.length) return 0
+  const existingIds = new Set(readAllDiariesRaw().map(d => d.id))
+  const fresh = prepared.filter(d => !existingIds.has(d.id))
+  if (!fresh.length) return 0
+  // [shard-storage v1] 分格合并（按 id 去重）
+  const r = mergeIntoShards(fresh, (d) => d.id)
+  if (r.added > 0) {
+    scheduleCloudBackup()
+    remindBackupIfNeeded()
+  }
+  return r.added
 }
 
 /**
@@ -1339,7 +1668,7 @@ function buildDiaryFromAI(item) {
 }
 
 /**
- * 从日记对象数组导入（按「日期+内容」去重合并，或全部替换）— 供 AI 识别结果等场景使用
+ * 从日记对象数组导入（按「日期+内容指纹」去重合并，或全部替换）— 供 AI 识别结果等场景使用
  * @param {Array} list - 日记对象数组（需含 content，建议含 created_at）
  * @param {boolean} replace - true 覆盖现有全部日记
  * @returns {{added: number, total: number}}
@@ -1348,33 +1677,26 @@ function importDiaryObjects(list, replace) {
   const items = Array.isArray(list) ? list : []
   if (!items.length) return { added: 0, total: 0 }
   if (replace) {
-    if (!safeSetStorage(STORAGE_KEY, items, null, true)) return { added: -1, total: 0 } // 存储已满
+    if (!replaceAllSharded(items)) return { added: -1, total: 0, skipped: 0 } // 存储已满 [shard-storage v1]
     scheduleCloudBackup()
-    return { added: items.length, total: items.length }
+    return { added: items.length, total: items.length, skipped: 0 }
   }
-  const existingList = wx.getStorageSync(STORAGE_KEY) || []
-  const keyOf = d => util.getDateKey(new Date(d.created_at)) + '|' + String(d.content || '').trim()
-  const existing = new Set(existingList.map(keyOf))
-  let added = 0
-  items.forEach(d => {
-    const key = keyOf(d)
-    if (existing.has(key)) return
-    existingList.push(d)
-    existing.add(key)
-    added++
-  })
-  sortDiariesByTimeDesc(existingList) // [loose-import v1][s2c] 无效日期沉底
-  if (!safeSetStorage(STORAGE_KEY, existingList, null, true)) return { added: -1, total: existingList.length } // 存储已满
-  scheduleCloudBackup()
-  return { added: added, total: existingList.length }
+  // [shard-storage v1] 分格合并：按「日期+内容指纹」去重后逐格预检、逐格写入
+  // [import-dedup v1] 键用 contentFingerprint：只吞格式差异（换行/空白），正文真有差异仍判两篇
+  const r = mergeIntoShards(items, (d) => util.getDateKey(new Date(d.created_at)) + '|' + util.contentFingerprint(d.content))
+  if (r.added > 0) {
+    scheduleCloudBackup()
+    remindBackupIfNeeded()
+  }
+  return r
 }
 
 /**
- * 替换所有日记（恢复备份用），返回条数
+ * 替换所有日记（恢复备份用），返回条数 [shard-storage v1]
  */
 function replaceAllDiaries(importList) {
   if (!Array.isArray(importList)) return 0
-  if (!safeSetStorage(STORAGE_KEY, importList, null, true)) return -1 // 存储已满
+  if (!replaceAllSharded(importList)) return -1 // 存储已满
   scheduleCloudBackup()
   return importList.length
 }
@@ -1384,7 +1706,9 @@ function replaceAllDiaries(importList) {
  * 不触发云端自动同步：云端快照与云端图片/视频全部保留，用户之后仍可从云端恢复
  */
 function clearAllDiaries() {
-  safeSetStorage(STORAGE_KEY, [])
+  // 覆盖所有分格并清掉旧格 [shard-storage v1]
+  // [net-release v1] 返回是否真的清干净：清空失败却报「已清除全部日记」，用户会以为删干净了
+  return replaceAllSharded([])
 }
 
 /* ===== 档案：存储人物/机构等备注信息 ===== */
@@ -1580,7 +1904,10 @@ module.exports = {
   deleteDiary,
   clearAllDiaries,
   precheckDiarySave,
+  shardKeyFor, // [shard-storage v1] 测试钩子：日记 → 年份分格 key
+  ensureMigrated, // [shard-storage v1] 测试钩子：手动触发旧格迁移
   getDiaryById,
+  sortDiariesByTimeAsc, // [index-sort v1] 升序展示排序（无日期仍沉底）；日记本「正序」与导出顺序复用
   getStats,
   countMediaByDate,
   exportDiaries,

@@ -255,7 +255,8 @@ const r2 = storage.importDiaryObjects([
   { id: 'd1', title: '', content: '带日期日记', mood: '', tags: [], location: null, media: [], weather: null, created_at: '2026-04-01T12:00:00.000Z' }
 ], false)
 ok(r2.added === 2, 'importDiaryObjects 正常写入 2 条')
-const after = store.diaries
+// [shard-storage v1] 分格后跨格顺序由 getAllDiaries 的安全排序保证
+const after = storage.getAllDiaries()
 ok(after.length === 3, '总数 3')
 ok(after[0].id === 'e1' && after[1].id === 'd1', '有效日期倒序排列（5月 > 4月）')
 ok(after[2].id === 'u1' && after[2].created_at === '', '无日期条目沉底、不破坏其余排序')
@@ -273,7 +274,7 @@ ok(trf.indexOf("[loose-import v1][t3]") !== -1, 'txt 路径宽泛分支已接线
 ok(trf.indexOf("aiParseFlow(raw, mode, opts, finish)") !== -1, 'AI 兜底仍在（宽泛识别无产出时）')
 const sto = rd('utils/storage.js')
 ok(sto.indexOf('docxXmlToText, // [loose-import v1][s3]') !== -1, 'storage.js 已导出 docxXmlToText')
-ok((sto.match(/sortDiariesByTimeDesc\(/g) || []).length === 4, '三处排序 + 函数定义均已接安全排序')
+ok((sto.match(/sortDiariesByTimeDesc\(/g) || []).length === 2, '安全排序：函数定义 + getAllDiaries 跨格并集调用 [shard-storage v1]')
 const liSrc = rd('utils/looseImport.js')
 ok(!/wx\.(get|set|env|cloud|show|request)/.test(liSrc), 'looseImport.js 纯函数，不调用 wx API')
 

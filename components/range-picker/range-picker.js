@@ -14,6 +14,12 @@
 const dateRange = require('../../utils/dateRange.js')
 
 Component({
+  properties: {
+    // [range-detail v1] 日记本页传 diary-detail：胶囊右侧显示「所有日记/本月日记/上月日记…」；
+    // 默认 false（智能总结页等），保持原样（仅自定义范围显示起止日期）
+    diaryDetail: { type: Boolean, value: false }
+  },
+
   data: {
     rangeList: dateRange.RANGE_LIST,
     range: 'all',        // 已生效范围
@@ -28,6 +34,7 @@ Component({
   lifetimes: {
     attached() {
       this._snapshot = { range: 'all', customStart: '', customEnd: '' }
+      if (this.properties.diaryDetail) this.setData({ detail: '所有日记' }) // [range-detail v1]
     }
   },
 
@@ -47,7 +54,7 @@ Component({
         range: s.range,
         draftKey: s.range,
         label: dateRange.labelOf(s.range),
-        detail: s.range === 'custom' && s.customStart && s.customEnd ? dateRange.rangeText('custom', s.customStart, s.customEnd) : '',
+        detail: this._detailFor(s.range, s.customStart, s.customEnd),
         customStart: s.customStart,
         customEnd: s.customEnd
       })
@@ -64,7 +71,7 @@ Component({
         return
       }
       // 非自定义：立即生效并关闭
-      this.setData({ range: key, draftKey: key, label: item.label, detail: '', showSheet: false })
+      this.setData({ range: key, draftKey: key, label: item.label, detail: this._detailFor(key, '', ''), showSheet: false })
       this._emit()
     },
 
@@ -93,10 +100,23 @@ Component({
         customStart: cs,
         customEnd: ce,
         label: dateRange.labelOf('custom'),
-        detail: dateRange.rangeText('custom', cs, ce),
+        detail: this._detailFor('custom', cs, ce),
         showSheet: false
       })
       this._emit()
+    },
+
+    // 胶囊右侧说明文字 [range-detail v1]（口径：utils/dateRange.js）
+    // - diaryDetail=false（默认，总结页）：仅自定义范围显示「X月X日 至 X月X日」
+    // - diaryDetail=true（日记本页）：全部时间→所有日记；本月→本月日记；上月→上月日记；
+    //   近 7 天→近 7 天日记；自定义→仍显示起止日期（不带「日记」字样）
+    _detailFor(range, cs, ce) {
+      if (range === 'custom') {
+        return (cs && ce) ? dateRange.rangeText('custom', cs, ce) : ''
+      }
+      if (!this.properties.diaryDetail) return ''
+      if (range === 'all') return '所有日记'
+      return dateRange.rangeText(range, cs, ce) + '日记'
     },
 
     // ===== 对外接口 =====
@@ -115,7 +135,7 @@ Component({
         range: 'all',
         draftKey: 'all',
         label: '全部时间',
-        detail: '',
+        detail: this._detailFor('all', '', ''),
         customStart: '',
         customEnd: '',
         draftStart: '',

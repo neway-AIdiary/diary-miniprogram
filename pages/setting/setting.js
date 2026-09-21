@@ -83,7 +83,12 @@ Page({
       confirmColor: '#e74c3c',
       success: (res) => {
         if (res.confirm) {
-          storage.clearAllDiaries()
+          // [net-release v1] 按真实结果提示：清空失败不能报「已清除全部日记」
+          const okClear = storage.clearAllDiaries()
+          if (okClear === false) {
+            wx.showToast({ title: '清除失败，请先导出备份后重试', icon: 'none' })
+            return
+          }
           app.globalData.needRefresh = true
           wx.showToast({ title: '已清除全部日记', icon: 'success' })
         }

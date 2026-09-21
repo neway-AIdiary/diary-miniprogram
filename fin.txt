@@ -1,0 +1,4 @@
+套件 OK: 41 非OK: 0
+['OK   test_weather_cache.js      ALL PASS: pass=63 fail=0']
+落盘复核:
+ weather.js 日志点: 5 | write.js noCoords: True | 云函数 cityError: True

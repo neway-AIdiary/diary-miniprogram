@@ -27,6 +27,7 @@
   border-radius: var(--r-lg);
   padding: var(--sp-md);
   box-shadow: var(--shadow-sm);
+  margin-top: var(--sp-md);
   margin-bottom: var(--sp-md);
   position: relative;
 }

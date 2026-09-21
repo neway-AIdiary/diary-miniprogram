@@ -225,12 +225,17 @@ ok('write.wxml 顶栏标题绑定内联样式 {{navTitleStyle}}',
   writeWxml.indexOf('<view class="nav-title" style="{{navTitleStyle}}">{{navTitle}}</view>') !== -1)
 ok('.nav-title 仍保留 left:50% + translateX(-50%)（内联偏移缺失时的降级底）',
   navTitleBlock.indexOf('left: 50%') !== -1 && navTitleBlock.indexOf('translateX(-50%)') !== -1)
+ok('.nav-title 显式垂直居中（top:50% + translateY(-50%)）[nav-title-center v2]',
+  navTitleBlock.indexOf('top: 50%') !== -1 && navTitleBlock.indexOf('translateY(-50%)') !== -1,
+  navTitleBlock.replace(/\s+/g, ' ').slice(0, 160))
+ok('write.wxml 技术支持行绑定 {{appName}}（3.A 收敛，不再硬编码）',
+  writeWxml.indexOf('<text class="tech-credit-text">{{appName}} 由DeepSeek、火山引擎、腾讯云提供技术支持</text>') !== -1)
 
 // 白名单：已知的、暂未收敛的硬编码点（值为允许出现次数）
 // 收敛后请把次数改为 0（或从表里删掉），别让白名单变成永久豁免
 const ALLOW_HARDCODED = {
   'pages/lock/lock.wxml': 1,   // 锁屏页品牌名
-  'pages/write/write.wxml': 1  // 技术支持致谢行「一灯记 由DeepSeek…」
+  'pages/write/write.wxml': 0  // 技术支持行已收敛为 {{appName}}（不再硬编码）
 }
 function walkWxml(dir) {
   let out = []

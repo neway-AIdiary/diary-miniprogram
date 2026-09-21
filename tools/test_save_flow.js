@@ -24,6 +24,15 @@ const fs = require('fs')
 const vm = require('vm')
 
 const base = path.resolve(__dirname, '..')
+
+// [shard-storage v1] 日记按年份分格存储：计数走「分格 + 旧格」并集
+function storeDiaryCount(st) {
+  let n = 0
+  Object.keys(st).forEach(k => {
+    if (/^diaries(_\d{4})?$/.test(k) && Array.isArray(st[k])) n += st[k].length
+  })
+  return n
+}
 const WRITE = path.join(base, 'pages', 'write', 'write.js')
 
 let pass = 0
@@ -165,7 +174,7 @@ const abnormal = (sink) => sink.errors.filter((e) => e.indexOf('后续步骤异�
   ok(A.page && JSON.stringify((A.page.data.newEntities || []).map((e) => e.name)) === JSON.stringify(['四维图形']),
     'A-5 备案条目 = 四维图形', A.page && (A.page.data.newEntities || []).map((e) => e.name))
   ok(A.sink.nav.length === 0, 'A-6 弹层期间不跳转（等用户选备案/跳过）', A.sink.nav)
-  ok(Array.isArray(A.store.diaries) && A.store.diaries.length === 1, 'A-7 日记已落库', A.store.diaries && A.store.diaries.length)
+  ok(storeDiaryCount(A.store) === 1, 'A-7 日记已落库', storeDiaryCount(A.store))
   ok(A.sink.cloud.indexOf('markWritten') !== -1, 'A-8 闹钟「今天已写」上报已发出', A.sink.cloud)
 
   /* ===== 2. 用户实测用例：魏杰是我北汽的同事 ===== */
@@ -186,7 +195,7 @@ const abnormal = (sink) => sink.errors.filter((e) => e.indexOf('后续步骤异�
   ok(D.sink.errors.some((e) => e.indexOf('闹钟「今天已写」上报') !== -1), 'D-2 上报步骤确实抛了异常并被兜住', D.sink.errors)
   ok(D.page && D.page.data.showEntityPrompt === true, 'D-3 上报抛异常仍弹出备案弹层', D.page && D.page.data.showEntityPrompt)
   ok(D.sink.nav.length === 0, 'D-4 异常时未抢先跳转（弹层期间不跳）', D.sink.nav)
-  ok(Array.isArray(D.store.diaries) && D.store.diaries.length === 1, 'D-5 日记仍已落库', D.store.diaries && D.store.diaries.length)
+  ok(storeDiaryCount(D.store) === 1, 'D-5 日记仍已落库', storeDiaryCount(D.store))
   ok(D.sink.order.indexOf('checkNewEntities') !== -1, 'D-6 实体识别已发起', D.sink.order)
   ok(D.sink.order.indexOf('checkNewEntities') < D.sink.order.indexOf('resetAfterSave'),
     'D-7 顺序：实体识别先于保存后复位', D.sink.order)

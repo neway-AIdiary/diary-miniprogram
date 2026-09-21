@@ -129,8 +129,10 @@ ok(theme.CHROME.light.bg === light['--bg'], 'CHROME.light.bg 与 --bg 一致')
 ok(theme.CHROME.dark.bg === dark['--bg'], 'CHROME.dark.bg 与深色 --bg 一致')
 
 console.log('---- C. 页面接入 lint ----')
-const PAGES = ['archive', 'backup', 'detail', 'font-setting', 'index', 'profile',
-  'setting', 'setting-reminder', 'summary', 'summary-result', 'write']
+const PAGES = ['archive', 'agreement', 'backup', 'detail', 'font-setting', 'index', 'profile',
+  'quote', 'setting', 'setting-reminder', 'summary', 'summary-result', 'write']
+  /* about / setting-lock 经 @import "../setting/setting.wxss" 继承 .page 宽底，
+     本页无 .page 块，不进本 lint（否则误报）；quote / agreement 已补 [dark-page-bg] */
 let badWxml = []
 let badJs = []
 PAGES.forEach(pg => {
@@ -140,8 +142,8 @@ PAGES.forEach(pg => {
   if (j.indexOf("require('../../utils/theme.js')") === -1) badJs.push(pg + ':require')
   if (j.indexOf('theme.applyTo(this)') === -1) badJs.push(pg + ':applyTo')
 })
-ok(badWxml.length === 0, '11 页根节点均挂 themeClass: ' + (badWxml.join(',') || '全部就位'))
-ok(badJs.length === 0, '11 页 js 均 require + applyTo: ' + (badJs.join(',') || '全部就位'))
+ok(badWxml.length === 0, PAGES.length + ' 页根节点均挂 themeClass: ' + (badWxml.join(',') || '全部就位'))
+ok(badJs.length === 0, PAGES.length + ' 页 js 均 require + applyTo: ' + (badJs.join(',') || '全部就位'))
 
 /* 磨砂令牌化：写死的 rgba(248,244,238,0.95) 不得残留 */
 let frostLeft = 0

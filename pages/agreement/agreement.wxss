@@ -1,6 +1,13 @@
 /* 用户协议与隐私政策页 —— 全部颜色走主题令牌（--ink/--ink-soft/--surface 等），
    深色模式由根节点 theme-dark 覆盖令牌自动生效，本文件不写死任何色值 */
 
+/* 根节点宽底：深色下页面背景必须在 .page 层解析（page{} 的背景被钉死为浅色，
+   不补这层深色会露白底 + 浅字不可读，2026-09-21 实锤） */
+.page {
+  min-height: 100vh;
+  background: var(--bg);
+}
+
 .agr-tabs {
   display: flex;
   gap: 16rpx;

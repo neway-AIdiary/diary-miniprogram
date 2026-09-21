@@ -957,21 +957,31 @@ Page({
       success: (res) => {
         if (res.confirm) {
           const target = storage.getDiaryById(this.data.id)
+          // [net-release v1] deleteDiary 现在返回 boolean；旧版返回 undefined（视为成功，保持原行为）
+          let okDelete = true
           if (target) {
-            // 先快照：删本地前扣减用量估算并收集云文件，避免误删同 id 新数据
+            // 先快照：先收集云文件与用量，本地删成功后再扣减/清理云文件，
+            // 否则本地没删掉却清了云端媒体 → 日记还在、图和视频没了
             const bytes = mediaGuard.sumMediaBytes(target.media || [])
-            if (bytes > 0) mediaGuard.subtractMediaUsage(bytes)
             const fileIDs = mediaGuard.collectFileIDs(target)
-            storage.deleteDiary(this.data.id)
-            if (fileIDs.length) {
-              mediaGuard.deleteCloudFiles(fileIDs).then((r) => {
-                if (r && r.failed > 0) {
-                  wx.showToast({ title: r.failed + ' 个云端媒体删除失败', icon: 'none' })
-                }
-              })
+            okDelete = storage.deleteDiary(this.data.id) !== false
+            if (okDelete) {
+              if (bytes > 0) mediaGuard.subtractMediaUsage(bytes)
+              if (fileIDs.length) {
+                mediaGuard.deleteCloudFiles(fileIDs).then((r) => {
+                  if (r && r.failed > 0) {
+                    wx.showToast({ title: r.failed + ' 个云端媒体删除失败', icon: 'none' })
+                  }
+                })
+              }
             }
           } else {
-            storage.deleteDiary(this.data.id)
+            okDelete = storage.deleteDiary(this.data.id) !== false
+          }
+          if (!okDelete) {
+            // 不谎报成功、也不离页：用户可先导出备份再删
+            wx.showToast({ title: '删除失败，请先导出备份腾出空间', icon: 'none' })
+            return
           }
           app.globalData.needRefresh = true
           wx.showToast({ title: '已删除', icon: 'success' })

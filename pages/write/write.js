@@ -253,6 +253,8 @@ Page({
     voice.warmup()
     // 刷新侧边栏数据
     this.refreshSidebar()
+    // [weather-cache-retry v1] 回到页面仍缺天气（定位/网络都没成功）→ 补拉一次
+    if (!this.data.weatherInfo) this.loadWeather()
     // [dailyquote v1] 每日一签：跨天回到页面也要换成当天的（onShow 每次都重取）
     this.refreshDailyQuote()
     // 新手引导：首启自动播一次（是否播过看 guideDone_v1 标记；与隐私弹窗的先后由 maybeStartGuide 兜住）
@@ -983,24 +985,47 @@ Page({
   },
 
   // ===== 定位城市 + 天气（日期行右侧）=====
+  // [weather-cache-retry v1] 修「天气时有时无」：以前只在 onLoad 拉一次、任一环失败就静默消失。
+  //   ① 进页面先秒显本地缓存（定位/网络都失败也保留上次天气，胶囊不消失）
+  //   ② 整条链路失败按 3s / 8s 退避重试（重试逻辑在 utils/weather.js）
+  //   ③ 回到页面仍缺天气时补拉（用户可能刚在设置里打开了定位授权）
+  // 任何失败都「不清空」weatherInfo —— 宁可用上一次的值，也不要胶囊突然不见。
   loadWeather() {
-    const self = this
-    wx.getLocation({
-      type: 'gcj02',
-      success: (loc) => {
-        self.fetchWeather(loc.latitude, loc.longitude)
-      },
-      fail: () => {
-        // 未授权定位或失败：不显示天气，静默处理
-      }
+    if (this._weatherLoading) return   // onLoad 与 onShow 紧邻触发，防重复请求
+    const cached = weather.readCache()
+    if (cached) this.setData({ weatherInfo: cached.info })
+    // [weather-city-backfill v1] 天气在但城市空 → 用缓存坐标单独补拉城市（天气本体不动）
+    if (cached && !cached.info.city && cached.coords) {
+      weather.fillCity().then((info) => {
+        if (info && info.city) this.setData({ weatherInfo: info })
+      })
+    }
+    // [weather-city-backfill v2] 旧格式缓存（没有坐标）即便「够新」也必须打一次网络 ——
+    // 否则坐标永远补不上、城市也永远补不回来（v1 的漏洞）
+    const noCoords = !!(cached && !cached.coords)
+    if (cached && cached.age < weather.FRESH_MS && !noCoords) return   // 缓存够新，不再打网络
+    this.refreshWeather()
+  },
+
+  // 真实取数（定位 + 天气，带重试）；失败保留现有显示
+  refreshWeather() {
+    this._weatherLoading = true
+    weather.locateWeather().then((info) => {
+      this._weatherLoading = false
+      if (info && info.icon) this.setData({ weatherInfo: info })
+    }).catch(() => {
+      this._weatherLoading = false
     })
   },
 
+  // 指定坐标刷新天气（「添加」面板 → 位置，选完新位置后调用）
   fetchWeather(latitude, longitude) {
-    weather.getWeather(latitude, longitude).then((info) => {
-      if (info && info.icon) {
-        this.setData({ weatherInfo: info })
-      }
+    this._weatherLoading = true
+    weather.fetchByCoords(latitude, longitude).then((info) => {
+      this._weatherLoading = false
+      if (info && info.icon) this.setData({ weatherInfo: info })
+    }).catch(() => {
+      this._weatherLoading = false
     })
   },
 
@@ -1166,6 +1191,31 @@ Page({
     const id = e.currentTarget.dataset.id
     this.setData({ showSidebar: false })
     wx.navigateTo({ url: '/pages/detail/detail?id=' + id })
+  },
+
+  /* [empty-import-move v1] 侧栏导入入口（原日记本页空态按钮迁来）
+     3.A：导入成功后留在侧栏 —— refreshSidebar() 让新日记立刻出现在侧栏列表与统计里；
+     首页刷新标志由 transfer 内部统一置位（见 test_import_refresh S-6c/6d），回日记本即看全量列表 */
+  onSidebarImport() {
+    transfer.importFromFile({
+      onFinish: (added, toast) => {
+        this.refreshSidebar()
+        wx.showModal({
+          title: added === -1 ? '导入失败' : (added > 0 ? '导入成功' : '导入提示'),
+          content: toast,
+          showCancel: false,
+          confirmText: '知道了'
+        })
+      },
+      onError: (msg) => {
+        wx.showModal({
+          title: '导入不成功',
+          content: msg,
+          showCancel: false,
+          confirmText: '知道了'
+        })
+      }
+    })
   },
 
   goToIndex() {
@@ -1592,11 +1642,21 @@ Page({
       created_at: this.resolveCreatedAt(diaryDate)
     })
     if (!space.ok) {
+      // [shard-full v1] 区分「某年分格满」与「整机存储满」：
+      // 年格满时删往年日记腾不出该年空间，必须把建议指向「该年的日记」
+      const yearFull = space.shardFull && !space.totalFull
       wx.showModal({
-        title: '存储空间不足',
-        content: '本地存储已满，本次未保存。\n\n请先「导出备份」保存日记，再删除部分旧日记腾出空间，然后重新点击保存。',
-        showCancel: false,
-        confirmText: '知道了'
+        title: yearFull ? (space.shardYear + ' 年的日记已达上限') : '本地存储已满',
+        content: yearFull
+          ? (space.shardYear + ' 年的日记已达本地单年上限，请先导出备份，再删除部分该年的日记腾出空间')
+          : '本地存储已满，请先备份再删除日记腾出空间',
+        confirmText: '去导出备份',
+        cancelText: '知道了',
+        success: (res) => {
+          if (res.confirm) {
+            try { wx.navigateTo({ url: '/pages/backup/backup' }) } catch (e) {}
+          }
+        }
       })
       return
     }
@@ -1636,8 +1696,13 @@ Page({
           wx.showModal({
             title: '空间将满',
             content: '本地已使用 ' + usedMB.toFixed(1) + 'MB，请清理或导出备份，以免日记丢失。',
-            showCancel: false,
-            confirmText: '知道了'
+            confirmText: '去导出备份',
+            cancelText: '知道了',
+            success: (mres) => {
+              if (mres.confirm) {
+                try { wx.navigateTo({ url: '/pages/backup/backup' }) } catch (e) {}
+              }
+            }
           })
         }
       },

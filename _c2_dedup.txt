@@ -1,0 +1,21 @@
+[--check] utils/util.js fp-func -> SKIP
+[--check] utils/util.js fp-export -> SKIP
+[--check] utils/storage.js mrg-skipped-count -> SKIP
+[--check] utils/storage.js mrg-skipped-return -> SKIP
+[--check] utils/storage.js obj-replace-skipped -> SKIP
+[--check] utils/storage.js obj-key-fp -> SKIP
+[--check] utils/storage.js text-key-fp -> SKIP
+[--check] utils/storage.js obj-jsdoc -> SKIP
+[--check] utils/storage.js text-jsdoc -> SKIP
+[--check] utils/transfer.js result-sig -> SKIP
+[--check] utils/transfer.js result-skipped-line -> SKIP
+[--check] utils/transfer.js finish-sig -> SKIP
+[--check] utils/transfer.js skipped-decl -> SKIP
+[--check] utils/transfer.js legacy-set-skipped -> SKIP
+[--check] utils/transfer.js legacy-pass-skipped -> SKIP
+[--check] utils/transfer.js docx-loose-pass -> SKIP
+[--check] utils/transfer.js docx-visible-pass -> SKIP
+[--check] utils/transfer.js txt-loose-pass -> SKIP
+[--check] utils/transfer.js txt-pass -> SKIP
+[--check] utils/transfer.js ai-parse-pass -> SKIP
+RESULT: ALL OK

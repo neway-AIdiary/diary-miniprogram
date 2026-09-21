@@ -1,6 +1,13 @@
 /* 每日一签全篇页 —— 颜色一律走主题令牌（--ink/--ink-soft/--brand 等），
    深色模式由根节点 theme-dark 覆盖令牌生效，本文件不写死任何色值 */
 
+/* 根节点宽底：深色下页面背景必须在 .page 层解析（page{} 的背景被钉死为浅色，
+   不补这层深色会露白底 + 浅字不可读，2026-09-21 实锤） */
+.page {
+  min-height: 100vh;
+  background: var(--bg);
+}
+
 .quote-wrap {
   padding: 56rpx 48rpx 60rpx;
 }
@@ -15,6 +22,27 @@
   border: 1rpx solid var(--brand-tint-25);
   border-radius: var(--r-pill);
   background: var(--brand-tint-08);
+}
+
+/* 「诗词」行 + ‹›翻日 [quote-date v2]（2.A 紧贴标签右侧，无框、越界置灰） */
+.quote-kind-row {
+  display: flex;
+  align-items: center;
+}
+.quote-nav-btn {
+  margin-left: 16rpx;
+  padding: 4rpx 10rpx;
+  font-size: 34rpx;
+  line-height: 1;
+  color: var(--ink-soft);
+  transition: opacity var(--dur) var(--ease);
+}
+.quote-nav-hover {
+  opacity: 0.55;
+}
+.quote-nav-off {
+  color: var(--ink-faint);
+  opacity: 0.4;
 }
 
 /* 主标题：诗词名 / 作者名，衬线体，与「关于」页的命名层级一致 */
@@ -80,4 +108,83 @@
   color: var(--ink-faint);
   text-align: center;
   letter-spacing: 1rpx;
+}
+
+/* ===== [quote-date v3] 日期头：日历图标 + 两行文字，整块左对齐 =====
+   拍板 1.B：整块贴左（杂志页眉感）；2.A：节气不带 emoji；
+   第 1 行主视觉（公历+农历，深墨加大加粗）；第 2 行浅灰小字（星期·星座·节气）；
+   「星 ↔ 公」对齐 = 图标列宽即悬挂缩进；琥珀强调收进图标日期圆点；
+   纯 CSS 绘制图标，颜色全走令牌，深色模式由 theme-dark 覆盖令牌生效 */
+.date-head {
+  display: flex;
+  align-items: flex-start;
+  padding: 44rpx 48rpx 0;
+}
+.date-icon-col {
+  flex-shrink: 0;
+  padding-right: 16rpx;
+}
+.date-icon {
+  position: relative;
+  width: 36rpx;
+  height: 34rpx;
+  margin-top: 5rpx;
+  border: 2.5rpx solid var(--ink-soft);
+  border-radius: 8rpx;
+}
+.date-icon-band {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 9rpx;
+  height: 2.5rpx;
+  background: var(--ink-soft);
+}
+.date-icon-pin {
+  position: absolute;
+  top: -6rpx;
+  width: 2.5rpx;
+  height: 9rpx;
+  background: var(--ink-soft);
+  border-radius: 2rpx;
+}
+.date-icon-pin-l {
+  left: 7rpx;
+}
+.date-icon-pin-r {
+  right: 7rpx;
+}
+.date-icon-dot {
+  position: absolute;
+  left: 50%;
+  top: 20rpx;
+  width: 9rpx;
+  height: 9rpx;
+  margin-left: -4.5rpx;
+  border-radius: 50%;
+  background: var(--brand);
+}
+.date-text {
+  min-width: 0;
+}
+.date-line1 {
+  font-size: 30rpx;
+  color: var(--ink-mid);
+  letter-spacing: 1rpx;
+  white-space: nowrap;
+}
+/* 区隔线：日期区与诗词区之间，与 quote-rule 同语言、更轻 */
+.date-rule {
+  margin: 30rpx 48rpx 0;
+  height: 1rpx;
+  background: var(--line);
+}
+.date-line2 {
+  margin-top: 10rpx;
+  font-size: 22rpx;
+  color: var(--ink-soft);
+  letter-spacing: 2rpx;
+}
+.date-cal {
+  color: var(--ink-faint);
 }

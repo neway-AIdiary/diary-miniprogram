@@ -15,6 +15,7 @@
  *   B 组：落库行为（ensureDiarySaved 幂等 / onShareNeedSave 成败两路 / 转发卡片路径）
  *   C 组：分享完成回日记本（shared → _saving + markWritten + reLaunch）
  *   D 组：已落库后【保存】/【编辑】不产生第二份
+ *   E 组：海报字号分层 [poster-font v1]（说明头 25px 浅灰 / 正文 29px + 段落首行缩进）
  */
 const path = require('path')
 const fs = require('fs')
@@ -40,6 +41,15 @@ function clearCache() {
 }
 
 /** 加载 summary-result 页面并造实例；opts.overrides 按 require 路径子串替换模块 */
+// [shard-storage v1] 日记按年份分格存储：断言读取走「分格 + 旧格」并集
+function storeAllDiaries(st) {
+  const out = []
+  Object.keys(st).forEach(k => {
+    if (/^diaries(_\d{4})?$/.test(k) && Array.isArray(st[k])) out.push(...st[k])
+  })
+  return out
+}
+
 function loadPage(opts) {
   opts = opts || {}
   clearCache()
@@ -166,6 +176,75 @@ console.log('== A) shareDiary 与落库口径对齐 ==')
 }
 
 // ============================================================
+console.log('== E) 海报正文分层：说明头小一号 + 段落首行缩进 [poster-font v1] ==')
+{
+  const sheetSrc2 = read(SHEET)
+  const share = require(path.join(base, 'utils', 'share.js'))
+
+  ok(sheetSrc2.indexOf("ctx.font = '400 29px sans-serif'") !== -1 &&
+     sheetSrc2.indexOf('lineH: 48') !== -1 &&
+     sheetSrc2.indexOf("'400 33px sans-serif'") === -1,
+    'E1 正文降到 29px / 行高 48（整卡降一档，33px 已无残留）')
+  ok(sheetSrc2.indexOf("kind: 'brief'") !== -1 &&
+     sheetSrc2.indexOf("ctx.font = '400 25px sans-serif'") !== -1,
+    'E2 说明头拆成 brief 块，25px 再小一号')
+  ok(sheetSrc2.indexOf("kind: 'brief'") !== -1 && sheetSrc2.indexOf("'#8A8F8C'") !== -1,
+    'E3 说明头浅灰弱化（与正文深墨分层）')
+  ok(sheetSrc2.indexOf("'400 27px sans-serif'") === -1,
+    'E4 心情/天气同步降到 25px（27px 已无残留）')
+  ok(sheetSrc2.indexOf('share.splitPosterBrief(') !== -1 &&
+     sheetSrc2.indexOf('share.indentParas(') !== -1,
+    'E5 分层与缩进都走 utils/share.js 纯函数（可单测、页面无关）')
+  ok(sheetSrc2.indexOf('share.MAX_POSTER_LINES - briefLines') !== -1,
+    'E6 说明头行数计入行数上限（不顶穿 canvas 像素上限）')
+
+  const spb = (typeof share.splitPosterBrief === 'function') ? share.splitPosterBrief : null
+  const ind = (typeof share.indentParas === 'function') ? share.indentParas : null
+  ok(!!spb, 'E7 splitPosterBrief 已导出（旧版缺失即红）')
+  ok(!!ind, 'E8 indentParas 已导出（旧版缺失即红）')
+
+  const briefText = '【总结需求】根据我的日记总结一下\n【分析范围】共读取全部时间 141 篇日记进行分析' +
+    '\n根据日记内容，你是一个：\n中年离职员工，经历裁员。'
+  const sp = spb ? spb(briefText) : { brief: '', body: '' }
+  ok(sp.brief.indexOf('【总结需求】') === 0 && sp.brief.indexOf('【分析范围】') > 0,
+    'E9 说明头两行整体归入 brief', sp.brief)
+  ok(sp.body.indexOf('根据日记内容') === 0 && sp.brief.indexOf('根据日记内容') === -1,
+    'E10 正文从说明头之后开始（brief / body 不重叠）', sp.body)
+
+  const sp2 = spb ? spb('今天天气不错\n心情很好') : { brief: '', body: '' }
+  ok(sp2.brief === '' && sp2.body === '今天天气不错\n心情很好',
+    'E11 无说明头的普通正文：brief 空、body 全文（普通日记海报零变化）', sp2.brief)
+
+  const sp3 = spb ? spb('【总结需求】只有需求没有正文') : { brief: '', body: '' }
+  ok(sp3.brief === '' && sp3.body === '【总结需求】只有需求没有正文',
+    'E12 只有说明头没有正文时回退当正文（不画空海报）', sp3.brief)
+
+  const ind1 = ind ? ind('第一段\n\n第二段') : ''
+  ok(!!ind && ind1 === '　第一段\n\n　第二段',
+    'E13 每个段落首字空一个字（全角空格），空行不缩进', JSON.stringify(ind1))
+  const ind2 = ind ? ind(ind1) : ''
+  ok(!!ind && ind1 !== '' && ind2 === ind1, 'E14 缩进幂等（已缩进的行不重复加）')
+  ok(ind ? ind('单段正文') === '　单段正文' : false, 'E15 只有一个段落时同样缩进')
+
+  ok(share.MAX_SUMMARY_LEN === 600 && share.MAX_POSTER_LINES === 40,
+    'E16 海报字数/行数上限不变（600 字 / 40 行）')
+}
+
+// ============================================================
+console.log('== F) 天气与心情同行 [poster-weather-inline v1] ==')
+{
+  const sheetSrc3 = read(SHEET)
+  ok(sheetSrc3.indexOf("kind: 'weather', y: y - 54, x: PAD + moodW + 24, w: wW") !== -1,
+    'F1 有心情时天气块落在心情同行右侧（x = PAD + moodW + 24）')
+  ok(sheetSrc3.indexOf('ctx.fillText(model.weather, b.x || PAD, b.y)') !== -1,
+    'F2 绘制按块自带 x（无 x 回落 PAD，兼容独立行）')
+  ok(sheetSrc3.indexOf('moodW + 24 + wW <= MAXW') !== -1,
+    'F3 放不下时回落独立行（宽度守卫在位）')
+  ok(sheetSrc3.indexOf('y += 46') !== -1,
+    'F4 独立行路径保留（无心情日记的天气仍是单独一行）')
+}
+
+// ============================================================
 console.log('== B) 确认分享/转发先落库 ==')
 {
   // 旧代码没有这些方法时记为「断言红」并收场，而不是让测试进程崩掉
@@ -179,12 +258,12 @@ console.log('== B) 确认分享/转发先落库 ==')
   // ensureDiarySaved 幂等
   const ctx = initPage()
   const id1 = ctx.page.ensureDiarySaved()
-  const list1 = ctx.page.data && ctx.store['diaries']
+  const list1 = ctx.page.data && storeAllDiaries(ctx.store)
   ok(!!id1, 'B1 ensureDiarySaved 返回日记 id', id1)
   ok(Array.isArray(list1) && list1.length === 1 && list1[0].entryType === 'summary',
     'B2 落库为 entryType=summary 的总结日记')
   const id2 = ctx.page.ensureDiarySaved()
-  const list2 = ctx.store['diaries']
+  const list2 = storeAllDiaries(ctx.store)
   ok(id2 === id1 && list2.length === 1, 'B3 重复调用幂等（不产生第二份）')
 
   // onShareNeedSave 成功路：shareDiary 补 id + continueShare 带新 diary
@@ -195,7 +274,7 @@ console.log('== B) 确认分享/转发先落库 ==')
   ok(!!ctx3.page.data.shareDiary.id, 'B4 onShareNeedSave 后 shareDiary.id 已补上', ctx3.page.data.shareDiary.id)
   ok(continued && continued.id === ctx3.page.data.shareDiary.id,
     'B5 continueShare 被回调且带最新 diary（海报二维码即指向这篇日记）')
-  ok(ctx3.store['diaries'].length === 1, 'B6 落库只发生一次')
+  ok(storeAllDiaries(ctx3.store).length === 1, 'B6 落库只发生一次')
 
   // onShareNeedSave 失败路：storage 桩 saveDiary 返回 null
   const ctx4 = loadPage({
@@ -214,7 +293,7 @@ console.log('== B) 确认分享/转发先落库 ==')
   const share = ctx5.page.onShareAppMessage()
   ok(share.path.indexOf('/pages/detail/detail?id=') === 0 && share.path.indexOf('&share=1') > 0,
     'B10 转发卡片直达已落库日记的详情页', share.path)
-  ok(ctx5.store['diaries'].length === 1, 'B11 转发卡片已先落库')
+  ok(storeAllDiaries(ctx5.store).length === 1, 'B11 转发卡片已先落库')
   ok(share.title === ctx5.page.data.title, 'B12 卡片标题保持「X月X日 AI总结」口径', share.title)
 }
 
@@ -252,14 +331,14 @@ function phaseD(done) {
   const ctx = initPage()
   ctx.page.ensureDiarySaved()
   ctx.page.onSave()
-  ok(ctx.store['diaries'].length === 1, 'D1 已落库后点【保存】不再重复落库')
+  ok(storeAllDiaries(ctx.store).length === 1, 'D1 已落库后点【保存】不再重复落库')
   setTimeout(() => {
     ok(ctx.sink.relaunch.length === 1, 'D2 且按保存完成流程回日记本')
 
     const ctx2 = initPage()
     ctx2.page.ensureDiarySaved()
     ctx2.page.onEdit()
-    const list = ctx2.store['diaries']
+    const list = storeAllDiaries(ctx2.store)
     ok(list.length === 1, 'D3 已落库后点【编辑】不再落新草稿')
     ok(ctx2.sink.nav.length === 1 &&
        ctx2.sink.nav[0].url.indexOf('/pages/detail/detail?id=') === 0 &&

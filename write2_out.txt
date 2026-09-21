@@ -1,0 +1,16 @@
+[--write] utils/weather.js w1-header → OK
+[--write] utils/weather.js w2-writecache-coords → OK
+[--write] utils/weather.js w3-readcache-coords → OK
+[--write] utils/weather.js w4-fetchcity → OK
+[--write] utils/weather.js w5-locateweather → OK
+[--write] utils/weather.js w6-fetchbycoords → OK
+[--write] utils/weather.js w7-fillcity → OK
+[--write] utils/weather.js w8-exports → OK
+[--write] pages/write/write.js j1-loadweather → OK
+[--write] tools/test_weather_cache.js t1-ctl → SKIP
+[--write] tools/test_weather_cache.js t2-stub → SKIP
+[--write] tools/test_weather_cache.js t3-guards → SKIP
+[--write] tools/test_weather_cache.js t4-header → SKIP
+[--write] tools/test_weather_cache.js t5-section-f → SKIP
+[--write] tools/test_weather_cache.js t6-e12 → SKIP
+RESULT: ALL OK

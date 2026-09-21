@@ -1,0 +1,1 @@
+C:\Users\ThinkPad\.workbuddy\binaries\python\envs\default\Scripts\python.exe: can't open file 'C:\\Users\\ThinkPad\\WorkBuddy\\2026-09-07-10-38-35\\diary-miniprogram-work\\run_regress.py': [Errno 2] No such file or directory

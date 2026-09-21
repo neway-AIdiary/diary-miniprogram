@@ -1,0 +1,16 @@
+[--check] utils/weather.js w1-header → PENDING
+[--check] utils/weather.js w2-writecache-coords → PENDING
+[--check] utils/weather.js w3-readcache-coords → PENDING
+[--check] utils/weather.js w4-fetchcity → PENDING
+[--check] utils/weather.js w5-locateweather → PENDING
+[--check] utils/weather.js w6-fetchbycoords → PENDING
+[--check] utils/weather.js w7-fillcity → PENDING
+[--check] utils/weather.js w8-exports → PENDING
+[--check] pages/write/write.js j1-loadweather → PENDING
+[--check] tools/test_weather_cache.js t1-ctl → PENDING
+[--check] tools/test_weather_cache.js t2-stub → PENDING
+[--check] tools/test_weather_cache.js t3-guards → PENDING
+[--check] tools/test_weather_cache.js t4-header → PENDING
+[--check] tools/test_weather_cache.js t5-section-f → PENDING
+[--check] tools/test_weather_cache.js t6-e12 → PENDING
+RESULT: ALL OK

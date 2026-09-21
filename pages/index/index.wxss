@@ -21,7 +21,7 @@
   min-width: 0;
 }
 
-/* 导出/导入：图标上、名称下的小操作块（名称都显示，20rpx 小字） */
+/* 导出/导入：图标上、名称下的小操作块（名称都显示，22rpx 半粗小字）[index-ui2 v1 加粗一号] */
 .toolbar-actions {
   display: flex;
   flex-shrink: 0;
@@ -31,7 +31,10 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  width: 124rpx;
+  /* [index-ui2 v1] 124 -> 140rpx：下方名称升到 22rpx 半粗后「导出以下日记」6 字需 132rpx，
+     nowrap 在 124rpx 盒里会左右各溢 4rpx、两块文字互相贴住 ⇒ 预留 8rpx 余量
+     （宽度由范围胶囊的 flex 余量让出，胶囊侧实测仍有余裕） */
+  width: 140rpx;
   padding: 4rpx 0 2rpx;
 }
 
@@ -42,7 +45,8 @@
 }
 
 .toolbar-action-text {
-  font-size: 20rpx;
+  font-size: 22rpx;
+  font-weight: 600;
   color: var(--ink-faint);
   margin-top: 2rpx;
   white-space: nowrap;
@@ -81,14 +85,35 @@
   color: var(--ink);
 }
 
-/* 空日记本下的导入入口 */
-.empty-import { margin-top: 24rpx; font-size: 26rpx; color: var(--brand); display: flex; align-items: center; padding-bottom: 4rpx; }
-.empty-import .ri { font-size: 28rpx; margin-right: 6rpx; }
+/* 空日记本下的导入入口已迁往写日记页侧栏 [empty-import-move v1] */
 
 .search-clear {
   font-size: 28rpx;
   color: var(--ink-faint);
   padding: 0 8rpx;
+}
+
+/* 排序切换 [index-sort v1]：常驻搜索框右端；与左侧 × 清空以竖线分隔，位置不随搜索态抖动 */
+.sort-toggle {
+  display: flex;
+  align-items: center;
+  /* [index-ui2 v1] 分隔竖线：原 1rpx + --line(#E6DED2) 在暖灰槽上几乎看不见
+     ⇒ 加粗到 2rpx 并改用 --ink-faint（占位/图标级灰）；亮/暗两个主题下都清晰 */
+  margin-left: 14rpx;
+  padding: 4rpx 0 4rpx 20rpx;
+  border-left: 2rpx solid var(--ink-faint);
+  color: var(--ink-soft);
+}
+.sort-toggle-arrow {
+  font-size: 26rpx;
+  color: var(--brand);
+  margin-right: 4rpx;
+}
+.sort-toggle-label {
+  font-size: 24rpx;
+}
+.sort-toggle-hover {
+  opacity: 0.55;
 }
 
 .search-tip {

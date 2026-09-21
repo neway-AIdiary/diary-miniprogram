@@ -1,0 +1,21 @@
+[--check] utils/util.js fp-func -> PENDING
+[--check] utils/util.js fp-export -> PENDING
+[--check] utils/storage.js mrg-skipped-count -> PENDING
+[--check] utils/storage.js mrg-skipped-return -> PENDING
+[--check] utils/storage.js obj-replace-skipped -> PENDING
+[--check] utils/storage.js obj-key-fp -> PENDING
+[--check] utils/storage.js text-key-fp -> PENDING
+[--check] utils/storage.js obj-jsdoc -> PENDING
+[--check] utils/storage.js text-jsdoc -> PENDING
+[--check] utils/transfer.js result-sig -> PENDING
+[--check] utils/transfer.js result-skipped-line -> PENDING
+[--check] utils/transfer.js finish-sig -> PENDING
+[--check] utils/transfer.js skipped-decl -> PENDING
+[--check] utils/transfer.js legacy-set-skipped -> PENDING
+[--check] utils/transfer.js legacy-pass-skipped -> PENDING
+[--check] utils/transfer.js docx-loose-pass -> PENDING
+[--check] utils/transfer.js docx-visible-pass -> PENDING
+[--check] utils/transfer.js txt-loose-pass -> PENDING
+[--check] utils/transfer.js txt-pass -> PENDING
+[--check] utils/transfer.js ai-parse-pass -> PENDING
+RESULT: ALL OK

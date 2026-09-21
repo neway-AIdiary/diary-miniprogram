@@ -86,6 +86,33 @@ function posterDate(createdAt) {
   return m ? m[1] : s
 }
 
+// [poster-font v1] 海报正文与「说明头」分层（2026-09-21 拍板 1.A）：
+//   说明头 = 正文开头连续的「【标签】…」行（总结需求 / 分析范围）→ 单独小一号浅灰绘制；
+//   正文 = 其余部分。只有说明头、没有正文时回退（brief 空、整体当正文），避免画出空海报。
+function splitPosterBrief(text) {
+  const lines = String(text == null ? '' : text).replace(/\r\n?/g, '\n').split('\n')
+  let i = 0
+  while (i < lines.length && /^【[^】]{1,8}】/.test(lines[i])) i++
+  const brief = lines.slice(0, i).join('\n')
+  const body = lines.slice(i).join('\n')
+  if (!body.trim()) return { brief: '', body: brief }
+  return { brief: brief, body: body }
+}
+
+// [poster-font v1] 每个段落首字空一个字（全角空格）：非空行前加一个「　」；
+//   空行保持空行；已缩进的行不重复加（幂等，便于重复绘制 / 重复调用）
+function indentParas(text) {
+  return String(text == null ? '' : text)
+    .replace(/\r\n?/g, '\n')
+    .split('\n')
+    .map(function (line) {
+      if (!line) return line
+      if (line.charAt(0) === '\u3000' || line.charAt(0) === ' ') return line
+      return '\u3000' + line
+    })
+    .join('\n')
+}
+
 // 公开海报数据模型（遵循开关 + 兜底隐藏空模块）
 function buildPosterModel(d, sw) {
   sw = sw || {}
@@ -119,5 +146,7 @@ module.exports = {
   weatherLine: weatherLine,
   posterDate: posterDate,
   buildCopyText: buildCopyText,
-  buildPosterModel: buildPosterModel
+  buildPosterModel: buildPosterModel,
+  splitPosterBrief: splitPosterBrief,
+  indentParas: indentParas
 }

@@ -51,14 +51,19 @@
 
 /* [nav-title-30 v1] 顶栏标题 30rpx（用户指定的半档字号，刻度 42/32/26 里无此档）；
    字重/颜色/字距/字体均不变。
-   [nav-title-center v1] 视觉居中：这里的 left:50% + translateX(-50%) 只保证「数学居中」，
+   [nav-title-center v1] 水平视觉居中：这里的 left:50% + translateX(-50%) 只保证「数学居中」，
    右侧微信胶囊是系统层覆盖、左侧只有汉堡图标 ⇒ 实际看着偏右。真实偏移由 utils/navbar.js
    计算后经 wxml 内联 style 的 margin-left 施加（取不到胶囊信息时 style 为空 = 退回数学居中，
-   所以内联样式失效也不会把标题推到不可预期的位置）。 */
+   所以内联样式失效也不会把标题推到不可预期的位置）。
+   [nav-title-center v2] 垂直居中：absolute 的垂直位置若不给声明，只能靠「静态位置」兜底，
+   真机上会贴向内容区顶部 ⇒ 比左右两侧的「=」与胶囊偏上。显式 top:50% + translateY(-50%)
+   与水平侧同一套写法，左右两侧仍是 flex 正常流居中，三者上下中线一致。
+   注：transform 拆写 translateX(...) translateY(...) 是为兼容旧断言串，等价于 translate(-50%,-50%) */
 .nav-title {
   position: absolute;
   left: 50%;
-  transform: translateX(-50%);
+  top: 50%;
+  transform: translateX(-50%) translateY(-50%);
   font-size: 30rpx;
   font-weight: var(--title-w);
   color: var(--title-ink);
@@ -1235,7 +1240,30 @@
   text-align: center;
   font-size: 24rpx;
   color: var(--ink-faint);
-  padding: 32rpx 0;
+  /* [empty-import-move v1] 文案变长（21 字）会折两行 ⇒ 放宽行高、下内边距收窄贴近导入入口 */
+  line-height: 1.6;
+  padding: 28rpx 0 10rpx;
+}
+
+/* [empty-import-move v1] 无日记时的导入入口（原日记本页空态按钮迁来，2.A 仅空态显示）；
+   无边框轻链接：不与下方「打开日记本」描边药丸抢主次（极简琥珀编辑风） */
+.sidebar-import {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 4rpx 0 2rpx;
+  padding: 14rpx 0;
+  font-size: 26rpx;
+  color: var(--ink-soft);
+}
+
+.sidebar-import:active {
+  color: var(--brand);
+}
+
+.sidebar-import-icon {
+  font-size: 28rpx;
+  margin-right: 8rpx;
 }
 
 /* [sidebar-more-btn v4] 去「·」，本/开之间空 3 格宽（26rpx 字号下 1 格 ≈ 13rpx，3 格 = 39rpx margin）；

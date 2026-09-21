@@ -85,12 +85,15 @@ exports.main = async (event) => {
   }
 
   // 2) 城市（逆地理编码，中文优先）
-  const g = await requestJson(
-    'https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=' + lat + '&longitude=' + lon + '&localityLanguage=zh'
-  )
+  // [weather-city-backfill v2] 跨境接口首包可能 >8s：超时放宽到 12s，失败再试一次；
+  //    仍失败时返回 cityError 标记（客户端会打日志，便于真机定位）
+  const cityUrl = 'https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=' + lat + '&longitude=' + lon + '&localityLanguage=zh'
+  let g = await requestJson(cityUrl, 12000)
+  if (!g) g = await requestJson(cityUrl, 12000)
   if (g) {
     result.city = String(g.city || g.locality || g.principalSubdivision || '').trim()
   }
+  if (!result.city) result.cityError = true
 
   return result
 }

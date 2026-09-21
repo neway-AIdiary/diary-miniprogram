@@ -8,7 +8,6 @@
     <!-- 私密分享 -->
     <view class="share-sec-head">
       <text class="share-sec-title"><text class="ri ri-lock-line"></text> 私密分享</text>
-      <text class="share-sec-sub">仅微信好友可见完整内容</text>
     </view>
     <!-- open-type="share" 由所在页面 onShareAppMessage 提供卡片内容（组件内无法声明） -->
     <button class="share-row share-row-plain" open-type="share">
@@ -23,7 +22,6 @@
     <!-- 公开分享 -->
     <view class="share-sec-head share-sec-head-gap">
       <text class="share-sec-title"><text class="ri ri-global-line"></text> 公开分享</text>
-      <text class="share-sec-sub">生成海报，可发朋友圈/小红书/微博等</text>
     </view>
     <view class="share-row {{shareAction === 'poster' ? 'active' : ''}}" bindtap="selectShareAction" data-action="poster">
       <view class="share-row-icon share-row-icon-poster">
@@ -31,14 +29,12 @@
       </view>
       <view class="share-row-main">
         <text class="share-row-name">保存分享海报</text>
-        <text class="share-row-desc">图文卡片，保存到相册</text>
       </view>
     </view>
     <view class="share-row {{shareAction === 'text' ? 'active' : ''}}" bindtap="selectShareAction" data-action="text">
       <view class="share-row-icon share-row-icon-text ri ri-file-text-line"></view>
       <view class="share-row-main">
         <text class="share-row-name">复制完整文字</text>
-        <text class="share-row-desc">已脱敏，适配各平台粘贴</text>
       </view>
     </view>
 
@@ -77,3 +73,5 @@
 
 <!-- 海报画布（离屏，2d）：常驻渲染，生成海报时按 id 查询 -->
 <canvas type="2d" id="sharePosterCanvas" class="share-poster-canvas"></canvas>
+
+<!-- [share-desc-remove v1] -->

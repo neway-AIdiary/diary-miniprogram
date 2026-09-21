@@ -2,7 +2,7 @@
 const share = require('../utils/share.js')
 
 // —— 用与 share-sheet.js 相同的字体参数估算换行（CJK 单字宽 = 字号）——
-const W = 600, PAD = 46, MAXW = W - PAD * 2, FONT = 33, LINEH = 54
+const W = 600, PAD = 46, MAXW = W - PAD * 2, FONT = 29, LINEH = 48   // [poster-font v1] 与 share-sheet 同步
 function wrapCount(text) {
   const per = Math.floor(MAXW / FONT)
   return Math.ceil(text.length / per)
@@ -41,7 +41,7 @@ const lines = wrapCount(pm.summary)
 console.log('  估算行数:', lines, '（上限', share.MAX_POSTER_LINES, '）')
 console.log()
 console.log('=== 最坏几何（600 字满额 + 1 张大图 + 码 + 全部模块）===')
-const H = PAD + 6 + 56 + 54 + 46 + (12 + 40 * LINEH + 6) + (8 + 34) + (6 + 52 + 4) + (10 + 420 + 8) + 26 + 112 + 44
+const H = PAD + 6 + 56 + 54 + 46 + (12 + 4 * 38 + 16) + (12 + 40 * LINEH + 6) + (8 + 34) + (6 + 52 + 4) + (10 + 420 + 8) + 26 + 112 + 44
 console.log('  画布高:', H, 'px（宽 600）')
 const MAX_CANVAS_PX = 12e6, MAX_CANVAS_DIM = 8000
 ;[1, 2, 3].forEach(base => {
@@ -53,5 +53,5 @@ const MAX_CANVAS_PX = 12e6, MAX_CANVAS_DIM = 8000
 })
 console.log()
 console.log('=== 对照：改造前 150 字（dpr=3）===')
-const H150 = PAD + 6 + 56 + 54 + 46 + (12 + 10 * LINEH + 6) + (6 + 52 + 4) + (10 + 420 + 8) + 26 + 112 + 44
+const H150 = PAD + 6 + 56 + 54 + 46 + (12 + 4 * 38 + 16) + (12 + 10 * LINEH + 6) + (6 + 52 + 4) + (10 + 420 + 8) + 26 + 112 + 44
 console.log('  画布 1800×' + (H150 * 3) + ' = ' + (1800 * H150 * 3 / 1e6).toFixed(2) + 'M 像素')

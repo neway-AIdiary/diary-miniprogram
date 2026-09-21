@@ -1,0 +1,79 @@
+== S) 导出与常量 ==
+  PASS S1 导出 readCache / writeCache（缓存层入口）
+  PASS S2 导出 locateWeather / fetchByCoords（页面级入口）
+  PASS S3 缓存 key = weather_cache_v1
+  PASS S4 缓存有效期 = 30 分钟
+  PASS S5 FRESH_MS = 5 分钟（够新则不打网络）
+  PASS S6 退避序列 = [3000, 8000]
+== A) 本地缓存 ==
+  PASS A1 无缓存 → null
+  PASS A2 有效值写缓存成功
+  PASS A3 缓存结构 = { ts, info }
+  PASS A4 新鲜缓存可读（age 正确、四字段完整）
+  PASS A5 TTL 边界（满 30 分钟）仍有效
+  PASS A6 超 TTL → 过期 null
+  PASS A7 时钟回拨（ts 在未来）→ null
+  PASS A8 无效值不写、不覆盖旧缓存（旧值仍在）
+  PASS A9 缺 icon 视为无效 → 不写
+  PASS A10 脏数据（字符串）→ null 不崩
+  PASS A11 ts 非法 → null
+  PASS A12 返回副本（改返回值不污染 storage）
+  PASS A13 clearCache 生效
+== B) 退避重试 withRetry ==
+  PASS B1 首次成功 → 只调 1 次、不再重试
+  PASS B2 前两次失败、第三次成功 → 调用 3 次
+  PASS B3 退避延迟序列 = 3s / 8s
+  PASS B4 全失败 → resolve(null)（不 reject），共 3 次尝试
+  PASS B5 同步抛异常也重试（页面不需 try/catch）
+  PASS B6 全程 reject → 也收敛为 resolve(null)
+== C) locateWeather：定位失败也重试 ==
+[weather] cloud: {"city":"深圳市","temp":28}
+  PASS C1 定位首次失败 → 重试成功（定位调用 2 次）
+  PASS C2 成功后自动写缓存（下次进页面秒显）
+  PASS C3 定位成功但天气全失败 → resolve(null)，页面保留旧显示
+  PASS C4 失败不写缓存（不污染上次的值）
+[weather] cloud: {"city":"深圳市","temp":28}
+  PASS C5 空坐标视为失败 → 重试
+  PASS C6 全失败共 3 次尝试（1 + RETRY_DELAYS.length）
+== D) fetchByCoords：直连降级（真机已配合法域名）==
+  PASS D1 云函数失败 → 直连降级取到天气+城市
+  PASS D2 直连成功也写缓存
+  PASS D3 直连只请求一次（天气 + 城市各一次），成功不重试
+== F) [weather-city-backfill v1] 城市补拉 ==
+  PASS F1 导出 fetchCity / fillCity（城市单独补拉入口）
+  PASS F2 writeCache 带坐标写入成功
+  PASS F2 缓存记录坐标（之后可单独补城市）
+  PASS F3 坐标脏数据 → coords 为 null，不崩
+[weather] cloud: {"city":"","temp":28}
+[weather] fetchCity fail: request:fail
+  PASS F4 云函数只缺城市 → 天气照常返回（city 为空串）
+  PASS F4 无城市结果也写缓存，且带坐标
+[weather] cloud: {"city":"","temp":28}
+  PASS F5 新天气缺城市 → 继承旧缓存的城市名
+[weather] fetchCity ok: 深圳市
+  PASS F6 fillCity 补到城市 → 返回合并 info
+  PASS F6 fillCity 回写缓存（天气本体不变）
+  PASS F7 城市已补上 → 再调返回 null（无需 setData）
+  PASS F7 无缓存 → null
+  PASS F7 缓存无坐标 → null
+[weather] fetchCity fail: request:fail
+  PASS F8 补拉失败 → null，不 reject
+  PASS F8 失败不写缓存（下次仍可再补）
+== E) 页面接线静态断言 ==
+  PASS E1 loadWeather 先读本地缓存
+  PASS E2 缓存展示在网络请求之前（先秒显、再刷新）
+  PASS E3 缓存够新则不打网络（省云函数调用）
+  PASS E4 失败不清空 weatherInfo（胶囊不消失）
+  PASS E5 防重复请求（onLoad + onShow 紧邻触发）
+  PASS E6 onShow 缺天气时补拉一次
+  PASS E7「选完位置刷新天气」也走带重试的入口
+  PASS E8 云函数 → 直连 的降级顺序未变
+  PASS E9 重试支持注入 timer（可单测）
+  PASS E10 缓存 key 不与日记分片命名冲突
+  PASS E11 胶囊仍按 weatherInfo 有无显示（与「失败不清空」配套）
+  PASS E12 缓存缺城市时页面调 fillCity 单独补拉（天气本体不动）
+  PASS E13 [v2] 旧格式缓存（无坐标）不吃「够新」短路 —— 否则坐标/城市永远补不回来
+  PASS E14 [v2] 云函数城市腿：超时放宽 12s + 失败重试 + cityError 标记
+  PASS E15 [v2] 三条链路的失败日志齐备（真机调试 Console 可见）
+
+ALL PASS: pass=63 fail=0

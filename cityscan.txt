@@ -1,0 +1,42 @@
+---
+        this.setData({
+          location: {
+            name: res.name,
+            address: res.address || '',
+            latitude: res.latitude || 0,
+            longitude: res.longitude || 0
+          }
+        })
+        // 用所选位置刷新天气
+        if (res.latitude && res.longitude) {
+          this.fetchWeather(res.latitude, res.longitude)
+        }
+      },
+      fail: (err) => {
+        if (err && (err.errMsg || '').indexOf('auth deny') !== -1) {
+          wx.showModal({
+            title: '需要
+---
+reshWeather() {
+    this._weatherLoading = true
+    weather.locateWeather().then((info) => {
+      this._weatherLoading = false
+      if (info && info.icon) this.setData({ weatherInfo: info })
+    }).catch(() => {
+      this._weatherLoading = false
+    })
+  },
+
+  // 指定坐标刷新天气（「添加」面板 → 位置，选完新位置后调用）
+  fetchWeather(latitude, longitude) {
+    this._weatherLoading = true
+    weather.fetchByCoords(latitude, longitude).then((info) => {
+      this._weatherLoading = false
+      if (info && info.icon) this
+=== 搜索城市/位置相关 ===
+position 0
+getLocation 0
+chooseLocation 2
+latitude 6
+城市 5
+location 11

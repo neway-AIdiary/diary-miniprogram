@@ -291,24 +291,44 @@ Component({
             ctx.font = '500 30px sans-serif'
             layout.push({ kind: 'date', y: y })
             y += 56
+            let moodW = 0
             if (model.mood) {
-              ctx.font = '400 27px sans-serif'
-              layout.push({ kind: 'mood', y: y, w: ctx.measureText(model.mood).width + 52 })
+              ctx.font = '400 25px sans-serif'
+              moodW = ctx.measureText(model.mood).width + 52
+              layout.push({ kind: 'mood', y: y, w: moodW })
               y += 54
             }
             if (model.weather) {
-              ctx.font = '400 27px sans-serif'
-              layout.push({ kind: 'weather', y: y, w: ctx.measureText(model.weather).width })
-              y += 46
+              ctx.font = '400 25px sans-serif'
+              const wW = ctx.measureText(model.weather).width
+              // [poster-weather-inline v1] 有心情时天气与心情同行右侧（放不下才回落独立行）
+              if (model.mood && moodW + 24 + wW <= MAXW) {
+                layout.push({ kind: 'weather', y: y - 54, x: PAD + moodW + 24, w: wW })
+              } else {
+                layout.push({ kind: 'weather', y: y, x: PAD, w: wW })
+                y += 46
+              }
             }
-            if (model.summary) {
-              ctx.font = '400 33px sans-serif'
-              const all = wrapLines(model.summary, MAXW)
+            // [poster-font v1] 正文与说明头分层绘制（拍板 1.A）：
+            //   说明头（【总结需求】/【分析范围】）= 25px 浅灰；正文 = 29px 深墨、每段首字空一个字
+            const briefSplit = share.splitPosterBrief(model.summary || '')
+            let briefLines = 0
+            if (briefSplit.brief) {
+              ctx.font = '400 25px sans-serif'
+              const bl = wrapLines(briefSplit.brief, MAXW)
+              briefLines = bl.length
+              layout.push({ kind: 'brief', y: y + 12, lines: bl, lineH: 38 })
+              y += 12 + bl.length * 38 + 16
+            }
+            if (briefSplit.body) {
+              ctx.font = '400 29px sans-serif'
+              const all = wrapLines(share.indentParas(briefSplit.body), MAXW)
               // 双上限：字数上限（share.MAX_SUMMARY_LEN=600）先截，行数上限兜底 canvas 像素
-              const lines = all.slice(0, share.MAX_POSTER_LINES)
+              // （说明头行数计入总行数上限，避免两段相加顶穿像素上限）
+              const lines = all.slice(0, Math.max(0, share.MAX_POSTER_LINES - briefLines))
               const cut = all.length > lines.length || !!model.summaryTruncated
-              layout.push({ kind: 'summary', y: y + 12, lines: lines, lineH: 54, cut: cut })
-              y += 12 + lines.length * 54 + 6
+              layout.push({ kind: 'summary', y: y + 12, lines: lines, lineH: 48, cut: cut })
+              y += 12 + lines.length * 48 + 6
               if (cut) {
                 layout.push({ kind: 'summaryMore', y: y + 8, hasCode: hasCode })
                 y += 8 + 34
@@ -376,14 +396,21 @@ Component({
                 rrectPath(PAD, b.y - 25, b.w, 50, 25)
                 ctx.fill()
                 ctx.fillStyle = model.moodColor || '#6B5A4A'
-                ctx.font = '400 27px sans-serif'
+                ctx.font = '400 25px sans-serif'
                 ctx.fillText(model.mood, PAD + 26, b.y)
               } else if (b.kind === 'weather') {
                 ctx.fillStyle = '#6B5A4A'
-                ctx.font = '400 27px sans-serif'
-                ctx.fillText(model.weather, PAD, b.y)
+                ctx.font = '400 25px sans-serif'
+                ctx.fillText(model.weather, b.x || PAD, b.y)
+              } else if (b.kind === 'brief') {
+                // 说明头：小一号 + 浅灰弱化（正文之前的标签块，不缩进）
+                ctx.fillStyle = '#8A8F8C'
+                ctx.font = '400 25px sans-serif'
+                b.lines.forEach((ln, i) => {
+                  ctx.fillText(ln, PAD, b.y + i * b.lineH)
+                })
               } else if (b.kind === 'summary') {
-                ctx.font = '400 33px sans-serif'
+                ctx.font = '400 29px sans-serif'
                 b.lines.forEach((ln, i) => {
                   if (b.cut && i === b.lines.length - 1) {
                     // 末行横向渐隐：示意后文未展示（背景近白，文字色降透明最干净）

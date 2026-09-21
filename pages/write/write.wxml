@@ -112,7 +112,7 @@
        故写在行内用 safeAreaBottom -->
   <view class="tech-credit" style="bottom: calc(136rpx + {{safeAreaBottom}}px);">
     <image class="tech-credit-icon" src="/images/tech-support-brain.png" mode="aspectFit" />
-    <text class="tech-credit-text">一灯记 由DeepSeek、火山引擎、腾讯云提供技术支持</text>
+    <text class="tech-credit-text">{{appName}} 由DeepSeek、火山引擎、腾讯云提供技术支持</text>
   </view>
 
   <!-- 心情选择浮层（点击日期行心情胶囊弹出，fixed 定位在视口层，不随滚动） -->
@@ -276,7 +276,13 @@
             <view class="s-diary-date">{{item.dateText}}</view>
           </view>
         </view>
-        <view class="sidebar-empty" wx:else>暂无日记，写下第一篇吧</view>
+        <view class="sidebar-empty" wx:else>暂无日记，导入你之前的日记或者直接写一篇吧</view>
+        <!-- [empty-import-move v1] 无日记时的导入入口（原日记本页空态按钮迁来，2.A 仅空态显示）。
+             注意：wx:else 之后不能再插普通兄弟节点，所以这里用独立 wx:if 判断同一个条件 -->
+        <view class="sidebar-import" wx:if="{{sidebarDiaries.length === 0}}" bindtap="onSidebarImport">
+          <text class="ri ri-download-2-line sidebar-import-icon"></text>
+          <text class="sidebar-import-text">导入以前日记</text>
+        </view>
         <!-- [sidebar-more-btn v3] 去「·」；本/开之间空 4 格宽（wxml 连续空格会折叠，用 margin 等宽实现） -->
         <view class="sidebar-more" bindtap="goToIndex">
           <text class="ri ri-book-open-line sidebar-more-icon"></text>

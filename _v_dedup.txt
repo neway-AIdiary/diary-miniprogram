@@ -1,0 +1,9 @@
+--- 复核 ---
+util: contentFingerprint 定义 True | 导出 True
+storage: contentFingerprint 调用次数 2
+storage: 旧键残留 0
+storage: skipped 出现 12
+transfer: buildImportResult 新签名 True
+transfer: finish 新签名 True
+transfer: 新提示行 True
+transfer: 带 skipped 的 finish 调用 6

@@ -19,10 +19,13 @@ const looseImport = require('./looseImport.js')
  * @param {Array} [list] 可选，指定导出的日记子集（如搜索结果）；不传则导出全部
  * @returns {boolean} 是否开始导出
  */
-function exportToWord(onEmpty, list) {
+function exportToWord(onEmpty, list, sortOrder) {
   // list 可选：传入子集（如日记本搜索结果）时仅导出该子集；不传则全量导出
   const isFullExport = !Array.isArray(list)
   if (!Array.isArray(list)) list = storage.getAllDiaries()
+  // [index-sort v1] 全量导出的列表由本函数自取，页面无法预先排序 ⇒ 在此按列表当前顺序重排
+  // （2.B：导出跟随列表。子集/搜索态由页面传入已排序列表，不传 sortOrder 即保持原样 ⇒ 其他调用方零影响）
+  if (sortOrder === 'asc') list = storage.sortDiariesByTimeAsc(list)
   if (!list.length) {
     if (onEmpty) onEmpty()
     return false
@@ -255,7 +258,7 @@ function markHomeRefresh() {
 }
 
 // 导入结果文案：基础结果 + 落点 + 刷新提示 + 解析说明
-function buildImportResult(added, extraMsg, list) {
+function buildImportResult(added, extraMsg, list, skipped) {
   const base = added === -1
     ? '本地存储已满，导入失败。\n\n请先导出备份，再删除部分旧日记腾出空间后重试。'
     : (added > 0
@@ -265,6 +268,10 @@ function buildImportResult(added, extraMsg, list) {
   const place = importPlacementTip(list, added)
   if (place) extras.push(place)
   if (added > 0) extras.push('若日记本列表未立即显示，下拉刷新即可看到')
+  // [import-dedup v1] 被判重复而跳过的篇数必须如实上报：只报「已导入 N 条」时，
+  // 用户看到篇数变少会以为导入失败（本项目历史痛点「提示与实际不符」）
+  // added === -1（存储已满、整批未写入）时只报失败原因，不提「已跳过」
+  if (added !== -1 && skipped > 0) extras.push('另有 ' + skipped + ' 篇与已有日记内容相同，已自动跳过')
   if (extraMsg) extras.push(extraMsg)
   const extra = extras.join('\n')
   return { base: base, extra: extra, message: extra ? base + '\n\n' + extra : base }
@@ -281,9 +288,9 @@ function importFromFile(opts) {
   opts = opts || {}
   // [import-refresh v1] finish 内**不得出现 return**（静态断言 S-1 守着）：
   // 必须无条件通知调用方，否则调用方挂在 onFinish 里的「刷新列表」永不执行。
-  const finish = (added, extraMsg, list) => {
+  const finish = (added, extraMsg, list, skipped) => {
     if (added !== -1) markHomeRefresh()
-    const r = buildImportResult(added, extraMsg, list)
+    const r = buildImportResult(added, extraMsg, list, skipped)
     if (opts.onFinish) {
       opts.onFinish(added, r.message, r.extra)
     } else {
@@ -343,7 +350,7 @@ function importFromFile(opts) {
                       looseImport.statsSuffix(loose.stats) + '；图片与视频未能自动还原。'
                     enrichDiariesWithMeta(loose.diaries, () => {
                       const r = storage.importDiaryObjects(loose.diaries, mode === 'replace')
-                      finish(r.added, looseMsg, loose.diaries)
+                      finish(r.added, looseMsg, loose.diaries, r.skipped)
                     })
                     return
                   }
@@ -369,7 +376,7 @@ function importFromFile(opts) {
                   // 回退解析：新 id，按「日期+内容」去重合并；先 AI 补全 心情/天气/标签
                   enrichDiariesWithMeta(parsed.diaries, () => {
                     const r = storage.importDiaryObjects(parsed.diaries, mode === 'replace')
-                    finish(r.added, parsed.notes && parsed.notes.length ? parsed.notes.join('\n') : '', parsed.diaries)
+                    finish(r.added, parsed.notes && parsed.notes.length ? parsed.notes.join('\n') : '', parsed.diaries, r.skipped)
                   })
                 }
               } catch (e) {
@@ -440,6 +447,7 @@ function importFromFile(opts) {
 
                 let added = 0
                 let recognized = false
+                let skippedCount = 0   // [import-dedup v1] 被判重复而跳过的篇数
                 let jsonList = null   // [import-refresh v1] 旧 .json 备份的清单，用于算导入落点
 
                 // 1) 兼容旧版 .json 备份（以 { 或 [ 开头且是合法 JSON）
@@ -470,12 +478,13 @@ function importFromFile(opts) {
                         // 隐藏 JSON：保留原始 id，按 id 去重合并
                         added = mode === 'replace' ? storage.replaceAllDiaries(list) : storage.importDiaries(list)
                       } else {
-                        // 回退解析：新 id，按「日期+内容」去重合并
+                        // 回退解析：新 id，按「日期+内容指纹」去重合并
                         const r = storage.importDiaryObjects(list, mode === 'replace')
                         added = r.added
+                        skippedCount = r.skipped || 0
                       }
                       recognized = true
-                      finish(added, parsed.notes && parsed.notes.length ? parsed.notes.join('\n') : '', list)
+                      finish(added, parsed.notes && parsed.notes.length ? parsed.notes.join('\n') : '', list, skippedCount)
                     }).catch((e) => {
                       wx.hideLoading()
                       error('导入过程中发生错误：' + (e && e.message || e) + '。\n\n数据未改动，请重试。')
@@ -496,7 +505,7 @@ function importFromFile(opts) {
                         ' 篇（无日期的按导入顺序排在列表最后）' + looseImport.statsSuffix(loose.stats)
                       enrichDiariesWithMeta(loose.diaries, () => {
                         const result = storage.importDiaryObjects(loose.diaries, mode === 'replace')
-                        finish(result.added, looseMsg, loose.diaries)
+                        finish(result.added, looseMsg, loose.diaries, result.skipped)
                       })
                       return
                     }
@@ -507,7 +516,7 @@ function importFromFile(opts) {
                   // 本地切块成功 → 逐篇 AI 补全 心情/天气/标签 后再导入
                   enrichDiariesWithMeta(list, () => {
                     const result = storage.importDiaryObjects(list, mode === 'replace')
-                    finish(result.added, '', list)
+                    finish(result.added, '', list, result.skipped)
                   })
                   return
                 }
@@ -625,9 +634,10 @@ function aiParseFlow(raw, mode, opts, finish) {
         try {
           const r = storage.importDiaryObjects(list, mode === 'replace')
           if (typeof finish === 'function') {
-            finish(r.added, '', list)
+            finish(r.added, '', list, r.skipped)
           } else if (opts.onFinish) {
-            opts.onFinish(r.added, r.added > 0 ? '已导入 ' + r.added + ' 条日记' : '没有新增日记（内容已存在，无需重复导入）')
+            // [net-release v1] 复用统一文案：added === -1（本地存储已满）不能报成「没有新增日记」
+            opts.onFinish(r.added, buildImportResult(r.added, '', list).base)
           }
         } catch (e) {
           if (opts.onError) opts.onError('写入日记本时出错：' + (e && e.message || e) + '。\n\n数据未改动，请重试。')

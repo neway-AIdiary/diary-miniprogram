@@ -1,7 +1,31 @@
 <!-- 每日一签 · 全篇页：正文来自 utils/dailyQuote.js，本页只负责排版 -->
 <view class="page {{themeClass}}">
+  <!-- [quote-date v3] 日期头：日历图标 + 两行文字，整块左对齐（1.B）；节气不带 emoji（2.A）；
+       「星 ↔ 公」对齐 = 图标列宽即悬挂缩进，两行文字同一起点；‹›翻日移至「诗词」行 -->
+  <view class="date-head">
+    <view class="date-icon-col">
+      <view class="date-icon">
+        <view class="date-icon-band"></view>
+        <view class="date-icon-pin date-icon-pin-l"></view>
+        <view class="date-icon-pin date-icon-pin-r"></view>
+        <view class="date-icon-dot"></view>
+      </view>
+    </view>
+    <view class="date-text">
+      <view class="date-line1"><text class="date-cal">公历</text>{{gregorian}}　<text class="date-cal">农历</text>{{lunarFull}}</view>
+      <view class="date-line2">{{weekday}} · {{constellation}}<text wx:if="{{termName}}"> · {{termName}}</text></view>
+    </view>
+  </view>
+  <view class="date-rule"></view>
+
   <view class="quote-wrap">
-    <view class="quote-kind">{{kind}}</view>
+    <view class="quote-kind-row">
+      <view class="quote-kind">{{kind}}</view>
+      <view class="quote-nav-btn {{canPrev ? '' : 'quote-nav-off'}}" hover-class="quote-nav-hover"
+            bindtap="onPrevDay" aria-label="前一天">‹</view>
+      <view class="quote-nav-btn {{canNext ? '' : 'quote-nav-off'}}" hover-class="quote-nav-hover"
+            bindtap="onNextDay" aria-label="后一天">›</view>
+    </view>
     <view class="quote-head">{{head}}</view>
     <view class="quote-byline" wx:if="{{byline}}">{{byline}}</view>
 

@@ -1,0 +1,7 @@
+[--check] utils/weather.js v2-locate-log -> PENDING
+[--check] utils/weather.js v2-fetchcity-log -> PENDING
+[--check] utils/weather.js v2-cloud-log -> PENDING
+[--check] pages/write/write.js v2-fresh-hole -> PENDING
+[--check] cloudfunctions/getWeather/index.js v2-cloud-city-retry -> PENDING
+[--check] tools/test_weather_cache.js v2-assert -> PENDING
+RESULT: ALL OK

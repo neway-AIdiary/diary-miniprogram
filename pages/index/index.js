@@ -28,7 +28,10 @@ Page({
     // 搜索
     searchKeyword: '',
     isSearching: false,
-    searchCount: 0
+    searchCount: 0,
+    // 列表顺序 [index-sort v1]：desc = 新→旧（默认，即 storage 原序）；asc = 旧→新（无日期仍沉底）
+    // 作用对象 = 列表当前内容（范围 × 搜索叠加后仍生效）；仅页面内状态，不持久化、不跨页记忆
+    sortOrder: 'desc'
   },
 
   onLoad() {
@@ -137,20 +140,31 @@ Page({
 
   // 清空搜索 + 日期范围（导入成功后防「新日记被旧筛选挡住看不见」）[range-toolbar v1]
   resetFilters() {
+    // [index-sort v1] 先归位排序、再 reset 范围：rp.reset() 会同步 emit change 触发 applyRange，
+    // 若顺序反了，那一次重排仍会按旧顺序渲染
+    this.setData({ rangeKey: 'all', rangeCs: '', rangeCe: '', rangeLabel: '全部时间', searchKeyword: '', isSearching: false, searchCount: 0, sortOrder: 'desc' })
     const rp = this.selectComponent('#rangePicker')
     if (rp && rp.reset) rp.reset() // reset 会 emit change，范围状态统一从 onRangeChange 进来
-    this.setData({ rangeKey: 'all', rangeCs: '', rangeCe: '', rangeLabel: '全部时间', searchKeyword: '', isSearching: false, searchCount: 0 })
   },
 
-  // 全量 → 范围集（无日期日记在非 all 范围下被排除）；再套搜索
+  // 全量 → 范围集（无日期日记在非 all 范围下被排除）；套当前展示顺序；再套搜索
   applyRange() {
-    const list = dateRange.filterByRange(this.data.allDiaries, this.data.rangeKey, this.data.rangeCs, this.data.rangeCe)
+    const raw = dateRange.filterByRange(this.data.allDiaries, this.data.rangeKey, this.data.rangeCs, this.data.rangeCe)
+    // [index-sort v1] 顺序只在「范围集」这一层定一次：搜索是保序 filter ⇒ diaries 自动继承同一顺序
+    const list = this.data.sortOrder === 'asc' ? storage.sortDiariesByTimeAsc(raw) : raw
     this.setData({ rangeDiaries: list, rangeCount: list.length })
     if (this.data.searchKeyword) {
       this.applySearch(this.data.searchKeyword)
     } else {
       this.setData({ diaries: list, isSearching: false, searchCount: 0 })
     }
+  },
+
+  // 正序 / 倒序切换 [index-sort v1]：只改顺序、不动内容（篇数与搜索计数不受影响）
+  onToggleSort() {
+    const next = this.data.sortOrder === 'asc' ? 'desc' : 'asc'
+    this.setData({ sortOrder: next })
+    this.applyRange()
   },
 
   applySearch(keyword) {
@@ -231,9 +245,10 @@ Page({
       content: '将导出全部 ' + total + ' 篇日记',
       success: (res) => {
         if (res.confirm) {
+          // [index-sort v1] 全量态由 transfer 自取列表 ⇒ 把当前顺序传下去（2.B：导出跟随列表）
           transfer.exportToWord(() => {
             wx.showToast({ title: '暂无日记可导出', icon: 'none' })
-          })
+          }, null, this.data.sortOrder)
         }
       }
     })

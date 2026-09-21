@@ -108,6 +108,15 @@ function reset(seed) {
   nextFile = { name: 'backup.docx', path: 'C:\\fake\\backup.docx' }
 }
 
+// [shard-storage v1] 日记按年份分格存储：统计/读取一律走「分格 + 旧格」并集
+function allDiariesInStore() {
+  const out = []
+  Object.keys(store).forEach(k => {
+    if (/^diaries(_\d{4})?$/.test(k) && Array.isArray(store[k])) out.push(...store[k])
+  })
+  return out
+}
+
 // ============================================================
 console.log('== 0) 夹具自检（必须是「回退解析 + 带说明」这条路径）==')
 {
@@ -131,7 +140,7 @@ console.log('\n== 0.2) 端到端：导入落库的 title 必须非空 ==')
   reset()
   nextXml = XML_FALLBACK
   transfer.importFromFile({})
-  const raw = store['diaries'] || []
+  const raw = allDiariesInStore()
   const imported = raw.filter(d => /三月最后一天|四月一号|四月十号|四月二十三号/.test(String(d.content || '')))
   ok(imported.length === 4, '导入 4 篇落库', imported.map(d => String(d.content).slice(0, 4)))
   ok(imported.every(d => !!d.title), '落库对象自带 title（不是仅展示层兜底）', imported.map(d => d.title))
@@ -152,7 +161,7 @@ console.log('\n== A) 故障路径：带说明文字的 .docx 导入必须上报 
   ok(called !== null, 'A-2 onFinish 必须被调用（旧代码在这里被 return 吃掉）', called)
   const added = called ? called.added : -1
   ok(added === 4, 'A-3 新增篇数 = 4', added)
-  ok((store['diaries'] || []).length === 7, 'A-4 数据确实落库（3 + 4 = 7）', (store['diaries'] || []).length)
+  ok(allDiariesInStore().length === 7, 'A-4 数据确实落库（3 + 4 = 7）', allDiariesInStore().length)
   ok(globalData.needRefresh === true, 'A-5 导入成功即置首页刷新标志（不依赖回调）', globalData.needRefresh)
   const msg = called ? called.message : ''
   ok(msg.indexOf('已导入 4 条日记') >= 0, 'A-6 基础结果在文案里')
@@ -176,7 +185,7 @@ console.log('\n== B) 无 onFinish：兜底弹窗必须把结果给用户看 ==')
   ok(m.title === '导入完成', 'B-2 标题正确：' + m.title)
   ok(String(m.content).indexOf('已在日记本中按日期插入') >= 0, 'B-3 兜底弹窗也带落点提示')
   ok(globalData.needRefresh === true, 'B-4 无回调也要置刷新标志', globalData.needRefresh)
-  ok((store['diaries'] || []).length === 7, 'B-5 数据落库', (store['diaries'] || []).length)
+  ok(allDiariesInStore().length === 7, 'B-5 数据落库', allDiariesInStore().length)
 }
 
 // ============================================================
@@ -254,16 +263,27 @@ console.log('\n== S) 静态护栏 ==')
   // S-3 所有 finish(...) 调用点都带上导入清单（否则算不出落点）
   const oneArg = tSrc.match(/finish\([a-zA-Z.]+\)/g) || []
   ok(oneArg.length === 0, 'S-3a 不再有「只传篇数」的 finish 调用点', oneArg)
-  const EXPECT = [
-    'finish(added, extra, parsed.diaries)',
-    "finish(r.added, parsed.notes && parsed.notes.length ? parsed.notes.join('\\n') : '', parsed.diaries)",
-    "finish(added, parsed.notes && parsed.notes.length ? parsed.notes.join('\\n') : '', list)",
-    "finish(result.added, '', list)",
-    "finish(added, '', jsonList)",
-    "finish(r.added, '', list)"
+  // [import-dedup v1] 调用点分两类，必须分开断言（用「含第 4 参的完整串」而非前缀，
+  // 否则旧串会命中新调用的前缀，形成假绿）：
+  //  · 走 importDiaryObjects（按「日期+内容指纹」去重）的 → 必须带第 4 参 skipped
+  //  · 走 importDiaries（按 id 去重）的完整备份 / JSON 路径 → 保持 3 参
+  //    （id 去重里「已存在」= 同一个 id，没有「内容相同被跳过」的语义，硬塞会误导）
+  const EXPECT4 = [
+    "finish(r.added, looseMsg, loose.diaries, r.skipped)",
+    "finish(r.added, parsed.notes && parsed.notes.length ? parsed.notes.join('\\n') : '', parsed.diaries, r.skipped)",
+    "finish(added, parsed.notes && parsed.notes.length ? parsed.notes.join('\\n') : '', list, skippedCount)",
+    "finish(result.added, looseMsg, loose.diaries, result.skipped)",
+    "finish(result.added, '', list, result.skipped)",
+    "finish(r.added, '', list, r.skipped)"
   ]
-  const missing = EXPECT.filter(s => tSrc.indexOf(s) < 0)
-  ok(missing.length === 0, 'S-3b 六条导入路径的调用点都带第三参（docx完整/docx回退/doc旧版/纯文本/JSON/AI）', missing)
+  const missing4 = EXPECT4.filter(s => tSrc.indexOf(s) < 0)
+  ok(missing4.length === 0, 'S-3b 六条指纹去重路径的 finish 调用点都带第 4 参 skipped', missing4)
+  const EXPECT3 = [
+    'finish(added, extra, parsed.diaries)',
+    "finish(added, '', jsonList)"
+  ]
+  const missing3 = EXPECT3.filter(s => tSrc.indexOf(s) < 0)
+  ok(missing3.length === 0, 'S-3c 两条 id 去重路径（docx 完整备份 / JSON）保持 3 参调用', missing3)
 
   // S-4 AI 兜底路径也走同一个 finish
   ok(tSrc.indexOf('aiParseFlow(raw, mode, opts, finish)') >= 0, 'S-4 AI 识别路径复用同一 finish')
@@ -292,6 +312,16 @@ console.log('\n== S) 静态护栏 ==')
     'S-6b 我的页：onFinish 里置 needRefresh')
   ok(fs.readFileSync(path.join(ROOT, 'app.js'), 'utf8').indexOf('needRefresh: false') >= 0,
     'S-6c app.globalData.needRefresh 仍存在（markHomeRefresh 写入的目标）')
+
+  // [empty-import-move v1] 第三个导入入口：写日记页侧栏（前两个 = 日记本页工具行 / 我的页）
+  const wJs = read('pages/write/write.js')
+  const wWxml = read('pages/write/write.wxml')
+  ok(wJs.indexOf('transfer.importFromFile(') >= 0 && /onFinish:[\s\S]{0,200}this\.refreshSidebar\(\)/.test(wJs),
+    'S-6d 侧栏导入入口：onFinish 里刷新侧栏（新日记立刻可见，3.A）')
+  ok(wWxml.indexOf('class="sidebar-import"') >= 0 && wWxml.indexOf('bindtap="onSidebarImport"') >= 0,
+    'S-6e 侧栏导入入口在位（带 ri-download-2-line 图标）')
+  ok(wWxml.indexOf('sidebarDiaries.length === 0') >= 0,
+    'S-6f 入口仅在无日记时显示（2.A）')
 }
 
 console.log('\n' + (fail === 0 ? 'ALL PASS' : 'FAILED') + ': pass=' + pass + ' fail=' + fail)
