@@ -1,4 +1,4 @@
-<!-- 关于页：应用名 / 版本号 / 简介 / 备案号 / 联系方式（点击整行即复制） -->
+<!-- 关于页：应用名 / 版本号 / 简介 / 出品方 / 备案号 / 联系方式（点击整行即复制） -->
 <view class="page {{themeClass}}">
   <view class="about-hero">
     <view class="about-name">{{appName}}</view>
@@ -9,6 +9,14 @@
     <view class="about-intro">{{intro}}</view>
 
     <view class="menu-card about-card">
+      <view class="menu-item" bindtap="copyProducer">
+        <text class="menu-icon ri ri-archive-line"></text>
+        <view class="about-item-main">
+          <text class="about-item-label">出品方</text>
+          <text class="about-item-value">{{producer}}</text>
+        </view>
+        <text class="about-copy">复制</text>
+      </view>
       <view class="menu-item" bindtap="copyIcp">
         <text class="menu-icon ri ri-global-line"></text>
         <view class="about-item-main">

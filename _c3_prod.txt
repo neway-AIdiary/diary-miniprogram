@@ -1,0 +1,11 @@
+[--check] utils/appInfo.js appinfo-head -> SKIP
+[--check] utils/appInfo.js appinfo-const -> SKIP
+[--check] pages/about/about.js aboutjs-head -> SKIP
+[--check] pages/about/about.js aboutjs-data -> SKIP
+[--check] pages/about/about.js aboutjs-copy -> SKIP
+[--check] pages/about/about.wxml wxml-head -> SKIP
+[--check] pages/about/about.wxml wxml-row -> SKIP
+[--check] tools/test_about_info.js test-const -> SKIP
+[--check] tools/test_about_info.js test-about-js -> SKIP
+[--check] tools/test_about_info.js test-wxml -> SKIP
+RESULT: ALL OK

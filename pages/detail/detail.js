@@ -401,20 +401,18 @@ Page({
 
   // ===== 底部输入栏（默认语音输入）=====
 
-  // 按住开始录音（带 300ms 防误触）
+  // 按住即开始录音（[hold-fast v1] 按下不再等 300ms，误触判定移到 voice.js#stop()）
   onHoldStart(e) {
     this._suppressEnd = false
     this._voiceCanceled = false
     const touch = (e && e.touches && e.touches[0]) || {}
     this._voiceStartY = touch.clientY || 0
     this._voiceStartX = touch.clientX || 0
-    if (this._holdTimer) clearTimeout(this._holdTimer)
-    this._holdTimer = setTimeout(() => {
-      this._isHolding = true
-      // 把当前草稿（编辑框内容）作为"即时上下文"传给语音识别，
-      // 与历史日记、档案名词一起作为热词下发给火山引擎（解决「王威→王伟」类修改指令识别）
-      voice.start({ contextText: this.data.content || '' })
-    }, 300)
+    if (this._holdTimer) { clearTimeout(this._holdTimer); this._holdTimer = null }
+    this._isHolding = true
+    // 把当前草稿（编辑框内容）作为"即时上下文"传给语音识别，
+    // 与历史日记、档案名词一起作为热词下发给火山引擎（解决「王威→王伟」类修改指令识别）
+    voice.start({ contextText: this.data.content || '' })
   },
 
   onHoldEnd() {
@@ -471,7 +469,8 @@ Page({
       return
     }
 
-    const parsed = aiEdit.splitCommands(trimmed, loose)
+    // [mixed-sentence v1] 传出当前正文：句尾指令要用它做「干跑」校验（与写日记页同口径）
+    const parsed = aiEdit.splitCommands(trimmed, loose, this.data.content)
     if (parsed.commands.length > 0) {
       this.execEditCommands(parsed.commands, parsed.narrative)
       return

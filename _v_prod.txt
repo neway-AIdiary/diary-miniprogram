@@ -1,0 +1,82 @@
+===== about.wxml 卡片区 =====
+sion}}</view>
+  </view>
+
+  <view class="menu-section">
+    <view class="about-intro">{{intro}}</view>
+
+    <view class="menu-card about-card">
+      <view class="menu-item" bindtap="copyProducer">
+        <text class="menu-icon ri ri-archive-line"></text>
+        <view class="about-item-main">
+          <text class="about-item-label">出品方</text>
+          <text class="about-item-value">{{producer}}</text>
+        </view>
+        <text class="about-copy">复制</text>
+      </view>
+      <view class="menu-item" bindtap="copyIcp">
+        <text class="menu-icon ri ri-global-line"></text>
+        <view class="about-item-main">
+          <text class="about-item-label">备案/许可证编号</text>
+          <text class="about-item-value">{{icpNo}}</text>
+        </view>
+        <text class="about-copy">复制</text>
+      </view>
+      <view class="menu-item" bindtap="copyWechat">
+        <text class="menu-icon ri ri-user-3-line"></text>
+        <view class="about-item-main">
+          <text class="about-item-label">联系我们</text>
+   
+===== about.js data + 方法 =====
+data: {
+    themeClass: '',
+    appName: appInfo.APP_NAME,
+    version: appInfo.APP_VERSION,
+    intro: appInfo.APP_INTRO,
+    icpNo: appInfo.ICP_NO,
+    producer: appInfo.PRODUCER,
+    wechatId: appInfo.WECHAT_ID,
+    effectiveDate: agreement.EFFECTIVE_DATE
+  },
+
+  onShow() {
+    theme.applyTo(this)
+  },
+
+  // 复制工具：失败
+ 备案号：复制后引导到工信部系统核对（小程序内无法直接外链）
+  copyIcp() {
+    this.copy(appInfo.ICP_NO, '已复制，可到 ' + appInfo.ICP_SITE + ' 核对')
+  },
+
+  // 出品方：主体名称需逐字准确（报备 / 开票常要填），整行可点即复制
+  copyProducer() {
+    this.copy(appInfo.PRODUCER, '出品方已复制')
+  },
+
+  // 微信号：直接复制，免得用户手抄
+  copyWechat() {
+    this.copy(appInfo.WECHAT_ID, '微信号已复制')
+  },
+
+  // 用户协议与隐私政策：独立子页，默认落在隐私政策 Tab
+  goToAgreement() {
+    wx.navigateTo({ url: '/pages/agreement/agreement?ta
+===== appInfo.js 尾部 =====
+/* 出品方（主体名称）：[producer-info v1] 关于页展示，行内可点击复制 */
+const PRODUCER = '北京伟帆科技中心'
+
+/* 联系方式 */
+const WECHAT_ID = 'baguanshanren'
+
+module.exports = {
+  APP_NAME,
+  APP_SLOGAN,
+  APP_VERSION,
+  APP_INTRO,
+  ICP_NO,
+  ICP_SITE,
+  PRODUCER,
+  WECHAT_ID
+}
+

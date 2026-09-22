@@ -5,6 +5,7 @@ const aiEdit = require('../../utils/aiEdit.js')
 const nameMatch = require('../../utils/nameMatch.js')
 const entityClean = require('../../utils/entityClean.js')
 const voice = require('../../utils/voice.js')
+const personNames = require('../../utils/personNames.js') // [person-hotword A'] 人名表沉淀
 const weather = require('../../utils/weather.js')
 const mediaGuard = require('../../utils/mediaGuard.js')
 const transfer = require('../../utils/transfer.js')
@@ -452,20 +453,21 @@ Page({
 
   // ===== 底部输入：语音 =====
 
-  // 按住开始录音（带300ms防误触）
+  // 按住即开始录音
+  // [hold-fast v1] 不再等 300ms 防误触：按下立刻起录并出浮层（浮层由 connecting 态驱动）。
+  // 「点按 vs 长按」的判定移进 voice.js#stop()（按压不足 HOLD_MIN_MS 的整段静默丢弃），
+  // 于是「多短算点按」的语义不变，而开头约 300ms 的音频不再被切掉 ⇒ 首字更不易丢。
   onHoldStart(e) {
     this._suppressEnd = false
     this._voiceCanceled = false
     const touch = (e && e.touches && e.touches[0]) || {}
     this._voiceStartY = touch.clientY || 0
     this._voiceStartX = touch.clientX || 0
-    if (this._holdTimer) clearTimeout(this._holdTimer)
-    this._holdTimer = setTimeout(() => {
-      this._isHolding = true
-      // 把当前草稿（textarea 内容）作为"即时上下文"传给语音识别
-      // 例如：草稿里已写"王威"，随后口述"把王威改成王伟"——避免"王威"被识别错
-      voice.start({ contextText: this.data.content || '' })
-    }, 300)
+    if (this._holdTimer) { clearTimeout(this._holdTimer); this._holdTimer = null }
+    this._isHolding = true
+    // 把当前草稿（textarea 内容）作为"即时上下文"传给语音识别
+    // 例如：草稿里已写"王威"，随后口述"把王威改成王伟"——避免"王威"被识别错
+    voice.start({ contextText: this.data.content || '' })
   },
 
   onHoldEnd() {
@@ -550,7 +552,9 @@ Page({
       return
     }
 
-    const parsed = aiEdit.splitCommands(trimmed, loose)
+    // [mixed-sentence v1] 传出当前正文：句尾指令要用它做「干跑」校验
+    // （「你看，你看，我接着说，把志伟改成杨志伟。」这类引导语 + 指令混合句）
+    const parsed = aiEdit.splitCommands(trimmed, loose, this.data.content)
     if (parsed.commands.length > 0) {
       this.execEditCommands(parsed.commands, parsed.narrative, matchInfo)
       return
@@ -1401,6 +1405,10 @@ Page({
       aiLoadingSub: '润色表达 · 让文字更通顺'
     })
 
+    // [optimize-strip v1] 先记下正文里的「补全指令句」：无素材锚点时链路会退回这里，
+    // 指令句作为正文的一部分被 AI 原样润色着送回，最后落进正文（详见 quoteAsk.commandSents）
+    const cmdSents = quoteAsk.commandSents(content)
+
     // 加载档案供 AI 识别人名地名
     const archives = storage.getArchives().map(a => ({ name: a.name, description: a.description }))
 
@@ -1427,6 +1435,10 @@ Page({
 
       // 优化稿再做一次备案名词匹配纠正（AI 润色时也可能写错名词）
       let optimized = result.optimized
+      // [optimize-strip v1] 指令句不写进正文：AI 常把「帮我补充…」这类句子原样带回
+      const noCmd = quoteAsk.stripCommands(optimized, cmdSents)
+      const cmdStripped = noCmd !== optimized
+      optimized = noCmd
       const optMatch = nameMatch.matchArchives(optimized, storage.getArchives())
       if (optMatch.replaced.length > 0) {
         optimized = optMatch.text
@@ -1443,7 +1455,10 @@ Page({
         originalContent: content,
         optimizedContent: optimized,
         // 优化要点 = 本地增删改指令条目 + 云端 AI 润色要点 + 降级说明（如有）
-        optimizeChanges: (this._localEditNotes || []).concat(result.changes || []).concat(opts.extraNotes || []),
+        optimizeChanges: (this._localEditNotes || [])
+          .concat(cmdStripped ? ['已去掉「补充指令」这类句子，不写进正文'] : [])
+          .concat(result.changes || [])
+          .concat(opts.extraNotes || []),
         showOriginal: false
       })
     })
@@ -1955,6 +1970,11 @@ Page({
     req.then(result => {
       clearTimeout(timeout)
       if (resolved) return
+
+      // [person-hotword A'] 沉淀人名表：与备案弹窗**完全独立** —— 无论用户是否勾选备案、
+      // 甚至本次没有任何"被解释的名词"，只要 AI 认出了人名就存下来，供语音热词使用。
+      // 只写本机 storage 几十字节，发生在**保存路径**，不占录音路径
+      try { personNames.addNames(result.persons) } catch (e) {}
 
       if (!result.entities || result.entities.length === 0) {
         finish()

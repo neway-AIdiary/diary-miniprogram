@@ -112,6 +112,14 @@
   margin-top: 10rpx;
 }
 
+/* [summary-token-cap v1] 输出截断提示：琥珀色小字，只提示不抢视觉（正常情况不出现） */
+.sr-trunc-hint {
+  font-size: 22rpx;
+  color: var(--brand-deep);
+  line-height: 1.6;
+  margin-top: 10rpx;
+}
+
 /* 临时内容提示小字：比说明卡再淡一号，不抢视觉 */
 .sr-temp-hint {
   font-size: 20rpx;

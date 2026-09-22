@@ -126,7 +126,8 @@
 }
 
 .date-pill {
-  background: rgba(0, 0, 0, 0.06);
+  /* [dark-pill v1] 底色/描边以文件末尾的令牌版 .date-pill 为准（此处原有一行写死的浅色专用底，
+     被后者覆盖、永不生效，已清） */
   border-radius: 30rpx;
   padding: 10rpx 28rpx;
   font-size: 24rpx;
@@ -292,6 +293,8 @@
   align-items: center;
   gap: 6rpx;
   padding: 10rpx 22rpx;
+  /* [dark-pill v1] 心情底色走 wxml 内联（默认值同为浅色专用底），深色下形状靠这条描边兜底 */
+  border: 1rpx solid var(--line);
   border-radius: 30rpx;
   font-size: 24rpx;
   font-weight: 500;
@@ -803,7 +806,11 @@
 /* 按住说话（豆包同款圆角/底色） */
 .hold-talk {
   height: 80rpx;
+  box-sizing: border-box;
   background: var(--bg-soft);
+  /* [dark-pill v1] 描边取 --line：浅色下与 bg-soft 几乎同色（观感不变），深色下勾出按钮轮廓；
+     box-sizing 保证加描边后总高仍 80rpx */
+  border: 1rpx solid var(--line);
   border-radius: 40rpx;
   display: flex;
   align-items: center;
@@ -2171,7 +2178,8 @@
 .date-pill {
   background: var(--bg-soft);
   color: var(--ink);
-  border: 1rpx solid var(--line-soft);
+  /* [dark-pill v1] 描边升一档（--line）：深色主题下胶囊轮廓可辨，浅色变化轻微 */
+  border: 1rpx solid var(--line);
   transition: border-color var(--dur) var(--ease), color var(--dur) var(--ease);
 }
 

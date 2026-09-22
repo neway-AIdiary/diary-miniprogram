@@ -1,0 +1,11 @@
+[--check] utils/appInfo.js appinfo-head -> PENDING
+[--check] utils/appInfo.js appinfo-const -> PENDING
+[--check] pages/about/about.js aboutjs-head -> PENDING
+[--check] pages/about/about.js aboutjs-data -> PENDING
+[--check] pages/about/about.js aboutjs-copy -> PENDING
+[--check] pages/about/about.wxml wxml-head -> PENDING
+[--check] pages/about/about.wxml wxml-row -> PENDING
+[--check] tools/test_about_info.js test-const -> PENDING
+[--check] tools/test_about_info.js test-about-js -> PENDING
+[--check] tools/test_about_info.js test-wxml -> PENDING
+RESULT: ALL OK

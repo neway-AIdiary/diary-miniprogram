@@ -55,6 +55,26 @@ function truncateSummary(text, max) {
   return out.join('\n')
 }
 
+// [poster-weather-text v1] 海报天气文本（**不带图标**，2026-09-22 真机双端拍板 2）
+// 为什么：海报是 canvas 绘制，天气图标全是 U+2600 系「基字符 + 变体选择符 U+FE0F」——
+//   iOS canvas 的 sans-serif 回退链没有 FE0F 字形，把它画成 notdef 方框（☀□）；
+//   安卓把 emoji 当全宽字符，再叠加代码里那个显式空格 ⇒ 视觉空隙约 1.5 字。
+//   两个端的根都是「emoji 进 canvas」，剥 FE0F 只治一半 ⇒ 干脆不画图标。
+//   心情 emoji 不受影响：全是单个星面码位、不带 FE0F，双端正常，故 pill 不动。
+// 口径：只有海报走这里；「复制文字版」仍走 weatherLine（输入框里 emoji 渲染正常）。
+// 防御：万一云端或旧数据把图标并进 weatherText，这里连 emoji 与变体选择符一起剥掉，
+//   保证海报**永不出方格、永不留多余空格**（幂等、空值安全）。
+function weatherTextOnly(d) {
+  if (!d) return ''
+  return String(d.weatherText == null ? '' : d.weatherText)
+    .replace(/[\uFE0E\uFE0F\u200D]/g, '')            // 变体选择符（方格真凶）+ 零宽连接符
+    .replace(/[\u2600-\u27BF\u2B00-\u2BFF]/g, '')    // 杂项符号 / 箭头 dingbat（emoji 基字符）
+    .replace(/[\uD83C-\uD83E][\uDC00-\uDFFF]/g, '')  // 星面 emoji（U+1F000–1FBFF）；区间刻意收窄在
+                                                     // emoji 块内，别误伤 CJK 扩展区生僻字（如 𠮷 U+20BB7）
+    .replace(/\s+/g, ' ')
+    .trim()
+}
+
 // 天气一行（icon + 文本），无则空串
 function weatherLine(d) {
   if (!d) return ''
@@ -123,7 +143,8 @@ function buildPosterModel(d, sw) {
     date: posterDate(d.createdAt),
     summary: truncateSummary(d.content),
     summaryTruncated: cleanParagraphs(d.content).replace(/\n/g, '').length > MAX_SUMMARY_LEN,
-    weather: sw.weather === false ? '' : weatherLine(d),
+    // [poster-weather-text v1] 海报天气行不带图标（canvas 双端渲染口径，见 weatherTextOnly 注释）
+    weather: sw.weather === false ? '' : weatherTextOnly(d),
     mood: sw.mood === false ? '' : (String(d.moodText || '').trim()),
     moodColor: sw.mood === false ? '' : (d.moodColor || '#8A8F8C'),
     moodBg: sw.mood === false ? '' : (d.moodBg || 'rgba(138,143,140,0.12)'),
@@ -144,6 +165,7 @@ module.exports = {
   cleanParagraphs: cleanParagraphs,
   truncateSummary: truncateSummary,
   weatherLine: weatherLine,
+  weatherTextOnly: weatherTextOnly,
   posterDate: posterDate,
   buildCopyText: buildCopyText,
   buildPosterModel: buildPosterModel,

@@ -83,8 +83,8 @@
         <view class="diary-card-footer">
           <view class="footer-left">
             <text wx:if="{{item.moodText}}" class="tag-mood" style="color:{{item.moodColor}};background:{{item.moodBg}}">{{item.moodText}}</text>
-            <view class="tag-list" wx:if="{{item.tags.length > 0}}">
-              <text class="tag-item" wx:for="{{item.tags}}" wx:for-item="tag" wx:key="*this">{{tag}}</text>
+            <view class="tag-list" wx:if="{{item.tagsShown.length > 0}}">
+              <text class="tag-item" wx:for="{{item.tagsShown}}" wx:for-item="tag" wx:key="*this">{{tag}}</text>
             </view>
           </view>
           <text class="diary-date">{{item.dateText}}</text>

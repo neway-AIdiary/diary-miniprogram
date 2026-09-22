@@ -16,6 +16,7 @@
 const storage = require('./storage.js')
 const tags = require('./tags.js')
 const util = require('./util.js')
+const personNames = require('./personNames.js') // [person-hotword A'] 沉淀人名表
 
 const STOP_WORDS = tags.STOP_WORDS || new Set()
 
@@ -33,9 +34,15 @@ const TOKEN_BUDGET = 100   // 热词总 token 预算
 const RECENT_DAYS = 10     // 回看近十天的日记
 const MAX_WORD_LEN = 12    // 单个热词最大长度（超长多为误提取的叙述碎片）
 const MIN_WORD_LEN = 2
+// [person-hotword D] 「单次人名」独立子预算（token）：低优先填充，只占档案/高频词用不完的空余。
+// 用户 2026-09-22 拍板 D —— 人名收益（少听错一个名字）与误报代价（ASR 把普通词替换成名字）
+// 不对称，所以宁少而准，绝不挤掉主预算。
+const PERSON_SUB_BUDGET = 30
 
 // 按自然日缓存的"基础词"（archive + recent keyword），不含 ctx
 let cache = { dateKey: '', baseWords: [], count: { archive: 0, keyword: 0 } }
+// 最近一次 get() 里「沉淀人名」实际注入的条数（仅日志/调试用；人名表随保存日记变化，故不进日缓存）
+let lastPersonCount = 0
 
 // token 估算：中文字按 1.5 计（偏保守，防止服务端按实际 tokenizer 截断）、
 // ASCII 每 2 字符计 1
@@ -46,6 +53,13 @@ function estTokens(word) {
     else t += 0.5
   }
   return Math.ceil(t)
+}
+
+// 一组词的总 token 消耗（用于算「还剩多少预算给低优先来源」）
+function usedTokens(list) {
+  let s = 0
+  for (let i = 0; i < (list ? list.length : 0); i++) s += estTokens(list[i])
+  return s
 }
 
 function isValidWord(w) {
@@ -146,6 +160,38 @@ function buildBase() {
 }
 
 /**
+ * [person-hotword D] 从本地人名表取「单次人名」作为**低优先填充**（用户 2026-09-22 拍板 D）：
+ *   · 排在档案名词与近十天高频词**之后**，只有它们装完还有剩余预算时才用；
+ *   · 独立子预算 PERSON_SUB_BUDGET，避免把主预算吃光（否则会反向退化）；
+ *   · 与已收录词（草稿 / 档案 / 高频）去重 —— 已经在高频词里的名字不必重复占位；
+ *   · 读本地小表（几十条字符串），微秒级，不构成录音路径开销。
+ * @param {Set<string>} ctxSet 草稿词集合
+ * @param {string[]} baseWords 已收录的基础词
+ * @param {number} free 剩余 token 预算
+ * @returns {string[]}
+ */
+function getPersonExtras(ctxSet, baseWords, free) {
+  const limit = Math.min(Number(free) || 0, PERSON_SUB_BUDGET)
+  if (limit <= 0) return []
+  let names = []
+  try { names = personNames.getNames() || [] } catch (e) { return [] }
+  const out = []
+  let budget = limit
+  for (let i = 0; i < names.length; i++) {
+    const w = names[i]
+    if (ctxSet && ctxSet.has(w)) continue
+    if (baseWords && baseWords.indexOf(w) !== -1) continue
+    if (!isValidWord(w)) continue
+    const cost = estTokens(w)
+    // 装不下就跳过（不 break：后面的短名字可能还装得下）
+    if (cost > budget) continue
+    budget -= cost
+    out.push(w)
+  }
+  return out
+}
+
+/**
  * 构建热词列表（端到端版本：含草稿上下文 + 档案 + 近十天高频）。
  * 每次都重新算（ctx 来源不固定）；整段链路（upload→speechToText）使用。
  * @param {{contextText?: string}} [opts] 可选上下文：
@@ -177,12 +223,17 @@ function build(opts) {
     finalWords.push(w)
   }
 
+  // [person-hotword D] 沉淀人名：最低优先，只填「档案 + 高频」用不完的空余
+  const personExtras = getPersonExtras(ctxSet, finalWords, budget)
+  for (let i = 0; i < personExtras.length; i++) finalWords.push(personExtras[i])
+
   return {
     words: finalWords,
     count: {
       archive: base.count.archive,
       keyword: base.count.keyword,
-      context: ctxWords.length
+      context: ctxWords.length,
+      person: personExtras.length
     }
   }
 }
@@ -266,15 +317,19 @@ function get(force, opts) {
   try { ctxWords = getContextTerms(opts && opts.contextText) } catch (e) {}
   const ctxSet = new Set(ctxWords)
   const baseExtras = cache.baseWords.filter(w => !ctxSet.has(w))
-  return ctxWords.concat(baseExtras)
+  // [person-hotword D] 沉淀人名最低优先：只填空余（独立子预算），绝不挤掉档案与高频词
+  const personExtras = getPersonExtras(ctxSet, baseExtras, TOKEN_BUDGET - usedTokens(ctxWords) - usedTokens(baseExtras))
+  lastPersonCount = personExtras.length
+  return ctxWords.concat(baseExtras, personExtras)
 }
 
 /** 获取最近一次构建的基础词数量统计（调试/日志用） */
 function getLastCount() {
   return {
     archive: cache.count ? cache.count.archive : 0,
-    keyword: cache.count ? cache.count.keyword : 0
+    keyword: cache.count ? cache.count.keyword : 0,
+    person: lastPersonCount
   }
 }
 
-module.exports = { get, build, getContextTerms, getLastCount, estTokens, isValidWord, TOKEN_BUDGET }
+module.exports = { get, build, getContextTerms, getLastCount, estTokens, isValidWord, TOKEN_BUDGET, PERSON_SUB_BUDGET }

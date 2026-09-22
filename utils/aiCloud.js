@@ -421,6 +421,14 @@ function callAIOrganizeArchive(text, instruction) {
 const NAME_BLOCK_HEAD_CHARS = ['是', '的', '了', '着', '和', '跟', '与', '同', '在', '到', '从', '把', '被',
   '给', '叫', '说', '想', '要', '又', '还', '也', '就', '都', '让', '做', '吃', '待', '等', '去', '走', '看', '带']
 const NAME_BLOCK_WORDS = ['为了', '然后', '可以', '以及', '上一', '下一', '一家', '两家', '这家', '那家', '什么', '怎么']
+// [person-hotword A'] 人名场景**特有**的高频误报：常见姓氏 + 常用字撞出来的普通词。
+// 只用于人名清洗，**不动 entityClean 的既有词表**（备案链路零影响）。
+// 与 entityClean.NON_NOUN_WORDS 允许重叠（冗余无害）：那张表是按"名词/虚词"分类的，
+// 这张表是按"会不会被 AI 当人名"筛的，分类口径不同。
+const PERSON_FALSE_POSITIVES = [
+  '周末', '何必', '高兴', '王者', '张开', '白天', '金额', '来往',
+  '和平', '和气', '安全', '安排', '马上', '金子', '李子', '果实'
+]
 
 /**
  * 名词是否命中黑名单（云端/本地共用）
@@ -535,6 +543,54 @@ function hasRealExplanation(content, e) {
 }
 
 /**
+ * [person-hotword A'] 人名清洗（客户端 · 语义级）：
+ * 云函数只保证「格式合格 + 在原文出现」，这里再过一遍本地的虚词/代词/时间词/数量词表。
+ * 误报的代价不是"多显示一个词"，而是 ASR 会把正常表达替换成热词里的名字 ⇒ 刻意保守，宁可漏。
+ * @param {string[]} raw 云函数返回的 persons
+ * @param {string} content 日记原文
+ * @returns {string[]} 清洗后的人名（保序、去重、上限 20）
+ */
+function cleanPersonNames(raw, content) {
+  const list = Array.isArray(raw) ? raw : []
+  const text = String(content || '')
+  const out = []
+  const seen = new Set()
+  for (let i = 0; i < list.length; i++) {
+    const n = String(list[i] == null ? '' : list[i]).trim()
+    if (!n || n.length < 2) continue
+    if (!/^[\u4e00-\u9fa5·]+$/.test(n)) continue
+    if (PERSON_FALSE_POSITIVES.indexOf(n) !== -1) continue  // 姓氏 + 常用字撞出来的普通词
+    const isTrans = n.indexOf('·') !== -1
+    if (!isTrans && n.length > 4) continue
+    if (n.length > 12) continue
+    if (seen.has(n)) continue
+    if (text.indexOf(n) === -1) continue                  // 必须在原文里真的出现（防 AI 编造）
+    if (hasBlockedNameWord(n)) continue                   // 首字是叙述词 / 含连接词
+    if (!isTrans && entityClean.isNonNounWord(n)) continue // 虚词/代词/动词/形容词/数量词/时间词
+    seen.add(n)
+    out.push(n)
+    if (out.length >= 20) break
+  }
+  return out
+}
+
+/**
+ * 把清洗后的人名挂到实体抽取结果上。
+ * 兼容老云函数：不返回 persons ⇒ 空数组 ⇒ 人名表不写入（功能静默不生效，既有行为零变化）。
+ * @param {{entities?:Array, from?:string, persons?:Array}} result
+ * @param {string} text 日记原文
+ * @returns {{entities:Array, from:string, persons:string[]}}
+ */
+function withPersons(result, text) {
+  const r = result || {}
+  return {
+    entities: Array.isArray(r.entities) ? r.entities : [],
+    from: r.from || 'local',
+    persons: cleanPersonNames(r.persons, text)
+  }
+}
+
+/**
  * AI 提取实体：从日记中识别"用户解释过的名词"及其解释，用于提示用户备案到档案
  * 云函数返回 name+description；失败降级本地规则引擎（不返回无解释的实体）
  * 无论云端还是本地，最终都经过 hasRealExplanation 校验：只有原文里确实解释了的名词才会被提醒备案
@@ -545,7 +601,7 @@ function callAIExtractEntities(content) {
   return new Promise((resolve) => {
     const text = String(content || '')
     if (!wx.cloud) {
-      resolve({ entities: localExtractExplainedEntities(text), from: 'local' })
+      resolve(withPersons({ entities: localExtractExplainedEntities(text), from: 'local' }, text))
       return
     }
     let done = false
@@ -553,7 +609,9 @@ function callAIExtractEntities(content) {
       if (done) return
       done = true
       clearTimeout(timer)
-      resolve(result)
+      // [person-hotword A2] 人名随结果一起返回（已过本地语义清洗），供保存路径沉淀人名表。
+      // 注意：aiCloud.js 里有 5 处同形的 finish，这里只改 extractEntities 这一处
+      resolve(withPersons(result, text))
     }
     wx.cloud.callFunction({
       name: 'optimizeDiary',
@@ -744,4 +802,4 @@ function autoSegmentAfterSave(diaryId) {
   }
 }
 
-module.exports = { callAI, callAIParse, callAIExtractMetaBatch, callAITags, callAIOrganizeArchive, callAIExtractEntities, callAIMergeDiary, autoSegmentAfterSave, stripMoodTail }
+module.exports = { callAI, callAIParse, callAIExtractMetaBatch, callAITags, callAIOrganizeArchive, callAIExtractEntities, callAIMergeDiary, autoSegmentAfterSave, stripMoodTail, cleanPersonNames }

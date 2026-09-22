@@ -37,6 +37,7 @@ Page({
     rangeText: '',     // 数据范围文案（如「最近一个月」）
     diaryCount: 0,     // 参与分析的有效篇数
     truncated: false,  // 是否因日记过多只选取了最近部分
+    outputTruncated: false, // [summary-token-cap v1] 是否因输出长度上限被截断（内容未生成完）
     showSharePanel: false,
     shareDiary: null,  // 分享组件用的 view model
     busy: false        // 保存/编辑落库进行中：三个按钮置灰，防重复点击产生重复日记/草稿
@@ -81,7 +82,8 @@ Page({
       prompt: String(p.prompt || '').trim(),
       rangeText: p.rangeText || '所选时间段',
       diaryCount: p.diaryCount || 0,
-      truncated: !!p.truncated
+      truncated: !!p.truncated,
+      outputTruncated: !!p.outputTruncated
     }
     this.setData({
       prompt: String(p.prompt || '').trim(),
@@ -92,6 +94,7 @@ Page({
       rangeText: p.rangeText || '所选时间段',
       diaryCount: p.diaryCount || 0,
       truncated: !!p.truncated,
+      outputTruncated: !!p.outputTruncated,
       // [summary-share-align v1] 分享视图模型与落库口径对齐：
       //   正文 = 说明头（总结需求/分析范围）+ 总结正文（与 buildDiaryData 同一拼装，幂等）
       //   心情标签 = 与保存后同源（mood 'neutral' → util.getMood*），海报/复制与保存后的分享完全一致
@@ -223,8 +226,13 @@ Page({
   buildBriefBlock(src) {
     // [summary-share-align v1] 支持传入数据源（initFromPayload 时 this.data 还没更新）
     const d = src || this.data
+    // [summary-token-cap v1] 两种「不完整」都要如实标注：输入被裁剪 / 输出被截断。
+    // 落库正文自带说明，避免事后只看到一段半截内容却无从判断原因
+    const notes = []
+    if (d.truncated) notes.push('日记较多，已选取最近部分')
+    if (d.outputTruncated) notes.push('内容较长，本次生成未完成')
     const range = '共读取' + (d.rangeText || '所选时间段') + ' ' + (d.diaryCount || 0) + ' 篇日记进行分析' +
-      (d.truncated ? '（日记较多，已选取最近部分）' : '')
+      (notes.length ? '（' + notes.join('；') + '）' : '')
     return '【总结需求】' + (d.prompt || '（未填写需求）') + '\n【分析范围】' + range
   },
 

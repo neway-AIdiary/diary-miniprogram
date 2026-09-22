@@ -117,20 +117,18 @@ Page({
     this.setData({ quickText: this.data.quickText + emoji, voiceMode: false })
   },
 
-  // 按住开始录音（带300ms防误触；与主页一致：记录起点坐标、复位取消标记）
+  // 按住即开始录音（[hold-fast v1] 与主页一致：按下不再等 300ms，误触判定移到 voice.js#stop()）
   onHoldStart(e) {
     this._suppressEnd = false
     this._voiceCanceled = false
     const touch = (e && e.touches && e.touches[0]) || {}
     this._voiceStartY = touch.clientY || 0
     this._voiceStartX = touch.clientX || 0
-    if (this._holdTimer) clearTimeout(this._holdTimer)
-    this._holdTimer = setTimeout(() => {
-      this._isHolding = true
-      // 把当前备注草稿作为"即时上下文"传给语音识别：档案页说话前若已输入了人名/机构名，
-      // 这些词会被作为最高优先级热词下发，提升同名实体的识别准确率
-      voice.start({ contextText: this.data.quickText || this.data.content || '' })
-    }, 300)
+    if (this._holdTimer) { clearTimeout(this._holdTimer); this._holdTimer = null }
+    this._isHolding = true
+    // 把当前备注草稿作为"即时上下文"传给语音识别：档案页说话前若已输入了人名/机构名，
+    // 这些词会被作为最高优先级热词下发，提升同名实体的识别准确率
+    voice.start({ contextText: this.data.quickText || this.data.content || '' })
   },
 
   onHoldEnd() {

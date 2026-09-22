@@ -1,0 +1,11 @@
+[--write] utils/appInfo.js appinfo-head -> OK
+[--write] utils/appInfo.js appinfo-const -> OK
+[--write] pages/about/about.js aboutjs-head -> OK
+[--write] pages/about/about.js aboutjs-data -> OK
+[--write] pages/about/about.js aboutjs-copy -> OK
+[--write] pages/about/about.wxml wxml-head -> OK
+[--write] pages/about/about.wxml wxml-row -> OK
+[--write] tools/test_about_info.js test-const -> OK
+[--write] tools/test_about_info.js test-about-js -> OK
+[--write] tools/test_about_info.js test-wxml -> OK
+RESULT: ALL OK

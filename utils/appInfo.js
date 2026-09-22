@@ -1,7 +1,7 @@
 /**
  * 应用信息（唯一来源）
  *
- * 关于页需要展示的「应用名 / 版本号 / 简介 / 备案号 / 联系方式」统一放这里，
+ * 关于页需要展示的「应用名 / 版本号 / 简介 / 出品方 / 备案号 / 联系方式」统一放这里，
  * 将来发版、改备案号、换微信号只动这一个文件。
  *
  * [brand-rename v1] 2026-09-20 全站改名完成（旧名「AI日记」→「一灯记」）：
@@ -23,6 +23,9 @@ const ICP_SITE = 'beian.miit.gov.cn'
 /* 主页标语（写日记页顶栏 = 品牌名 + 标语）：[nav-slogan v1] */
 const APP_SLOGAN = '让AI照亮此间'
 
+/* 出品方（主体名称）：[producer-info v1] 关于页展示，行内可点击复制 */
+const PRODUCER = '北京伟帆科技中心'
+
 /* 联系方式 */
 const WECHAT_ID = 'baguanshanren'
 
@@ -33,5 +36,6 @@ module.exports = {
   APP_INTRO,
   ICP_NO,
   ICP_SITE,
+  PRODUCER,
   WECHAT_ID
 }

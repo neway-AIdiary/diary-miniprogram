@@ -23,6 +23,8 @@
             <text class="sr-brief-value">{{prompt}}</text>
           </view>
           <view class="sr-brief-meta">共读取{{rangeText}} {{diaryCount}} 篇日记进行分析{{truncated ? '（日记较多，已选取最近部分）' : ''}}</view>
+          <!-- [summary-token-cap v1] 输出被长度上限截断：如实提示「没写完」，避免误当成完整结果 -->
+          <view wx:if="{{outputTruncated}}" class="sr-trunc-hint">内容较长，本次结果未生成完（可缩短时间范围后重新生成）</view>
           <!-- 临时内容提示：避免用户误以为自动保存 -->
           <view class="sr-temp-hint">本次总结为临时内容，点击【保存】才会存入日记本</view>
         </view>

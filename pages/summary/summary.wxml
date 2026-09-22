@@ -25,17 +25,27 @@
         />
       </view>
 
-      <!-- 快捷模板标签栏（竖向分行列表） -->
+      <!-- 快捷模板说明行 [summary-shortcut v1.3]
+           左：区块标题；右：一句话讲清两种点击（chip = 立即生成 / 整句 = 只填入）
+           用词有避讳（见记忆 MEMORY-modules 该条），改文案前先看那一节 -->
+      <view class="shortcuts-head">
+        <view class="shortcuts-title">快捷模板</view>
+        <view class="shortcuts-hint">点左侧直接生成 · 点右侧填入输入框</view>
+      </view>
+
+      <!-- 快捷模板（竖向分行列表）[summary-shortcut v1.3]
+           chip = 前几字：catchtap 阻断冒泡 → 点击即按整句生成（不联动时间范围）
+           行内其余区域：bindtap → 只把整句填入输入框 -->
       <view class="shortcuts">
         <view
-          class="shortcut"
+          class="shortcut {{loading ? 'shortcut-busy' : ''}}"
           wx:for="{{shortcuts}}"
-          wx:key="label"
+          wx:key="chip"
           bindtap="onShortcut"
-          data-fill="{{item.fill}}"
+          data-fill="{{item.label}}"
         >
-          <text class="ri {{item.icon}}"></text>
-          <text class="shortcut-text">{{item.label}}</text>
+          <view class="shortcut-chip" catchtap="onQuickGenerate" data-label="{{item.label}}" data-chip="{{item.chip}}">{{item.chip}}</view>
+          <view class="shortcut-text">{{item.label}}</view>
         </view>
       </view>
 
@@ -87,13 +97,13 @@
   </view>
 
   <!-- 语音录音浮层（简化） -->
-  <view class="voice-modal" wx:if="{{recording || transcribing}}">
+  <view class="voice-modal" wx:if="{{recording || transcribing || connecting}}">
     <view class="voice-modal-mask"></view>
     <view class="voice-modal-body">
       <view class="voice-dot {{recording ? 'pulse' : ''}}"></view>
-      <view class="voice-title">{{transcribing ? '语音识别中' : '正在聆听'}}</view>
+      <view class="voice-title">{{transcribing ? '语音识别中' : (connecting ? '准备中' : '正在聆听')}}</view>
       <scroll-view class="voice-text-scroll" scroll-y enhanced show-scrollbar="{{false}}">
-        <text class="voice-text">{{liveText || (recording ? '请说话…' : '识别中…')}}</text>
+        <text class="voice-text">{{liveText || (recording ? '请说话…' : (connecting ? '请稍候…' : '识别中…'))}}</text>
       </scroll-view>
     </view>
   </view>

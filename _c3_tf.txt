@@ -1,0 +1,11 @@
+[--check] utils/util.js :: A1 新增 formatCompactDate（紧邻 formatDate 之后） -> SKIP
+[--check] utils/util.js :: A2 formatRelativeTime 增加 compact 参数 -> SKIP
+[--check] utils/util.js :: A3 末档按 compact 分流 -> SKIP
+[--check] utils/util.js :: A4 导出 formatCompactDate -> SKIP
+[--check] pages/index/index.js :: B1 引入 tagFit -> SKIP
+[--check] pages/index/index.js :: B2 列表卡片改用紧凑日期 -> SKIP
+[--check] pages/index/index.js :: B3 产出 tagsShown（只改展示） -> SKIP
+[--check] pages/index/index.wxml :: C1 标签区判空改用 tagsShown -> SKIP
+[--check] pages/index/index.wxml :: C2 列表渲染 tagsShown -> SKIP
+[--check] utils/tagFit.js :: 新增模块 -> SKIP
+RESULT: OK=0 SKIP=10 PENDING=0 ERR=0

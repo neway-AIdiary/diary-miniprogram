@@ -1,0 +1,34 @@
+[--write] cloudfunctions/optimizeDiary/index.js :: A1 system prompt 增加 persons 附加任务 -> OK
+[--write] cloudfunctions/optimizeDiary/index.js :: A2 云函数新增 cleanPersons（格式级清洗） -> OK
+[--write] cloudfunctions/optimizeDiary/index.js :: A3 return 带上 persons -> OK
+[--write] utils/entityClean.js :: B1 新增 isNonNounWord（复用既有词表做语义级否决） -> OK
+[--write] utils/entityClean.js :: B2 导出 isNonNounWord -> OK
+[--write] utils/aiCloud.js :: C1 新增 cleanPersonNames + withPersons -> OK
+[--write] utils/aiCloud.js :: C2 wx.cloud 缺失分支也带 persons -> OK
+[--write] utils/aiCloud.js :: C3 finish 出口统一补 persons -> OK
+[--write] utils/aiCloud.js :: C4 导出 cleanPersonNames -> OK
+[--write] pages/write/write.js :: D1 引入 personNames -> OK
+[--write] pages/write/write.js :: D2 保存路径沉淀人名（与备案弹窗解耦） -> OK
+[--write] utils/hotwords.js :: E1 引入 personNames -> OK
+[--write] utils/hotwords.js :: E2 新增 PERSON_SUB_BUDGET -> OK
+[--write] utils/hotwords.js :: E3 lastPersonCount 调试计数 -> OK
+[--write] utils/hotwords.js :: E4 usedTokens 帮助函数 -> OK
+[--write] utils/hotwords.js :: E5 新增 getPersonExtras（D 级低优先填充） -> OK
+[--write] utils/hotwords.js :: E6 get() 接线（人名只填空余） -> OK
+[--write] utils/hotwords.js :: E7 build() 接线（含 person 计数） -> OK
+[--write] utils/hotwords.js :: E8 getLastCount 带上 person -> OK
+[--write] utils/hotwords.js :: E9 导出 PERSON_SUB_BUDGET -> OK
+[--write] utils/voice.js :: F1 从 openSocket 移除热词构建（原来占住主线程） -> OK
+[--write] utils/voice.js :: F2 onOpen 内构建热词（发首帧前，但已不占浮层时间） -> OK
+[--write] utils/voice.js :: F3 warmup 延迟预热热词基底（把构建耗时彻底移出关键路径） -> OK
+[--write] tools/test_voice_start.js :: G1 wx mock 补 storage API（热词链路会读本地表） -> OK
+[--write] tools/test_voice_start.js :: G2 mock 挂 storage 方法 -> OK
+[--write] utils/personNames.js :: 新增模块 -> OK
+[write] cloudfunctions/optimizeDiary/index.js 已落盘（已备份到 C:\Users\ThinkPad\WorkBuddy\person-hotword-backup-20260922）
+[write] utils/entityClean.js 已落盘（已备份到 C:\Users\ThinkPad\WorkBuddy\person-hotword-backup-20260922）
+[write] utils/aiCloud.js 已落盘（已备份到 C:\Users\ThinkPad\WorkBuddy\person-hotword-backup-20260922）
+[write] pages/write/write.js 已落盘（已备份到 C:\Users\ThinkPad\WorkBuddy\person-hotword-backup-20260922）
+[write] utils/hotwords.js 已落盘（已备份到 C:\Users\ThinkPad\WorkBuddy\person-hotword-backup-20260922）
+[write] utils/voice.js 已落盘（已备份到 C:\Users\ThinkPad\WorkBuddy\person-hotword-backup-20260922）
+[write] tools/test_voice_start.js 已落盘（已备份到 C:\Users\ThinkPad\WorkBuddy\person-hotword-backup-20260922）
+RESULT: OK=26 SKIP=0 PENDING=0 ERR=0

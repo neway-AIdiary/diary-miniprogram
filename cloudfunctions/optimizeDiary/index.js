@@ -206,7 +206,16 @@ function buildSystemPrompt(action, ctx) {
     '11. 如果日记中没有任何带解释的名词，返回空数组。',
     '',
     '请严格按以下 JSON 格式返回（不要输出任何其他文字）：',
-    '{"entities":[{"name":"王磊","description":"我的大学同学","explanation":"他是我大学同学","type":"person"},{"name":"海洋大学","description":"我的母校","explanation":"这是我的母校","type":"place"}]}'
+    '{"entities":[{"name":"王磊","description":"我的大学同学","explanation":"他是我大学同学","type":"person"},{"name":"海洋大学","description":"我的母校","explanation":"这是我的母校","type":"place"}],"persons":["王磊","张三"]}',
+    '',
+    '【附加任务 · 与上面的 entities 完全独立，不得互相影响】',
+    '无论是否被解释过，请另外把日记中出现的**所有人名**单独列进 persons 数组：',
+    '1. 只要是人名就列（可以只是被提到，不需要任何解释）——例如"今天和张三吃饭"应列出"张三"；',
+    '2. 每条 2~4 个字，必须是原文中**原样出现**的人名本体，不得改写、不得编造、不得从更长的词里截取；',
+    '3. 不收地名、机构名、品牌名、称谓（如"老王""领导""同事""妈妈"）、代词、时间词；',
+    '4. 不收并非人名的常见词语（如"周末""高兴""方式""出差"）；',
+    '5. 没有把握的一律不收：宁可漏掉，也不要猜、不要编造；',
+    '6. 没有则返回空数组 []。'
   ].join('\n')
   }
 
@@ -789,6 +798,30 @@ exports.main = async (event, context) => {
         if (NAME_BLOCK_HEAD_CHARS.indexOf(n.charAt(0)) !== -1) return true
         return NAME_BLOCK_WORDS.some(w => n.indexOf(w) !== -1)
       }
+      // [person-hotword A'] 人名清洗：这里只做**格式级**清洗（长度/字符集/原文出现/去重），
+      // 语义级清洗（虚词/代词/时间词/数量词表）交给客户端 utils/entityClean.js —— 那边有完整词表。
+      // 人名与 entities 完全解耦：它只用于语音热词沉淀，不参与备案弹窗。
+      const cleanPersons = (raw, content) => {
+        const list = Array.isArray(raw) ? raw : []
+        const text = String(content || '')
+        const seenP = new Set()
+        const out = []
+        for (let i = 0; i < list.length; i++) {
+          const n = String(list[i] == null ? '' : list[i]).trim()
+          if (!n || n.length < 2) continue
+          if (!/^[\u4e00-\u9fa5·]+$/.test(n)) continue
+          // 含「·」的译名/少数民族名放宽到 12 字；其余人名按 2~4 字
+          if (n.indexOf('·') === -1 && n.length > 4) continue
+          if (n.length > 12) continue
+          if (seenP.has(n)) continue
+          if (text.indexOf(n) === -1) continue
+          if (hasBlockedNameWord(n)) continue
+          seenP.add(n)
+          out.push(n)
+          if (out.length >= 20) break
+        }
+        return out
+      }
       entities = entities
         .map(e => ({
           name: String(e.name || '').trim().slice(0, 50),
@@ -817,7 +850,7 @@ exports.main = async (event, context) => {
           seen.add(name)
           return true
         })
-      return { entities: entities }
+      return { entities: entities, persons: cleanPersons(r.parsed && r.parsed.persons, entContent) }
     } catch (err) {
       return { error: '调用 AI 失败: ' + (err && err.message || err) }
     }

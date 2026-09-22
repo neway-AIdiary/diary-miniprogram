@@ -13,7 +13,10 @@
 .rp-pill {
   display: inline-flex;
   align-items: center;
-  background: rgba(0, 0, 0, 0.06);
+  /* [dark-pill v1] 胶囊底/描边走令牌（与 shortcut-chip 同款配方）：原先写死的浅色专用底色
+     在深色主题下与暗底几乎同色、又无描边 → 边缘消失；令牌化后两主题边缘均可见 */
+  background: var(--brand-tint-08);
+  border: 1rpx solid var(--brand-tint-25);
   border-radius: 30rpx;
   padding: 10rpx 28rpx;
   font-size: 24rpx;

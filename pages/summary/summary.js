@@ -9,14 +9,17 @@ const voice = require('../../utils/voice.js')
 const dateRange = require('../../utils/dateRange.js') // [range-toolbar v1] 日期范围公共口径
 const app = getApp()
 
-// 快捷模板（点击自动填充输入框）
+// 快捷模板（[summary-shortcut v1.3] 六条）
+// chip = 前几字（按钮：点击即按整句生成）；label = 整句（行内点按只填入输入框，不生成）
+// 口径（拍板 1）：输入框所见即所得 —— prompt 就是 label 原句，不加任何前缀包装
+// [v1.2] 不联动时间范围：点 chip 只填需求 + 生成，范围完全由顶部胶囊决定（原「拍板 2」撤销）
 const SHORTCUTS = [
-  { icon: 'ri-calendar-line', label: '本月日记整体回顾', fill: '帮我回顾一下这段时间的日记，做个整体总结' },
-  { icon: 'ri-emotion-line', label: '分析这段时间情绪变化', fill: '帮我分析所选时间段内我的情绪变化，简单总结' },
-  { icon: 'ri-price-tag-3-line', label: '按标签汇总日记内容', fill: '按标签汇总我的日记内容' },
-  { icon: 'ri-bar-chart-2-line', label: '统计工作相关记录', fill: '统计这段时间里工作相关的记录' },
-  { icon: 'ri-book-open-line', label: '生成年度简短回顾', fill: '生成一段简短的年度回顾' },
-  { icon: 'ri-search-line', label: '提取所有运动记录', fill: '提取我所有的运动记录' }
+  { chip: '月度复盘', label: '本月日记的整体回顾' },
+  { chip: '心迹追踪', label: '分析情绪与心态变化' },
+  { chip: '强身规划', label: '对比运动记录拟定健身方案' },
+  { chip: '学途建言', label: '总结学习情况给出提升建议' },
+  { chip: '大事速览', label: '简要提取里程碑事件' },
+  { chip: '年度剪影', label: '生成一份年度简短回顾' }
 ]
 
 // 是否为「AI 总结」生成的日记：共用判据在 utils/util.js（isAiSummaryDiary），
@@ -114,12 +117,9 @@ Page({
   // ===== 语音（按住说话）=====
   onHoldStart() {
     this._suppressEnd = false
-    this._isHolding = false
-    if (this._holdTimer) clearTimeout(this._holdTimer)
-    this._holdTimer = setTimeout(() => {
-      this._isHolding = true
-      voice.start({ contextText: this.data.prompt || '' })
-    }, 300)
+    // [hold-fast v1] 按下即起录：不再等 300ms，误触判定移到 voice.js#stop()
+    this._isHolding = true
+    voice.start({ contextText: this.data.prompt || '' })
   },
 
   onHoldEnd() {
@@ -138,9 +138,30 @@ Page({
   },
 
   // ===== 快捷模板 =====
+  // 行内非 chip 区域（整句描述）：只填入输入框，用户可改完再点「生成总结」
   onShortcut(e) {
     const fill = e.currentTarget.dataset.fill
     this.setData({ prompt: fill })
+    // [summary-shortcut v1.3] 点整句只填入、不生成 —— 用 toast 交代去向（否则用户不知道它去哪了）
+    if (fill) wx.showToast({ title: '已填入输入框，可修改后生成', icon: 'none' })
+  },
+
+  // [summary-shortcut v1.3] 点 chip（前几字）：填入整句后立即生成（不改动时间范围）
+  onQuickGenerate(e) {
+    const ds = (e && e.currentTarget && e.currentTarget.dataset) || {}
+    // 生成中给反馈，不静默早退（本项目铁律：任何早退都要有面板）
+    if (this.data.loading) {
+      wx.showToast({ title: '正在生成，请稍候', icon: 'none' })
+      return
+    }
+    if (ds.label) this.setData({ prompt: ds.label })
+    this.onGenerate()
+    // [v1.3] 确认反馈：让用户知道点对了地方。**只在真的进入生成态时才弹** ——
+    // onGenerate 可能因「无日记 / 3 秒防抖 / 自定义范围未选完 / 云开发不可用」早退，
+    // 那些情况它自己会弹提示，这里抢着说「正在生成」就是谎报，还会把它的提示顶掉
+    if (this.data.loading) {
+      wx.showToast({ title: '正在按「' + (ds.chip || '模板') + '」生成', icon: 'none' })
+    }
   },
 
   // ===== 生成总结 =====
@@ -232,7 +253,9 @@ Page({
           prompt: prompt,
           rangeText: dateRange.rangeText(rs.range, rs.customStart, rs.customEnd), // [range-toolbar v1]
           diaryCount: r.diaryCount || diaries.length,
-          truncated: !!r.truncated || frontTruncated
+          truncated: !!r.truncated || frontTruncated,
+          // [summary-token-cap v1] 输出被长度上限截断（内容没生成完）：透传给结果页如实提示
+          outputTruncated: !!r.outputTruncated
         }
         app.globalData.summaryResult = payload // 兜底：eventChannel 未命中时结果页读全局
         // 本页回到初始态（保留输入的需求方便继续提问），避免返回时残留 loading / 旧结果

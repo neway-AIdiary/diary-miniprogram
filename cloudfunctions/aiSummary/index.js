@@ -18,6 +18,7 @@
  *   - 单用户每日上限见 DAILY_LIMIT（10 次，按北京时间自然日），超出返回友好提示
  *   - 单次最多处理 365 篇，超出丢弃最早日记并裁剪
  *   - 拼接日记上下文控制总字符上限，超出自动丢弃最早日记
+ *   - 输出 token 上限见 MAX_OUTPUT_TOKENS：被截断时返回 outputTruncated=true（前端如实提示「未生成完」）
  *
  * 依赖：wx-server-sdk（限流用云数据库 summary_quota 集合）——需「云端安装依赖」部署
  * 环境变量：DEEPSEEK_API_KEY（与 optimizeDiary 共用同一个）
@@ -40,6 +41,11 @@ const DAILY_LIMIT = 10          // 单用户每日最多次数（按北京时间
 const MAX_DIARIES = 365        // 单次最多读取 365 篇
 const MAX_CONTEXT_CHARS = 50000 // 拼接日记上下文总字符上限（约可容纳一年日记；超出仍裁剪最早日记）
 
+// [summary-token-cap v1] 输出 token 上限（约 3000+ 汉字）。
+// 原为 2000：像「按时间线提取日记中的事件」这类长清单会在写到一半被硬截断
+// （finish_reason='length'），用户看到的是「正常结果但没了尾巴」。
+const MAX_OUTPUT_TOKENS = 5000
+
 // 微信云函数运行在 UTC+0，统一按北京时间计算
 function getBeijingDateKey() {
   const now = new Date(Date.now() + 8 * 3600 * 1000)
@@ -57,7 +63,7 @@ function callDeepSeek(messages) {
       model: MODEL,
       messages: messages,
       temperature: 0.7,
-      max_tokens: 2000
+      max_tokens: MAX_OUTPUT_TOKENS
     })
     const req = https.request({
       hostname: API_HOST,
@@ -225,7 +231,8 @@ exports.main = async (event) => {
       const msg = (res.body && (res.body.error && res.body.error.message || res.body.message)) || res.status
       return { success: false, error: 'AI 分析失败，请稍后重试', detail: msg }
     }
-    const summaryText = res.body.choices && res.body.choices[0] && res.body.choices[0].message && res.body.choices[0].message.content
+    const choice = (res.body.choices && res.body.choices[0]) || {}
+    const summaryText = choice.message && choice.message.content
     if (!summaryText) return { success: false, error: 'AI 返回为空，请重试' }
 
     return {
@@ -233,7 +240,10 @@ exports.main = async (event) => {
       summaryText: normalizeSummaryText(summaryText),
       diaryCount: ctx.count,
       quotaUsed: quota.used,
-      truncated: ctx.count < diaries.length // 是否因超长被裁剪（提示用户日记较多）
+      truncated: ctx.count < diaries.length, // 是否因超长被裁剪（提示用户日记较多）
+      // [summary-token-cap v1] 输出被 max_tokens 截断（finish_reason='length'）：内容还没写完就断了。
+      // 旧版对此毫无感知、照常返回 ⇒ 前端如实提示「未生成完」，别让半截内容冒充完整结果
+      outputTruncated: choice.finish_reason === 'length'
     }
   } catch (e) {
     console.error('[aiSummary] 调用 AI 失败:', e && e.message)

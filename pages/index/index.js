@@ -8,6 +8,7 @@ const fontSetting = require('../../utils/fontSetting.js')
 const theme = require('../../utils/theme.js')
 const lock = require('../../utils/lock.js')
 const appInfo = require('../../utils/appInfo.js')
+const tagFit = require('../../utils/tagFit.js') // [tag-fit v1] 列表标签两行自适应
 
 Page({
   data: {
@@ -55,7 +56,8 @@ Page({
 
     // 格式化显示
     diaries.forEach(d => {
-      d.dateText = util.formatRelativeTime(d.created_at)
+      // [list-date-compact v1] 列表卡片用紧凑日期「8/12 周三」腾宽度；他处仍走完整格式
+      d.dateText = util.formatRelativeTime(d.created_at, true)
       // 标题兜底 [title-content-fallback v1]：空 title → 正文开头 ≤7 字 → 日期标题
       // 与 storage.getAllDiaries 共用同一口径（util.resolveDiaryTitle），避免两处脱节
       d.title = util.resolveDiaryTitle(d)
@@ -67,6 +69,9 @@ Page({
       d.contentPreview = plain.length > 100 ? plain.substring(0, 100) + '...' : plain
       // 标签最多展示5个；旧数据无 tags 时兜底空数组
       d.tags = Array.isArray(d.tags) ? d.tags.slice(0, 5) : []
+      // [tag-fit v1] 卡片标签最多两行：估算溢出时从末尾丢（保底留 1 个）。
+      // 只改展示 —— d.tags 仍是完整数据，搜索 / 详情页 / 导出 / 备份不受影响
+      d.tagsShown = tagFit.fitTags(d.tags, d.moodText).shown
       // 位置：显示位置名
       d.locationText = (d.location && d.location.name) ? d.location.name : ''
       // 天气：图标 + 文本（如「晴 28° · 深圳」），供列表展示与搜索

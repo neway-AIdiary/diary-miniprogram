@@ -45,6 +45,13 @@ let pendingFrames = []             // WS 握手期间录音已产生的音频帧
 let currentContextText = ''
 
 // ===== 火山流式实时识别链路状态 =====
+// [hold-fast v1] 按下即起录后的「误触时长下限」：与旧版 300ms 防误触**同值**，
+// 保证「多短算点按、多长算长按」的语义逐字不变；不足此值的整段静默丢弃。
+const HOLD_MIN_MS = 300
+let sessionStartAt = 0           // 本次按下的时刻（stop() 用它和松手时刻求差，判定误触）
+const REC_AUTHED_KEY = 'voice_rec_authed_v1'   // 麦克风授权态持久化（跨冷启动，省掉一次 wx.authorize 往返）
+let recAuthTrusted = false       // 授权态取自持久化、尚未被本会话的 recorder 证实
+
 let asrConfigCache = null        // { apiKey | appId+accessToken, resourceId, fetchedAt }，缓存 24h
 let asrConfigPromise = null      // 取配置请求在途去重：预热与首次按下并发时不重复调云函数
 let socketTask = null
@@ -117,6 +124,28 @@ function getAsrConfig() {
   return asrConfigPromise
 }
 
+// [hold-fast v1] 授权态持久化：上次会话已确认授予麦克风时，冷启动首次按住说话
+// 不必再走一次 wx.authorize 桥接往返（权限早已授予，那是纯等待）。
+// 安全性由两端兜住：① warmup 的 getSetting 若明确未授权 → 立刻清标记；
+//                   ② 真被用户在系统设置里撤销 → recorderManager.onError 兜底清理并给可操作引导。
+function loadPersistedAuth() {
+  if (recordAuthed) return
+  try {
+    if (wx.getStorageSync(REC_AUTHED_KEY)) {
+      recordAuthed = true
+      recAuthTrusted = true
+    }
+  } catch (e) {}
+}
+
+function persistAuth(ok) {
+  try {
+    if (ok) wx.setStorageSync(REC_AUTHED_KEY, 1)
+    else wx.removeStorageSync(REC_AUTHED_KEY)
+  } catch (e) {}
+  if (!ok) recAuthTrusted = false
+}
+
 // 预热：页面可见时提前拉取实时识别鉴权参数（仅已授权 + Android/devtools），
 // 让首次「按住说话」跳过云函数网络等待，直接建 WebSocket 开始录音。
 // 未授权时不主动弹授权框（避免打扰），等首次按下再走完整链路。
@@ -130,10 +159,23 @@ function warmup() {
           const rec = s && s.authSetting && s.authSetting['scope.record']
           if (rec === true) {
             recordAuthed = true
+            recAuthTrusted = false
+            // [hold-fast v1] 确认授权后落盘：下次冷启动首次按下可直接开录，省掉 wx.authorize 往返
+            persistAuth(true)
             // 提前创建录音管理器并注册回调：首次按下省掉一次管理器初始化
             try { initRecorder() } catch (e) {}
-            getAsrConfig().then(() => resolve(true), () => resolve(false))
+            getAsrConfig().then(() => {
+              // [hotword-off-critical-path v1] 预热热词基底（档案 + 近十天高频，按天缓存）：
+              // 延迟 800ms 跑，避开页面首屏渲染；这样首次按下的 onOpen 构建直接命中缓存，
+              // 连「握手完成 → 发首帧」那一小段也不再承担扫描开销。
+              setTimeout(() => {
+                try { hotwords.get(false, { contextText: '' }) } catch (e) {}
+              }, 800)
+              resolve(true)
+            }, () => resolve(false))
           } else {
+            // [hold-fast v1] 系统里已撤销 / 从未授予：清掉持久化标记，避免下次冷启动误信
+            persistAuth(false)
             resolve(false)
           }
         },
@@ -154,20 +196,11 @@ function openAsrSocket(cfg) {
 }
 
 function openSocket(cfg) {
-  // 热词直传（按自然日缓存，构建为本地存储读取，毫秒级）：
-  // 在 connectSocket 前构建，耗时落在建连等待期，不占录音关键路径。
-  // 包含三段来源（高→低优先级）：
-  //   ① 当前编辑框草稿里的词（currentContextText，按页面 onHoldStart 透传）
-  //   ② 档案名词（按天缓存）
-  //   ③ 近十天日记高频词（按天缓存）
-  let hotwordList = []
-  try {
-    hotwordList = hotwords.get(false, { contextText: currentContextText })
-    if (hotwordList.length) {
-      const c = hotwords.getLastCount()
-      console.log('[voice] 热词已注入:', hotwordList.length, '个（档案', c.archive, '+ 日记高频', c.keyword, '+ 草稿', '）')
-    }
-  } catch (e) { /* 热词构建失败不影响录音 */ }
+  // [hotword-off-critical-path v1] 热词构建已挪到 task.onOpen（见下）：
+  // 原先在 connectSocket **之前**同步构建，会占住 JS 主线程、推迟「按住」后第一帧渲染
+  // ——那正是用户能看到的录音浮层。用户明确要求：不以牺牲浮层出现时间为代价。
+  // 挪到 onOpen 后：connectSocket 立即发起、浮层立即渲染，
+  // 构建耗时落在「WS 握手完成 → 发首帧」之间，录音与首帧音频帧都不受影响。
 
   // 火山 v3 鉴权放在 WebSocket 握手 HTTP header（云函数下发，不进代码包）
   const headers = {}
@@ -226,6 +259,22 @@ function openSocket(cfg) {
       return
     }
     socketOpen = true
+    // [hotword-off-critical-path v1] 在此处（而非 connectSocket 之前）构建热词：
+    // 此刻录音已启动、浮层已渲染，构建耗时不再推迟任何用户可见的反馈；
+    // 握手期间产出的音频帧已缓存在 pendingFrames，构建完再补发，不丢开头、不影响识别内容。
+    // 四段来源（高→低优先级）：
+    //   ① 当前编辑框草稿里的词（currentContextText，按页面 onHoldStart 透传）
+    //   ② 档案名词（按天缓存）
+    //   ③ 近十天日记高频词（按天缓存，出现 ≥2 次）
+    //   ④ [person-hotword D] 沉淀人名（低优先填充，只占前三者用不完的空余）
+    let hotwordList = []
+    try {
+      hotwordList = hotwords.get(false, { contextText: currentContextText })
+      if (hotwordList.length) {
+        const c = hotwords.getLastCount()
+        console.log('[voice] 热词已注入:', hotwordList.length, '个（档案', c.archive, '+ 日记高频', c.keyword, '+ 人名', c.person || 0, '）')
+      }
+    } catch (e) { /* 热词构建失败不影响录音 */ }
     // 首帧：full client request（JSON 参数）
     // - enable_punc 开启标点：净化层依赖标点分句
     // - result_type=full：服务端每次回传累计全文，丢包不丢内容，净化层整体重跑即可
@@ -374,12 +423,15 @@ function initRecorder() {
   recorderManager = wx.getRecorderManager()
 
   recorderManager.onStart(() => {
-    if (cancelRequested && activeMode === 'volc') {
-      // 用户在链路启动期间已松手，录音此刻才真正开始：立即停止（onStop 走正常收尾）
+    if (cancelRequested) {
+      // 用户在链路启动期间已松手（或判定为误触），录音此刻才真正开始：立即停止（onStop 走取消收尾）。
+      // [hold-fast v1] 不再限定 volc —— 整段链路（iOS）同样要在这时刹车，否则会一直录下去，
+      // 表现为「点一下按钮，浮层反复出现且麦克风不停」。
       try { recorderManager.stop() } catch (e) {}
       return
     }
     beginSession()
+    recAuthTrusted = false   // [hold-fast v1] 录音真的起来了 ⇒ 权限已被证实，不再是「信任持久化」状态
     state.liveMode = (activeMode === 'volc')
     emitState()
   })
@@ -426,6 +478,10 @@ function initRecorder() {
     }
 
     // 整段链路
+    if (cancelRequested) {
+      // [hold-fast v1] 误触/已取消：静默丢弃，既不提示「说话时间太短」，也不白跑一次上传识别
+      return
+    }
     if (duration < 1) {
       wx.showToast({ title: '说话时间太短', icon: 'none' })
       return
@@ -437,6 +493,23 @@ function initRecorder() {
     if (recordTimer) { clearInterval(recordTimer); recordTimer = null }
     state = { recording: false, transcribing: false, seconds: 0, connecting: false, liveText: '', liveRaw: '', liveRemoved: 0, liveMode: false }
     emitState()
+    // [hold-fast v1] 先处理「信任持久化授权态、却始终没能开录」这一路：
+    // recAuthTrusted 为真 ⇒ 本会话从未成功开录 ⇒ 最可能是权限被撤销，或录音被别的应用占用。
+    // 清掉标记（下次按下重新走 authorize 链路）并给出可操作引导，而不是干说一句「重试」。
+    if (recAuthTrusted) {
+      if (activeMode === 'volc' && !streamFinalized) {
+        cancelRequested = true   // 抑制 finalizeStream 的「没听清」二次提示
+        finalizeStream()
+      }
+      persistAuth(false)
+      wx.showModal({
+        title: '录音没能启动',
+        content: '可能是麦克风权限已关闭，或录音正被其他应用占用。请检查微信的录音权限后重试。',
+        confirmText: '去设置',
+        success: (r) => { if (r.confirm) wx.openSetting() }
+      })
+      return
+    }
     if (activeMode === 'volc' && !streamFinalized) {
       // 流式录音失败：直接收尾
       finalizeStream()
@@ -546,6 +619,8 @@ function deliver(text, removedCount) {
 //   例：先写"王威"，再口述"把王威改成王伟"——把"王威"作为热词传入火山 ASR。
 function start(opts) {
   if (state.recording || state.transcribing) return
+  // [hold-fast v1] 记下按下时刻：stop() 用它区分「点按（误触）」与「长按（真录）」
+  sessionStartAt = Date.now()
   // 记录本次录音的草稿上下文：每次录音都重置（上一段录音的草稿不污染本次）
   currentContextText = String((opts && opts.contextText) || '')
   cancelRequested = false
@@ -610,6 +685,8 @@ function start(opts) {
     }
   }
 
+  // [hold-fast v1] 冷启动第一次按下：先用持久化的授权态抄近路，省掉一次 wx.authorize 桥接往返
+  loadPersistedAuth()
   if (recordAuthed) {
     // 已授权过：跳过 authorize 桥接，直接开录（最快路径）
     beginRecording()
@@ -618,9 +695,14 @@ function start(opts) {
       scope: 'scope.record',
       success: () => {
         recordAuthed = true
+        recAuthTrusted = false
+        // [hold-fast v1] 落盘：下次冷启动直接信任
+        persistAuth(true)
         beginRecording()
       },
       fail: () => {
+        // [hold-fast v1] 用户拒绝：清掉持久化标记，下次仍走完整授权链路
+        persistAuth(false)
         cancelRequested = false
         state.connecting = false
         socketOpen = false
@@ -638,7 +720,33 @@ function start(opts) {
   }
 }
 
+// [hold-fast v1] 丢弃本次会话（误触）：不识别、不提示、不写正文。
+// 已开录 → 交给 onStop 的 cancelRequested 分支静默收尾；
+// 尚未开录（鉴权/握手在途）→ 就地复位 connecting，后续 onStart / beginRecording 的
+// cancelRequested 分支会继续兜底清理，不会留下「浮层一直挂着」的死胡同。
+function cancelSession() {
+  cancelRequested = true
+  if (state.recording) {
+    if (recorderManager) { try { recorderManager.stop() } catch (e) {} }
+    return
+  }
+  if (recordTimer) { clearInterval(recordTimer); recordTimer = null }
+  state.connecting = false
+  state.recording = false
+  state.seconds = 0
+  emitState()
+}
+
 function stop() {
+  // [hold-fast v1] 按下即起录后，「点按」与「长按」的分界在这里判定：
+  // 按压时长不足 HOLD_MIN_MS（= 旧版防误触阈值 300ms）视为误触，整段静默丢弃
+  // —— 与旧行为（300ms 内松手什么都不发生）语义等价，但浮层已在按下那一刻出现。
+  const held = sessionStartAt ? Date.now() - sessionStartAt : HOLD_MIN_MS
+  sessionStartAt = 0
+  if (held < HOLD_MIN_MS) {
+    cancelSession()
+    return
+  }
   if (state.recording) {
     if (recorderManager) recorderManager.stop()
   } else {
@@ -661,4 +769,4 @@ function getState() {
   return Object.assign({}, state)
 }
 
-module.exports = { start, stop, onStateChange, getState, warmup }
+module.exports = { start, stop, onStateChange, getState, warmup, HOLD_MIN_MS }

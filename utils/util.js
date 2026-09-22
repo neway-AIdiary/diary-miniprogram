@@ -41,6 +41,17 @@ function formatDate(dateStr) {
   return month + '月' + day + '日 周' + weekDays[d.getDay()]
 }
 
+// 紧凑日期 [list-date-compact v1] — 「8/14 周五」。仅供日记本列表卡片使用（省横向宽度给标签），
+// 其他调用点（备份 / 我的 / 导出 / 分享）仍走 formatDate 的「8月14日 周五」，互不影响。
+function formatCompactDate(dateStr) {
+  if (!dateStr) return ''
+  const d = new Date(dateStr)
+  const month = d.getMonth() + 1
+  const day = d.getDate()
+  const weekDays = ['日', '一', '二', '三', '四', '五', '六']
+  return month + '/' + day + ' 周' + weekDays[d.getDay()]
+}
+
 // 格式化完整日期 — "2026年8月14日 14:30"
 function formatFullDate(dateStr) {
   if (!dateStr) return ''
@@ -54,7 +65,8 @@ function formatFullDate(dateStr) {
 }
 
 // 格式化相对时间 — "刚刚" / "3分钟前" / "2小时前" / "昨天" / "3天前"
-function formatRelativeTime(dateStr) {
+// compact=true ⇒ 超过 7 天的档位改用紧凑日期「8/14 周五」（仅日记本列表卡片传 true）
+function formatRelativeTime(dateStr, compact) {
   if (!dateStr) return ''
   const now = new Date()
   const d = new Date(dateStr)
@@ -68,7 +80,8 @@ function formatRelativeTime(dateStr) {
   if (hours < 24) return hours + '小时前'
   if (days === 1) return '昨天'
   if (days < 7) return days + '天前'
-  return formatDate(dateStr)
+  // [list-date-compact v1] 不传 compact 时行为与改动前完全一致（其他页面零影响）
+  return compact ? formatCompactDate(dateStr) : formatDate(dateStr)
 }
 
 // 获取默认标题（可指定日期，如 "2026-08-13"，不传则用今天）
@@ -226,6 +239,7 @@ module.exports = {
   formatDate,
   formatFullDate,
   formatRelativeTime,
+  formatCompactDate,
   getDefaultTitle,
   titleFromContent,
   resolveDiaryTitle,

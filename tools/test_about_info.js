@@ -48,6 +48,8 @@ ok('APP_INTRO 是一段完整简介', typeof info.APP_INTRO === 'string' && info
 ok('ICP_NO 含主体编号 + 序列号后缀', /^[\u4e00-\u9fa5]+ICP备\d+号-\d+[A-Z]$/.test(info.ICP_NO), String(info.ICP_NO))
 ok('ICP_SITE 是工信部备案系统域名', info.ICP_SITE === 'beian.miit.gov.cn', String(info.ICP_SITE))
 ok('WECHAT_ID 非空且无空格', /^\S{4,}$/.test(info.WECHAT_ID), String(info.WECHAT_ID))
+ok('PRODUCER 非空（出品方主体名称）', typeof info.PRODUCER === 'string' && info.PRODUCER.length >= 4,
+  String(info.PRODUCER))
 
 // ---------- 2. 页面文件与标题 ----------
 section('关于页文件')
@@ -117,7 +119,21 @@ ok('wxml 变量都在 data 中声明（' + vars.length + ' 个）', missingVars.
 
 ok('复制走 wx.setClipboardData', aboutJs.indexOf('wx.setClipboardData') !== -1)
 ok('about.js 未硬编码备案号（只从 appInfo 取）', aboutJs.indexOf('京ICP备') === -1)
+ok('about.js 未硬编码出品方名称（只从 appInfo 取）',
+  aboutJs.indexOf(info.PRODUCER) === -1, '出品方名称漏进了页面代码')
+ok('about.js data 暴露 producer', aboutJs.indexOf('producer: appInfo.PRODUCER,') !== -1)
 ok('about.js 接入主题（theme.applyTo）', aboutJs.indexOf('theme.applyTo(this)') !== -1)
+
+// [producer-info v1] 出品方行：绑 {{producer}} + 整行点击复制 + 图标在子集内 + 标签文案
+ok('about.wxml 出品方行绑 {{producer}} 并整行可点复制',
+  aboutWxml.indexOf('bindtap="copyProducer"') !== -1 && aboutWxml.indexOf('{{producer}}') !== -1)
+ok('about.wxml 出品方行沿用既有行结构（menu-item + about-copy 复用，无新样式）',
+  /<view class="menu-item" bindtap="copyProducer">[\s\S]{0,400}?<text class="about-copy">复制<\/text>/.test(aboutWxml))
+ok('about.wxml 出品方行的标签文案是「出品方」',
+  aboutWxml.indexOf('<text class="about-item-label">出品方</text>') !== -1)
+ok('出品方行排在信息卡首行（主体信息先于备案号）',
+  aboutWxml.indexOf('copyProducer') !== -1 &&
+  aboutWxml.indexOf('copyProducer') < aboutWxml.indexOf('copyIcp'))
 
 // ---------- 6. APP_NAME 字面量泄漏护栏 ----------
 // APP_NAME 只允许来自 utils/appInfo.js；页面/组件里硬编码就成了「第二来源」，

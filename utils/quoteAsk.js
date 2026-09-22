@@ -174,6 +174,27 @@ const PERSON_STOP_WORDS = [
   '大学', '中庸', '诗经', '楚辞', '史记', '汉书', '唐诗', '宋词'
 ]
 
+// [recite-anchor-v2] 指代 + 文体：用户指着自己刚写下的素材求助（「这首词 / 那首诗 / 这一句名言」）。
+// 为什么需要：锚点表原本只有 A 书名号 / B 池内篇名 / C 引号句 / D 人名 / E 文体词 / F 名句片段，
+// 「天高云淡，望断南飞雁。不到长城非好汉，屈指行程二万。帮我把这首词补充完整」六路全不中
+// ⇒ 静默退回普通润色 ⇒ 指令句被 AI 原样带回正文（2026-09-22 真机实例）。
+// 白名单只收**真文体**：指代必须紧邻文体词，「把这句话补充完整」里的「话」不在表内，仍走否决闸。
+// 文体单独列成数组：正则的捕获组序号会随写法变动（`(一)?` 不参与匹配时是 undefined，踩过一次），
+// 所以文体不靠组号取，改用 pickAnteGenre() 按「最长命中」从命中串里挑。
+const ANTE_GENRES = ['诗', '词', '曲', '赋', '歌', '诗词', '绝句', '律诗', '名句', '名言', '台词', '典故', '判词', '古文', '骈文']
+const ANTE_PIECE_RE = new RegExp('(这|那|哪)(一)?(首|阕|句|联|副)(的)?(' +
+  ANTE_GENRES.slice().sort(function (a, b) { return b.length - a.length }).join('|') + ')')
+
+/* [recite-anchor-v2] 从「指代 + 文体」的命中串里取文体（最长命中：「诗词」优先于「诗」） */
+function pickAnteGenre(text) {
+  let best = ''
+  const s = String(text == null ? '' : text)
+  ANTE_GENRES.forEach(function (w) {
+    if (w.length > best.length && s.indexOf(w) >= 0) best = w
+  })
+  return best
+}
+
 // 名句相似锚点的前缀长度（归一化后比对）
 const SNIPPET_PREFIX = 5
 
@@ -553,6 +574,11 @@ function detect(content) {
     }
   }
 
+  // [recite-anchor-v2] G 指代 + 文体（「这首词」）：作用域与 E 一致（含触发词的那句）
+  const gm = ANTE_PIECE_RE.exec(genreScope)
+  const gGenre = gm ? pickAnteGenre(gm[0]) : ''
+  if (gm) anchors.push({ type: 'G', value: gm[0] })
+
   // ---------- 目标解析（必须排在池内反查之前：解析出的篇名要喂给 findByAnchor）----------
   // [genre-v1] 人物 / 文体分离：「惜春的判词」= 人物「惜春」+ 文体「判词」。
   // 旧实现把「判词」当篇名塞进 title，模型据此去找一部叫《判词》的作品，结果给出
@@ -567,6 +593,10 @@ function detect(content) {
   }
   if (bm) target.title = bm[1]
   if (qm) target.snippet = qm[1]
+
+  // [recite-anchor-v2] 指代 + 文体 补上文体（「这首词」→ genre=词）：让类别（kind）、
+  // 长度档与加载文案（「词 · 查不到出处就不补」）都对得上
+  if (gGenre && !target.genre) target.genre = gGenre
 
   // 「X 的 Y」/「X 那句 Y」：X 必须是人名库成员才认（否则「今天的心情」会被当成篇名）
   if (author) {
@@ -658,6 +688,7 @@ function detect(content) {
     const hasPiece = !!(target.title || target.snippet) ||
       !!target.person || !!(target.genre && target.author) ||
       anchors.some(function (a) { return a.type === 'C' }) ||
+      anchors.some(function (a) { return a.type === 'G' }) ||
       !!(pool && pool.by && pool.by !== 'author')
     mode = hasPiece ? 'full' : 'lookup'
   }
@@ -735,6 +766,107 @@ function strip(content, res) {
   text = text.replace(/^[，,。.、；;：:！!？?…\s\u3000]+/, '')
   text = text.replace(/[，,。.、；;：:！!？?…\s\u3000]+$/, '')
   return text.replace(/\n{3,}/g, '\n\n').trim()
+}
+
+/**
+ * [optimize-strip v1] 「指着内容下指令」的核心词白名单（归一化后比对）。
+ * 剥掉触发词/礼貌词/补全动词后，核心落在这里 ⇒ 整句就是一条对 AI 的指令；
+ * 落不到（如「明天计划」「今天牙」）⇒ 视为叙述句，绝不删。
+ */
+const PRONOUN_CORES = [
+  '这里', '那里', '这些', '那些', '上面', '上面这段', '前面', '前面这段',
+  '上文', '上文这段', '全文', '全篇', '原文', '正文', '前面的内容', '上面的内容'
+]
+const PRONOUN_CORE_RE = /^(这|那|哪)(一|几|两|三)?(段|首|句|篇|阕|联|副)(话|字|内容|文|文章|文字)?$/
+
+/* 核心是不是「空的」或「只是在指内容」 */
+function isPronounCore(core) {
+  const s = String(core == null ? '' : core)
+  if (!s) return true
+  if (PRONOUN_CORES.indexOf(s) >= 0) return true
+  if (ANTE_PIECE_RE.test(s)) return true
+  return PRONOUN_CORE_RE.test(s)
+}
+
+/**
+ * [optimize-strip v1] 找出「补全 / 检索类指令句」（**不要求命中素材锚点**）。
+ *
+ * 为什么需要：没有素材锚点时链路会静默退回普通润色，指令句只是正文的一部分 ——
+ * AI 把它当正文一起润色着送回，用户点【应用】后指令句就落进了日记
+ * （真机实例：天高云淡…帮我把这首词补充完整。→ 词补全了，指令句也留在正文里）。
+ * detect() 里的 commandRanges 只在命中时才有，这里给「没命中但确实是条指令」兜底。
+ *
+ * 两道闸：① 句内要有补全触发词 / 检索句形 / 补全动词；② 实义核心必须是空的或只指内容。
+ * 第 ② 道是关键 —— 否则「明天要把计划补充完整」「我今天补了牙」这类**叙述句**会被
+ * 当成指令从优化稿里删掉（日记正文里「补充完整」并不罕见）。
+ * @param {string} text 正文（原样，未剥）
+ * @returns {Array<{start:number,end:number,text:string}>}
+ */
+function commandSents(text) {
+  const out = []
+  splitSentences(text).forEach(function (s) {
+    const sn = norm(s.text)
+    if (!sn) return
+    const hasTrigger = containsAny(sn, TRIGGER_NEXT_ONE.concat(TRIGGER_NEXT_FEW, TRIGGER_FULL, TRIGGER_ANY)) !== ''
+    const lookupShape = LOOKUP_RE.test(sn)
+    const hasFillVerb = FILL_VERBS.some(function (v) { return sn.indexOf(v) >= 0 })
+    if (!hasTrigger && !lookupShape && !hasFillVerb) return
+    if (!isPronounCore(commandCore(s.text, []))) return
+    out.push({ start: s.start, end: s.end, text: s.text })
+  })
+  return out
+}
+
+/**
+ * [optimize-strip v1] 在优化稿里剥掉与原正文指令句对应的句子。
+ *
+ * AI 可能对指令句做小幅改写，所以判定两条腿并行：
+ *   a) 归一化后与某条指令句**完全相同**（最常见的原样带回；指令句已由 commandSents 过闸）；
+ *   b) 句内同时出现「指代 + 文体」（ANTE_PIECE_RE）与补全触发词 / 补全动词 —— 覆盖
+ *      「帮我把这首词补充完整吧」这类改写，**不依赖** commandSents 是否认出原句。
+ * 只认这两条，绝不按「含触发词」宽泛删句：日记里真写「明天要把计划补充完整」不该被吃掉。
+ *
+ * 幂等、空值安全；**剥空则原样返回**（否则面板变空白，用户以为稿子丢了）。
+ * @param {string} text 优化稿
+ * @param {Array} commands commandSents() 的结果
+ * @returns {string}
+ */
+function stripCommands(text, commands) {
+  const src = String(text == null ? '' : text)
+  const cmds = (commands || []).filter(function (c) { return c && c.text })
+  if (!src || !cmds.length) return src
+
+  const kill = []
+  splitSentences(src).forEach(function (s) {
+    const sn = norm(s.text)
+    if (!sn) return
+    let hit = false
+    for (let i = 0; i < cmds.length && !hit; i++) {
+      if (sn === norm(cmds[i].text)) hit = true
+    }
+    if (!hit && ANTE_PIECE_RE.test(s.text)) {
+      const strong = containsAny(sn, TRIGGER_NEXT_ONE.concat(TRIGGER_NEXT_FEW, TRIGGER_FULL)) !== ''
+      const verb = FILL_VERBS.some(function (v) { return sn.indexOf(v) >= 0 })
+      if (strong || verb) hit = true
+    }
+    if (hit) kill.push([s.start, s.end])
+  })
+  if (!kill.length) return src
+
+  kill.sort(function (a, b) { return b[0] - a[0] })
+  let out = src
+  kill.forEach(function (r) {
+    let e = r[1]
+    const tail = out.slice(e)
+    const m = /^[，,。.、；;：:！!？?…\s\u3000]+/.exec(tail)
+    if (m) e += m[0].length
+    out = out.slice(0, r[0]) + out.slice(e)
+  })
+  out = out.replace(/^[，,。.、；;：:！!？?…\s\u3000]+/, '')
+  out = out.replace(/[，,。.、；;：:！!？?…\s\u3000]+$/, '')
+  out = out.replace(/\n{3,}/g, '\n\n').trim()
+  if (!out) return src
+  return out
 }
 
 /* 池内条目 → 出处行文本（版本 B 的「—— 」后面那截） */
@@ -897,6 +1029,11 @@ module.exports = {
   parseGenrePair,
   detect,
   strip,
+  ANTE_GENRES,
+  ANTE_PIECE_RE,
+  pickAnteGenre,
+  commandSents,
+  stripCommands,
   poolSource,
   poolPiece,
   splitClauses,

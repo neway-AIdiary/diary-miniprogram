@@ -1,0 +1,29 @@
+[--check] cloudfunctions/optimizeDiary/index.js :: A1 system prompt 增加 persons 附加任务 -> SKIP
+[--check] cloudfunctions/optimizeDiary/index.js :: A2 云函数新增 cleanPersons（格式级清洗） -> SKIP
+[--check] cloudfunctions/optimizeDiary/index.js :: A3 return 带上 persons -> SKIP
+[--check] utils/entityClean.js :: B1 新增 isNonNounWord（复用既有词表做语义级否决） -> SKIP
+[--check] utils/entityClean.js :: B2 导出 isNonNounWord -> SKIP
+[--check] utils/aiCloud.js :: C0 新增人名特有误报表（姓氏 + 常用字撞出的普通词） -> SKIP
+[--check] utils/aiCloud.js :: C1 新增 cleanPersonNames + withPersons -> SKIP
+[--check] utils/aiCloud.js :: C1b cleanPersonNames 接入误报表 -> SKIP
+[--check] utils/aiCloud.js :: C2 wx.cloud 缺失分支也带 persons -> SKIP
+[--check] utils/aiCloud.js :: C3 finish 出口统一补 persons -> SKIP
+[--check] utils/aiCloud.js :: C4 导出 cleanPersonNames -> SKIP
+[--check] pages/write/write.js :: D1 引入 personNames -> SKIP
+[--check] pages/write/write.js :: D2 保存路径沉淀人名（与备案弹窗解耦） -> SKIP
+[--check] utils/hotwords.js :: E1 引入 personNames -> SKIP
+[--check] utils/hotwords.js :: E2 新增 PERSON_SUB_BUDGET -> SKIP
+[--check] utils/hotwords.js :: E3 lastPersonCount 调试计数 -> SKIP
+[--check] utils/hotwords.js :: E4 usedTokens 帮助函数 -> SKIP
+[--check] utils/hotwords.js :: E5 新增 getPersonExtras（D 级低优先填充） -> SKIP
+[--check] utils/hotwords.js :: E6 get() 接线（人名只填空余） -> SKIP
+[--check] utils/hotwords.js :: E7 build() 接线（含 person 计数） -> SKIP
+[--check] utils/hotwords.js :: E8 getLastCount 带上 person -> SKIP
+[--check] utils/hotwords.js :: E9 导出 PERSON_SUB_BUDGET -> SKIP
+[--check] utils/voice.js :: F1 从 openSocket 移除热词构建（原来占住主线程） -> SKIP
+[--check] utils/voice.js :: F2 onOpen 内构建热词（发首帧前，但已不占浮层时间） -> SKIP
+[--check] utils/voice.js :: F3 warmup 延迟预热热词基底（把构建耗时彻底移出关键路径） -> SKIP
+[--check] tools/test_voice_start.js :: G1 wx mock 补 storage API（热词链路会读本地表） -> SKIP
+[--check] tools/test_voice_start.js :: G2 mock 挂 storage 方法 -> SKIP
+[--check] utils/personNames.js :: 新增模块 -> SKIP
+RESULT: OK=0 SKIP=28 PENDING=0 ERR=0

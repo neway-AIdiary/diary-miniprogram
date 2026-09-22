@@ -1,5 +1,5 @@
 /**
- * 关于页：应用名 + 版本号 + 简介 + 备案号 + 联系方式
+ * 关于页：应用名 + 版本号 + 简介 + 出品方 + 备案号 + 联系方式
  *
  * 所有文案取自 utils/appInfo.js，本页不写死任何业务常量。
  * 备案号必须展示完整编号并让用户能核验：小程序内无法外链工信部域名
@@ -17,6 +17,7 @@ Page({
     version: appInfo.APP_VERSION,
     intro: appInfo.APP_INTRO,
     icpNo: appInfo.ICP_NO,
+    producer: appInfo.PRODUCER,
     wechatId: appInfo.WECHAT_ID,
     effectiveDate: agreement.EFFECTIVE_DATE
   },
@@ -41,6 +42,11 @@ Page({
   // 备案号：复制后引导到工信部系统核对（小程序内无法直接外链）
   copyIcp() {
     this.copy(appInfo.ICP_NO, '已复制，可到 ' + appInfo.ICP_SITE + ' 核对')
+  },
+
+  // 出品方：主体名称需逐字准确（报备 / 开票常要填），整行可点即复制
+  copyProducer() {
+    this.copy(appInfo.PRODUCER, '出品方已复制')
   },
 
   // 微信号：直接复制，免得用户手抄

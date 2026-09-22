@@ -1,0 +1,14 @@
+[--write] utils/util.js :: A1 新增 formatCompactDate（紧邻 formatDate 之后） -> OK
+[--write] utils/util.js :: A2 formatRelativeTime 增加 compact 参数 -> OK
+[--write] utils/util.js :: A3 末档按 compact 分流 -> OK
+[--write] utils/util.js :: A4 导出 formatCompactDate -> OK
+[--write] pages/index/index.js :: B1 引入 tagFit -> OK
+[--write] pages/index/index.js :: B2 列表卡片改用紧凑日期 -> OK
+[--write] pages/index/index.js :: B3 产出 tagsShown（只改展示） -> OK
+[--write] pages/index/index.wxml :: C1 标签区判空改用 tagsShown -> OK
+[--write] pages/index/index.wxml :: C2 列表渲染 tagsShown -> OK
+[--write] utils/tagFit.js :: 新增模块 -> OK
+[write] utils/util.js 已落盘（已备份到 C:\Users\ThinkPad\WorkBuddy\tag-fit-backup-20260922）
+[write] pages/index/index.js 已落盘（已备份到 C:\Users\ThinkPad\WorkBuddy\tag-fit-backup-20260922）
+[write] pages/index/index.wxml 已落盘（已备份到 C:\Users\ThinkPad\WorkBuddy\tag-fit-backup-20260922）
+RESULT: OK=10 SKIP=0 PENDING=0 ERR=0

@@ -202,7 +202,13 @@
 .edit-area {
   margin: 0 24rpx;
   padding: 0 28rpx 16rpx;
-  flex: 0 1 auto;
+  /* [edit-card-fill v1] 卡片撑满「标题栏 ↔ 按钮」可用高度：剩余空间给卡片自己，
+     卡片底到按钮顶的间距 = 固定的 margin-bottom，不随内容长度漂移
+     （普通日记 / AI 总结日记两个入口同一页面，此前缝隙 = 屏幕剩余空白，时宽时窄）。
+     min-height: 0 允许长内容按 flex 收缩，滚动上限仍由内联 scrollMaxHeight 兜住 */
+  flex: 1 1 auto;
+  min-height: 0;
+  margin-bottom: 20rpx;
   display: flex;
   flex-direction: column;
   box-sizing: border-box;

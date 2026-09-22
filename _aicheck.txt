@@ -1,0 +1,26 @@
+/**
+ * 兜底：剥离 AI 输出文本末尾的「心情标注行」（今天的心情：开心 等）。
+ * 只处理连续出现在文本末尾的整行；正文中间的行不受影响。
+ * 防止模型把 prompt 里的心情背景写进输出，或用户未重新部署旧版云函数时残留。
+ * @param {string} text
+ * @returns {string}
+ */
+function stripMoodTail(text) {
+  const lines = String(text || '').split('\n')
+  while (lines.length > 0) {
+    const last = lines[lines.length - 1].trim()
+    // 形如「今天的心情：开心」「当天心情：平淡」「心情：温暖」的整行，且不以句读结尾（避免误伤正文句）
+    if (/^(?:(?:今天|今日|当天|当日|昨日|昨天)?(?:的)?心情)[：:][^，。！？；、\n]{0,30}$/.test(last)) {
+      lines.pop()
+    } else {
+      break
+    }
+  }
+  ret
+---- entityClean 引用 ----
+" = require('./util.js')\nconst storage = require('./storage.js')\nconst entityClean = require('./entityClean.js')\ncon"
+"onst storage = require('./storage.js')\nconst entityClean = require('./entityClean.js')\nconst archiveEdit = require("
+"person-hotword A'] 人名场景**特有**的高频误报：常见姓氏 + 常用字撞出来的普通词。\n// 只用于人名清洗，**不动 entityClean 的既有词表**（备案链路零影响）。\n// 与 entityClea"
+'常见姓氏 + 常用字撞出来的普通词。\n// 只用于人名清洗，**不动 entityClean 的既有词表**（备案链路零影响）。\n// 与 entityClean.NON_NOUN_WORDS 允许重叠（冗余无害）：那张表是按"名'
+'rn\n    // 与页面侧同一道机械校验：排除虚词（分别/一共…）与带助词的短语（的第一天…），并要求原文确有定义句式\n    if (!entityClean.isExplainedNoun(name, text)) retu'
+'d(n)) continue                   // 首字是叙述词 / 含连接词\n    if (!isTrans && entityClean.isNonNounWord(n)) continue // 虚词/'

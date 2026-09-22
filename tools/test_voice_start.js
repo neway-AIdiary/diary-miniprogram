@@ -9,8 +9,19 @@ function freshVoice() {
   return require(MOD)
 }
 
+// 本机 storage 桩（[person-hotword v1] 起热词链路会读人名表/日记分片）
+const store = {}
+
+// [hold-fast v1] 授权态自本次起是**持久化**的（voice_rec_authed_v1）：
+// 用例之间必须清空存储，否则上一个用例写下的「已授权」会泄漏到下一个用例
+// （症状：recordAuth:false 的用例反而命中已授权快路径，断言全线漂移）。
+function clearStore() {
+  Object.keys(store).forEach((k) => { delete store[k] })
+}
+
 function makeWx(opts) {
   opts = opts || {}
+  clearStore()   // [hold-fast v1] 每个用例自带干净存储（授权态持久化后必须隔离）
   const calls = { cloud: 0, auth: 0, socketOpen: 0, socketClose: 0, recorderStart: [], setting: 0 }
   let authSuccess = null, authFail = null, authMode = opts.authMode || 'auto-ok'
   let openCb = null, closeCb = null, errCb = null, messageCb = null
@@ -60,6 +71,9 @@ function makeWx(opts) {
       if (authMode === 'auto-ok') setTimeout(() => o.success && o.success(), 0)
     },
     connectSocket: (o) => { calls.socketTask = task; return task },
+    getStorageSync: (k) => store[k],
+    setStorageSync: (k, v) => { store[k] = v },
+    removeStorageSync: (k) => { delete store[k] },
     getRecorderManager: () => manager,
     showToast: () => {},
     showModal: (o) => { if (o && o.success) o.success({ confirm: false }) },

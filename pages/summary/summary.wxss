@@ -85,7 +85,11 @@
 /* 按住说话：尺寸/圆角/底色与写日记主页底栏完全一致 */
 .hold-talk {
   height: 80rpx;
+  box-sizing: border-box;
   background: var(--bg-soft);
+  /* [dark-pill v1] 描边取 --line：浅色下与 bg-soft 几乎同色（观感不变），深色下勾出按钮轮廓；
+     box-sizing 保证加描边后总高仍 80rpx，与右侧生成按钮对齐 */
+  border: 1rpx solid var(--line);
   border-radius: 40rpx;
   display: flex;
   align-items: center;
@@ -133,6 +137,33 @@
   opacity: 0.75;
 }
 
+/* ===== 快捷模板说明行 [summary-shortcut v1.3] =====
+   左：区块标题；右：讲清两种点击（chip = 立即生成 / 整句 = 只填入输入框）
+   小字用 --ink-soft 而非 --ink-faint：这是要用户读懂的操作说明，比 placeholder 的
+   示例提示重要一档；也不能用 --line 那类描边色（暖灰槽上几不可见）*/
+.shortcuts-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16rpx;
+  margin-bottom: 14rpx;
+}
+
+.shortcuts-title {
+  flex-shrink: 0;
+  font-size: 24rpx;
+  font-weight: 600;
+  color: var(--ink-mid);
+}
+
+.shortcuts-hint {
+  flex: 1;
+  min-width: 0;
+  font-size: 22rpx;
+  color: var(--ink-soft);
+  text-align: right;
+}
+
 /* ===== 快捷模板（竖向分行列表）===== */
 .shortcuts {
   display: flex;
@@ -152,11 +183,28 @@
   color: var(--ink-mid);
 }
 
-/* 快捷指令图标：统一 yl-icon 字体图标，颜色随文字层级 */
-.shortcut .ri {
-  font-size: 32rpx;
-  margin-right: 14rpx;
-  color: var(--ink-soft);
+/* chip（前几字按钮）：浅琥珀底 + 深琥珀字，与行内整句描述分层 [summary-shortcut v1] */
+.shortcut-chip {
+  flex-shrink: 0;
+  padding: 8rpx 20rpx;
+  margin-right: 18rpx;
+  border-radius: 24rpx;
+  background: var(--brand-tint-08);
+  border: 1rpx solid var(--brand-tint-25);
+  color: var(--brand-deep);
+  font-size: 24rpx;
+  font-weight: 600;
+  line-height: 1.4;
+  white-space: nowrap;
+}
+
+.shortcut-chip:active {
+  background: var(--brand-tint-25);
+}
+
+/* 生成中：chip 压暗（点击给 toast 反馈，不做无响应的死按钮） */
+.shortcut-busy .shortcut-chip {
+  opacity: 0.5;
 }
 
 .shortcut .shortcut-text {

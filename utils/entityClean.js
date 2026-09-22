@@ -244,6 +244,33 @@ function tidy(text) {
 }
 
 /**
+ * [person-hotword A'] 判断名称是否**明确不是名词本体**：虚词 / 代词 / 动词 / 形容词 /
+ * 数量词 / 时间词前缀。只做「否决」不做「肯定」—— 复用本模块既有的全部词表与数量词规则，
+ * 保证与备案链路同一口径（改一处两边同时变）。
+ * 用途：AI 抽人名时的语义级过滤（人名比"被解释的名词"宽得多，所以这里只拦明确不是名字的）。
+ * @param {string} name 待判定名称
+ * @returns {boolean} true 表示应丢弃
+ */
+function isNonNounWord(name) {
+  const n = String(name || '').trim()
+  if (!n) return true
+  if (n.length < 2 || n.length > 6) return true
+  // 时间词前缀（「今天杨帆」这类正则过度捕获）
+  for (let i = 0; i < TIME_PREFIX.length; i++) {
+    if (n.length > TIME_PREFIX[i].length && n.indexOf(TIME_PREFIX[i]) === 0) return true
+  }
+  // 含助词/功能字
+  for (let i = 0; i < FUNC_CHARS.length; i++) {
+    if (n.indexOf(FUNC_CHARS[i]) !== -1) return true
+  }
+  // 数量词（一个 / 十斤 / 百分之一 / 第一次）
+  if (NUM_EXPR_RE.test(n) || NUM_CLS_RE.test(n)) return true
+  // 虚词 / 代词 / 高频动词 / 高频形容词表
+  if (NON_NOUN_WORDS.indexOf(n) !== -1) return true
+  return false
+}
+
+/**
  * 批量清理日记正文中的解释部分
  * @param {string} content 日记正文
  * @param {Array<{name:string, explanation:string}>} entities 带原文解释片段的实体
@@ -267,4 +294,4 @@ function removeExplanations(content, entities) {
   return { content: cleaned, changed: cleaned !== content, removed: removed }
 }
 
-module.exports = { removeExplanations, removeOne, tidy, isExplainedNoun, hasCleanLeftBoundary }
+module.exports = { removeExplanations, removeOne, tidy, isExplainedNoun, hasCleanLeftBoundary, isNonNounWord }

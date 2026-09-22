@@ -48,7 +48,11 @@ const LOOSE_REPLACE_PATTERNS = [
 // 收紧条件防误判：X≥2字且不含标点/空格/「改/换/该」字（该：防「应该换成」把「应该」吃进目标词），Y不含标点空格；
 // 找不到目标词时（apply 返回 notFound）调用方按普通叙述保留，不会破坏正文。
 const BARE_REPLACE_PATTERNS = [
-  /^([^，,、。！!？?\s改换该]{2,8}?)(?:更改为|修改为|更正为|替换为|替换成|更换成|更改成|换成|变成|改为|改成|调整为|调整成|变更为)([^，,、。！!？?\s]{1,20})[。！!？?]?$/
+  // [mixed-sentence v1] 目标词与新词都不许含句内断点（：:；;…）——
+  // 否则「我接着说：把志伟改成杨志伟」会把「我接着说：把志伟」整个当成目标词：
+  // 正文里根本找不到 ⇒ 既没执行替换，这句又当指令被吃掉（用户说的话凭空消失）。
+  // 断点交给句尾剥离（detectTailCommand）负责切开。
+  /^([^，,、。！!？?\s：:；;…改换该]{2,8}?)(?:更改为|修改为|更正为|替换为|替换成|更换成|更改成|换成|变成|改为|改成|调整为|调整成|变更为)([^，,、。！!？?\s：:；;…]{1,20})[。！!？?]?$/
 ]
 
 const REMOVE_PATTERNS = [
@@ -666,6 +670,57 @@ function apply(content, edit) {
   return { content: out, changed: true, highlightWord: to, count: spans.length, usedRaw: usedRaw }
 }
 
+// ===== 口语引导语剥离（2026-09-22 真机：iPhone 语音「…我接着说，把志伟改成杨志伟。」）=====
+// 现场：ASR 把指令句用**逗号**黏在前文后边，而 splitSentences 只认 。！？\n ⇒ 整句带前缀
+// 去做指令匹配 ⇒ 判为叙述 ⇒ 指令不执行、还留在正文里（优化时 extractEmbedded 同判，一起失效）。
+// 做法：整句不是指令时，按句内断点（逗号/顿号/冒号/分号/省略号/空白）取**最后一段**再试一次。
+// 两道保守闸：
+//   ① 只切**最后一个**断点 —— 只有「引导语 + 句尾指令」这一种形状命中；
+//      不逐段试，否则叙述里随便一个「把X删掉」都可能被拆出来当指令执行。
+//   ② 干跑闸：给出的正文里必须真能找到目标（apply 会改动）才认，否则整句原样留作叙述 ——
+//      保证任何误判的代价都只是「指令没执行」，**绝不会凭空吞掉用户说的话**。
+// 前缀归叙述（「我接着说，」是用户自己写的内容，不能跟着指令一起消失）。
+const TAIL_BOUNDARY_RE = /[，,、：:；;…\s]+/g
+
+/* 取句子最后一个句内断点 → {lead, tail}；尾段必须非空，否则 null */
+function splitTailSeg(sentence) {
+  const s = String(sentence == null ? '' : sentence)
+  let start = -1
+  let end = -1
+  let m
+  TAIL_BOUNDARY_RE.lastIndex = 0
+  while ((m = TAIL_BOUNDARY_RE.exec(s)) !== null) {
+    // 断点后边还得有内容；断点本身可以在句首（「，把志伟改成杨志伟。」⇒ 前缀为空）
+    if (m.index + m[0].length < s.length) {
+      start = m.index
+      end = m.index + m[0].length
+    }
+  }
+  if (start < 0) return null
+  const tail = s.slice(end).trim()
+  if (!tail) return null
+  // 前缀允许为空（整句以断点开头，如「，把志伟改成杨志伟。」）：那就只执行指令、不追加前缀
+  const lead = s.slice(0, start).replace(/[，,、：:；;…\s]+$/, '')
+  return { lead: lead, tail: tail }
+}
+
+/**
+ * [mixed-sentence v1] 句尾指令识别：整句不是指令时的兜底（两道闸见上方注释）。
+ * @param {string} sentence 单句（含句末标点）
+ * @param {object} [opts] 透传给 detect（语音输入用 {loose:true}）
+ * @param {string} [content] 当前正文；**不传就整体不做**（没正文可干跑时不冒险执行）
+ * @returns {{edit:Object, lead:string}|null} lead = 该留下的引导语（已去掉结尾标点）
+ */
+function detectTailCommand(sentence, opts, content) {
+  if (content === undefined || content === null) return null
+  const seg = splitTailSeg(sentence)
+  if (!seg) return null
+  const edit = detectSentence(seg.tail, opts)
+  if (!edit) return null
+  if (!apply(String(content), edit).changed) return null
+  return { edit: edit, lead: seg.lead }
+}
+
 // ===== 按句拆分：支持一段输入/正文中混合多条指令 =====
 
 /**
@@ -699,15 +754,28 @@ function detectSentence(sentence, opts) {
  *   指令句逐条执行，普通句照常追加到日记末尾
  * @param {string} text 输入内容
  * @param {{loose?:boolean}} [opts] 透传给 detect：语音输入用宽松识别
+ * @param {string} [content] 当前正文：给了才能做「句尾指令剥离」的干跑校验
+ *   （不给 ⇒ 该能力关闭，行为与旧版逐字相同）
  * @returns {{commands:Array, narrative:string}}
  */
-function splitCommands(text, opts) {
+function splitCommands(text, opts, content) {
   const commands = []
   let narrative = ''
   for (const s of splitSentences(text)) {
     const edit = detectSentence(s, opts)
-    if (edit) commands.push(edit)
-    else narrative += s
+    if (edit) {
+      commands.push(edit)
+      continue
+    }
+    // [mixed-sentence v1] 整句不是指令时，试剥「口语引导语」：
+    // 「你看，你看，我接着说，把志伟改成杨志伟。」→ 执行替换 + 前缀留作叙述
+    const tail = detectTailCommand(s, opts, content)
+    if (tail) {
+      commands.push(tail.edit)
+      narrative += tail.lead
+      continue
+    }
+    narrative += s
   }
   return { commands: commands, narrative: narrative.trim() }
 }
@@ -724,11 +792,19 @@ function extractEmbedded(content) {
   const notFound = []
   const blocked = []
   for (const s of splitSentences(content)) {
-    const edit = detectSentence(s)
+    let edit = detectSentence(s)
+    let lead = ''
+    if (!edit) {
+      // [mixed-sentence v1] 口语引导语 + 句尾指令（「…我接着说，把志伟改成杨志伟。」）：
+      // 干跑成功才认（认了才吃这句），否则整句按叙述保留 —— 绝不因误判丢字。
+      const tail = detectTailCommand(s, undefined, narrative)
+      if (tail) { edit = tail.edit; lead = tail.lead }
+    }
     if (!edit) { narrative += s; continue }
     const res = apply(narrative, edit)
     if (res.changed) {
-      narrative = res.content
+      // 引导语留下（用户自己写的内容），只吃掉指令尾段
+      narrative = res.content + lead
       applied.push({ edit: edit, result: res })
     } else if (res.reason === 'allRemove') {
       // 明确拒绝的指令：句子按叙述保留，交由调用方提示原因

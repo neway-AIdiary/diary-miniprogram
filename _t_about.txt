@@ -1,0 +1,84 @@
+
+[appInfo 常量]
+  ✓ APP_NAME 非空
+  ✓ APP_NAME === 一灯记（3.A 范围：仅关于页用此名）
+  ✓ APP_VERSION 形如 x.y.z
+  ✓ APP_INTRO 是一段完整简介
+  ✓ ICP_NO 含主体编号 + 序列号后缀
+  ✓ ICP_SITE 是工信部备案系统域名
+  ✓ WECHAT_ID 非空且无空格
+  ✓ PRODUCER 非空（出品方主体名称）
+
+[关于页文件]
+  ✓ 存在 pages/about/about.js
+  ✓ 存在 pages/about/about.json
+  ✓ 存在 pages/about/about.wxml
+  ✓ 存在 pages/about/about.wxss
+  ✓ about.json 是合法 JSON
+  ✓ 导航标题与 APP_NAME 一致
+  ✓ about.json 声明了 usingComponents
+
+[路由与入口]
+  ✓ app.json 已注册 pages/about/about
+  ✓ about 只注册一次
+  ✓ setting.js 已无 showAbout（旧弹窗拆除）
+  ✓ setting.js 有 goToAbout
+  ✓ 跳转路径与注册路径一致 → /pages/about/about
+  ✓ setting.js 已无旧弹窗文案
+  ✓ setting.wxml 绑定 goToAbout
+  ✓ setting.wxml 不再绑定 showAbout
+
+[图标子集]
+  ✓ 用到的图标都已内嵌（4 个）
+
+[事件与数据绑定]
+  ✓ 绑定的事件都有实现（4 个）
+  ✓ wxml 变量都在 data 中声明（8 个）
+  ✓ 复制走 wx.setClipboardData
+  ✓ about.js 未硬编码备案号（只从 appInfo 取）
+  ✓ about.js 未硬编码出品方名称（只从 appInfo 取）
+  ✓ about.js data 暴露 producer
+  ✓ about.js 接入主题（theme.applyTo）
+  ✓ about.wxml 出品方行绑 {{producer}} 并整行可点复制
+  ✓ about.wxml 出品方行沿用既有行结构（menu-item + about-copy 复用，无新样式）
+  ✓ about.wxml 出品方行的标签文案是「出品方」
+  ✓ 出品方行排在信息卡首行（主体信息先于备案号）
+
+[APP_NAME 字面量泄漏]
+  ✓ write.js 已引入 appInfo
+  ✓ write.js data 暴露 appName
+  ✓ 侧栏标题绑定 {{appName}}（不再硬编码）
+  ✓ 侧栏标题区已无字面量
+  ✓ APP_SLOGAN 非空
+  ✓ 顶栏标题由 appInfo 拼出（APP_NAME + · + APP_SLOGAN）
+  ✓ 顶栏标题绑定 {{navTitle}}（不再硬编码）
+  ✓ 顶栏标题区已无字面量
+  ✓ 顶栏实际标题 = 一灯记·让AI照亮此间
+  ✓ 侧栏标题仍绑 appName（未被顶栏改动波及）
+  ✓ .nav-title 规则块可定位
+  ✓ 顶栏标题字号 = 30rpx（用户指定的半档值，非令牌档位）
+  ✓ 顶栏其余样式未动（字重/颜色/字距/字体仍是 title 系）
+  ✓ 侧栏标题字号未被波及（仍 --title-2）
+  ✓ utils/navbar.js 可加载且导出纯函数
+  ✓ 375 屏：偏移为正，且标题中心落在「图标右缘 ↔ 胶囊左缘」中点
+  ✓ 375 屏：偏移量 ≈ 27.5px
+  ✓ 375 屏：内联样式用 margin-left（不用 left —— 失效时退回数学居中而非跑飞）
+  ✓ 375 屏：当前标题不触发缩字（仍有余量）
+  ✓ 320 窄屏：偏移按本机算（比 375 更大），当前标题仍不缩字
+  ✓ 取不到胶囊信息时走兜底估算，结果与显式传入一致
+  ✓ 胶囊信息异常 → shift=0 且样式不含定位（退回数学居中，不推向不可预期位置）
+  ✓ 超长标题触发缩字
+  ✓ 缩字不低于下限 24rpx
+  ✓ 缩到下限仍不够则截断（max-width + 省略号）
+  ✓ 估算宽度：全角 1 字号宽、半角 0.55（本标题 ≈ 308.5rpx）
+  ✓ write.js 已引入 utils/navbar.js
+  ✓ write.js 调用 computeNavTitle 并把结果写进 navTitleStyle
+  ✓ write.js 取胶囊信息包了 try/catch（取不到不阻塞页面）
+  ✓ write.wxml 顶栏标题绑定内联样式 {{navTitleStyle}}
+  ✓ .nav-title 仍保留 left:50% + translateX(-50%)（内联偏移缺失时的降级底）
+  ✓ .nav-title 显式垂直居中（top:50% + translateY(-50%)）[nav-title-center v2]
+  ✓ write.wxml 技术支持行绑定 {{appName}}（3.A 收敛，不再硬编码）
+  ✓ wxml 硬编码 APP_NAME 未超出白名单（扫 21 个文件）
+  ✓ 红灯自检：改动前侧栏标题确实硬编码（断言有区分度）
+
+===== 结果: 70 通过, 0 失败 =====
