@@ -1,0 +1,8 @@
+[OK  ] op1 app.wxss · page 背景 transparent
+[OK  ] op2a utils/theme.js · applyChrome 取 mode
+[OK  ] op2b utils/theme.js · 下拉回弹三点跟随主题
+[OK  ] op3 summary.json · 删页面级静态浅色
+[OK  ] op4 font-setting.json · 删页面级静态浅色
+[OK  ] op5 setting-reminder.json · 删页面级静态浅色
+[bak ] 备份目录已存在，早退（幂等）
+[write] 落盘完成，6 项已应用、0 项跳过，复核全过

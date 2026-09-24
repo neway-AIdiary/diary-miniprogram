@@ -5,6 +5,7 @@ const mediaGuard = require('../../utils/mediaGuard.js')
 const theme = require('../../utils/theme.js')
 const lock = require('../../utils/lock.js')
 const appInfo = require('../../utils/appInfo.js')
+const shareCard = require('../../utils/shareCard.js') // [share-card-fallback v1] 品牌图探活与兜底
 const app = getApp()
 
 Page({
@@ -526,9 +527,10 @@ Page({
   },
 
   onShareAppMessage() {
-    return {
-      title: appInfo.APP_NAME + ' — 记录每一天的故事',
+    // [share-card-fallback v1] 品牌图探活：取不到时自动回落「当前页面截图」，不再显示破图
+    return shareCard.build({
+      title: appInfo.APP_NAME + ' — 你的数字分身',
       path: '/pages/write/write'
-    }
+    })
   }
 })

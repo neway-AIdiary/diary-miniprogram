@@ -115,6 +115,5 @@
   <!-- 智能总结悬浮按钮 -->
   <view class="summary-fab" bindtap="goToSummary">
     <text class="summary-fab-icon ri ri-quill-pen-line"></text>
-    <text class="summary-fab-text">智能总结</text>
   </view>
 </view>

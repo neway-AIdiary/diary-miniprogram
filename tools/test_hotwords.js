@@ -1,6 +1,6 @@
 /**
  * 热词构建回归测试（本地 node 运行，wx mock + 真实 storage/tags/util 链路）
- * 覆盖：档案名词优先、近十天日记高频词、频次阈值、token 预算 100、日缓存、词过滤
+ * 覆盖：档案名词优先、近十天日记高频词、频次阈值、token 预算 150、日缓存、词过滤
  */
 const path = require('path')
 const fs = require('fs')
@@ -63,16 +63,17 @@ ok(w.indexOf('王新伟') !== -1 && w.indexOf('腾讯公司') !== -1, '档案词
 ok(w.indexOf('健身房') !== -1, '近十天出现≥2次的「健身房」入选')
 ok(w.indexOf('久远') === -1, '超十天的日记不参与统计')
 
-// ===== 4. token 预算 100 =====
-section('token 预算 100（不超限、不凑满）')
+// ===== 4. token 预算 150 =====
+section('token 预算 150（[hotword-budget-150 v1]，不超限、不凑满）')
+ok(hotwords.TOKEN_BUDGET === 150, 'A0 总预算导出 = 150 token（[hotword-budget-150 v1]）')
 store['archives'] = []
-// 构造 30 个 4 字档案名（每个 6 tokens，30 个需 180 > 100 预算）
+// 构造 30 个 4 字档案名（每个 6 tokens，30 个需 180 > 150 预算）
 const manyNames = []
 for (let i = 0; i < 30; i++) manyNames.push({ name: '测试档案' + String(i).padStart(2, '0'), description: '' })
 storage.saveArchives(manyNames)
 w = hotwords.get(true)
 const total = w.reduce((s, x) => s + hotwords.estTokens(x), 0)
-ok(total <= hotwords.TOKEN_BUDGET, '总 token ' + total + ' ≤ 100')
+ok(total <= hotwords.TOKEN_BUDGET, '总 token ' + total + ' ≤ ' + hotwords.TOKEN_BUDGET)
 ok(w.length < 30, '档案词超预算即停（收录 ' + w.length + ' 个，未凑满）')
 
 // ===== 5. 日缓存 =====
@@ -105,6 +106,19 @@ if (iRead !== -1) {
   console.log('  （「读书」未过阈值或非高频词，跳过排序断言）')
   pass++
 }
+
+// ===== 6b. 同频次内按最近出现日期新→旧排 [hotword-recency v1] =====
+section('同频次内越新的日记词越靠前（[hotword-recency v1]）')
+store['archives'] = []
+store['diaries'] = [
+  { id: 'r1', content: '蛋糕很甜，蛋糕真好吃', created_at: iso(0) },
+  { id: 'r2', content: '咖啡馆很安静，咖啡馆真舒服', created_at: iso(5) }
+]
+w = hotwords.get(true)
+const iCake = w.indexOf('蛋糕')
+const iCoffee = w.indexOf('咖啡馆')
+ok(iCake !== -1 && iCoffee !== -1, '同频次两词均入选（蛋糕/咖啡馆 各出现 2 次）')
+ok(iCake < iCoffee, '同频次：今天的「蛋糕」排在 5 天前的「咖啡馆」前（3 字词不再凭先收录抢位）')
 
 // ===== 7. 草稿上下文（编辑框已有内容作为即时热词） =====
 section('草稿上下文（getContextTerms / build({contextText}) / get(_, {contextText})）')

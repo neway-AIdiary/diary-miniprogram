@@ -4,7 +4,7 @@
  * - 内容唯一来源 utils/dailyQuote.js，本页不写死任何正文
  * - 入参：?i=<池子下标>（侧栏卡片透传，兼容保留）；?d=YYYY-MM-DD（日期头翻日入口）
  *   下标/日期非法、或指向未来，一律回落到今天那一签
- * - 日期头 [quote-date v2]：两行轻文字（星期·星座·节气 / 公历+农历），数据来自 utils/lunarDate.js；
+ * - 日期头 [quote-date v4]：两行轻文字（公历日期+星期几 / 农历·星座·节气），数据来自 utils/lunarDate.js；
  *   ‹ › 箭头移至「诗词」标签右侧（2.A 紧贴），±1 天翻日，作用对象 = 该日那一签
  *   （getDetail 按日期确定性取模，同日恒定）；拍板 3.A：未来禁止（到今天 canNext 即 false），过去不限
  * - 主题沿用全站机制：根节点 class="page {{themeClass}}"，onShow 调 theme.applyTo(this)
@@ -50,6 +50,7 @@ Page({
     termName: '',       // 当前节气段（白露/秋分…，1.B 常驻）
     termIcon: '',       // 节气 emoji（🍁…）
     lunarFull: '',      // 丙午年八月十一
+    zodiac: '',         // 马（生肖；显示于农历与星座之间）
     canPrev: false,     // ‹ 可用（过去不限，恒 true；占位以便旧态渲染灰）
     canNext: false      // › 可用（到今天为止）
   },

@@ -7,8 +7,9 @@
 //    解决典型问题：先写"王威"再口述"把王威改成王伟"——避免"王威"被听成"王微/王菲"。
 // 1. 档案名词 —— 档案里的人名/机构名全部尝试装入
 // 2. 近十天日记高频关键词补充 —— 复用 tags 引擎提取，按出现频次排序，
+//    同频次内按「最近一次出现的日期」新→旧排 [hotword-recency v1]（越新的日记词越靠前），
 //    仅取出现 ≥2 次的「常说」词汇；不凑满预算
-// 3. 总预算 100 tokens（火山上限 200，取一半防止截断）；超预算即停，保持词完整
+// 3. 总预算 150 tokens（火山上限 200，取 3/4、留余量防截断）；超预算即停，保持词完整
 //
 // 缓存：基础词（档案 + 历史高频）按自然日缓存；context 热词每次按上下文重算（不缓存）。
 //   草稿文本每次录音都可能不同，不能跨日复用。
@@ -30,7 +31,10 @@ const SINGLE_STOP_CHARS = new Set((
   '不|很|都|又|再|便|则|将|应|可|能|会|要'
 ).split('|'))
 
-const TOKEN_BUDGET = 100   // 热词总 token 预算
+// [hotword-budget-150 v1] 热词总 token 预算 100→150（2026-09-24 用户拍板）：
+// 构建挂在 task.onOpen（不在「按下→出声」关键路径）且基础词按天预缓存，
+// 预算加大只让清单多装几个词、init 消息体多几十字节，不影响出声速度
+const TOKEN_BUDGET = 150
 const RECENT_DAYS = 10     // 回看近十天的日记
 const MAX_WORD_LEN = 12    // 单个热词最大长度（超长多为误提取的叙述碎片）
 const MIN_WORD_LEN = 2
@@ -141,15 +145,17 @@ function buildBase() {
   try {
     const cutoff = util.getDateKey(new Date(Date.now() - (RECENT_DAYS - 1) * 86400000))
     const diaries = storage.getAllDiaries() || []
-    const recentContents = []
+    const recentItems = []
     diaries.forEach(d => {
       const dk = d && d.created_at ? util.getDateKey(new Date(d.created_at)) : ''
-      if (dk && dk >= cutoff) recentContents.push(String((d && d.content) || ''))
+      if (dk && dk >= cutoff) recentItems.push({ dateKey: dk, content: String((d && d.content) || '') })
     })
-    if (recentContents.length) {
-      const freq = keywordFreq(recentContents, seen)
-      Object.keys(freq)
-        .sort((a, b) => freq[b] - freq[a])
+    if (recentItems.length) {
+      // [hotword-recency v1] 频次降序 → 同频次按「最近出现日期」新→旧（2026-09-24 用户拍板）
+      const r = keywordFreq(recentItems, seen)
+      Object.keys(r.freq)
+        .sort((a, b) => r.freq[b] - r.freq[a] ||
+          String(r.lastDay[b] || '').localeCompare(String(r.lastDay[a] || '')))
         .forEach(w => {
           if (push(w)) count.keyword++
         })
@@ -243,16 +249,23 @@ function build(opts) {
  * ① 2/3 字滑窗统计（覆盖「健身房/咖啡馆」这类非主题词典的日常高频词），仅保留出现 ≥2 次；
  * ② 优先三字词——三字词收录后，其内含的双字片段不再重复收录（避免「健身房+健身+身房」浪费预算）；
  * ③ 停用词过滤（复用 tags 引擎的 STOP_WORDS）。
- * @param {string[]} contents 近十天日记正文列表
+ * @param {{dateKey: string, content: string}[]} items 近十天日记列表（dateKey 供同频次新旧排序）
  * @param {Set<string>} alreadySet 已收录的词（档案名词），其子串跳过
- * @returns {Object<string, number>} 词 → 出现次数
+ * @returns {{freq: Object<string, number>, lastDay: Object<string, string>}} 词→次数 与 词→最近出现日期
  */
-function keywordFreq(contents, alreadySet) {
+function keywordFreq(items, alreadySet) {
   const freq2 = {}
   const freq3 = {}
+  // [hotword-recency v1] 词 → 最近一次出现的 dateKey（同频次内「越新越靠前」的排序依据）
+  const lastDay = {}
 
   // 按标点/空白切段，滑窗不跨标点
-  contents.forEach(text => {
+  items.forEach(item => {
+    const text = (item && item.content) || ''
+    const dk = (item && item.dateKey) || ''
+    const track = (w) => {
+      if (dk && (!lastDay[w] || dk > lastDay[w])) lastDay[w] = dk
+    }
     const segs = text.split(/[^\u4e00-\u9fa5A-Za-z0-9]+/)
     segs.forEach(seg => {
       for (let i = 0; i < seg.length - 1; i++) {
@@ -260,6 +273,7 @@ function keywordFreq(contents, alreadySet) {
         if (!/[\u4e00-\u9fa5]{2}/.test(w) || !/^[\u4e00-\u9fa5]{2}$/.test(w)) continue
         if (STOP_WORDS.has(w)) continue
         freq2[w] = (freq2[w] || 0) + 1
+        track(w)
       }
       for (let i = 0; i < seg.length - 2; i++) {
         const w = seg.substr(i, 3)
@@ -267,6 +281,7 @@ function keywordFreq(contents, alreadySet) {
         // 三字词内含停用双字（如「的时候」）则丢弃
         if (STOP_WORDS.has(w.substr(0, 2)) || STOP_WORDS.has(w.substr(1, 2))) continue
         freq3[w] = (freq3[w] || 0) + 1
+        track(w)
       }
     })
   })
@@ -293,7 +308,7 @@ function keywordFreq(contents, alreadySet) {
     }
     if (!subOfSelected) out[w] = freq2[w]
   })
-  return out
+  return { freq: out, lastDay } // [hotword-recency v1]
 }
 
 /**

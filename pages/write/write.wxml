@@ -107,13 +107,7 @@
     </view>
   </view>
 
-  <!-- 技术支持说明：固定在左下角，属背景层（z-index 低），可被正文卡片/工具行压盖；
-       底部偏移 = 固定输入栏高度(114rpx) + 安全区 + 22rpx 间隙（含上移半行 12rpx），
-       故写在行内用 safeAreaBottom -->
-  <view class="tech-credit" style="bottom: calc(136rpx + {{safeAreaBottom}}px);">
-    <image class="tech-credit-icon" src="/images/tech-support-brain.png" mode="aspectFit" />
-    <text class="tech-credit-text">{{appName}} 由DeepSeek、火山引擎、腾讯云提供技术支持</text>
-  </view>
+  <!-- 说明行已移至设置页页脚（2026-09-24） -->
 
   <!-- 心情选择浮层（点击日期行心情胶囊弹出，fixed 定位在视口层，不随滚动） -->
   <!-- ===== 日期选择弹层（月视图日历） ===== -->
@@ -199,6 +193,11 @@
 
     <!-- ===== 底部输入栏（微信同款）===== -->
     <view class="input-bar-wrap">
+      <!-- [voice-clearall-v1] 语音清空全部后的撤销条：5 秒内点击可恢复，超时自动消失 -->
+      <view class="clear-undo-bar" wx:if="{{clearAllUndo}}" bindtap="onClearAllUndo">
+        <text class="clear-undo-text">已清空全部内容</text>
+        <text class="clear-undo-btn">撤销</text>
+      </view>
       <view class="input-bar" style="padding-bottom: calc(22rpx + {{safeAreaBottom}}px);">
       <!-- 表情/颜文字（飞书同款笑脸） -->
       <view class="input-btn input-emoji {{showEmojiPanel ? 'active' : ''}}" bindtap="toggleEmojiPanel">
@@ -215,7 +214,7 @@
           bindtouchend="onHoldEnd"
           bindtouchcancel="onHoldEnd"
           bindtouchmove="onVoiceTouchMove"
-        >{{voiceCanceling ? '松开取消' : (recording ? '松开 结束' : (connecting ? '连接中…' : '按住 说话'))}}</view>
+        >{{voiceCanceling ? '松开取消' : (recording ? '松开 结束' : (connectingSlow ? '连接中…' : '按住 说话'))}}</view>
       </view>
 
       <!-- 添加(+)：图片 / 视频 / 位置 -->
@@ -287,7 +286,7 @@
         <view class="sidebar-more" bindtap="goToIndex">
           <text class="ri ri-book-open-line sidebar-more-icon"></text>
           <text class="sidebar-more-text">打开日记本</text>
-          <text class="sidebar-more-suffix">开启你的数字化人生</text>
+          <text class="sidebar-more-suffix">开启你的数字人生</text>
         </view>
       </view>
 
@@ -334,19 +333,19 @@
     <view class="voice-modal-mask"></view>
     <view class="voice-modal-body">
       <!-- 识别文字卡片 -->
-      <view class="voice-card {{recording ? '' : 'voice-card-processing'}}">
+      <view class="voice-card {{(connectingSlow || transcribing) ? 'voice-card-processing' : ''}}">
         <view class="voice-card-header">
           <view class="voice-card-dot {{recording ? 'pulse' : ''}}"></view>
-          <text class="voice-card-title">{{transcribing ? '语音识别中' : (connecting ? '准备中' : '正在聆听')}}</text>
+          <text class="voice-card-title">{{transcribing ? '语音识别中' : (connectingSlow ? '准备中' : '正在聆听')}}</text>
         </view>
         <scroll-view class="voice-card-scroll" scroll-y scroll-top="{{liveScrollTop}}" enhanced show-scrollbar="{{false}}">
-          <text class="voice-card-text">{{liveText || (recording ? '请说话…' : (connecting ? '请稍候…' : '识别中…'))}}</text>
+          <text class="voice-card-text">{{liveText || (connectingSlow ? '请稍候…' : (recording || connecting ? '请说话…' : '识别中…'))}}</text>
         </scroll-view>
         <view class="voice-card-badge" wx:if="{{liveRemoved > 0}}">已过滤 {{liveRemoved}} 处语气词</view>
       </view>
 
-      <!-- 音频波形（仅在录音中显示） -->
-      <view class="voice-waves" wx:if="{{recording}}">
+      <!-- 音频波形（常驻占位、非录音态隐藏 ⇒ 开录时卡片不会被顶动；见 voice.wxss 的 .voice-waves-idle） -->
+      <view class="voice-waves {{recording ? '' : 'voice-waves-idle'}}">
         <view class="voice-wave voice-wave-1"></view>
         <view class="voice-wave voice-wave-2"></view>
         <view class="voice-wave voice-wave-3"></view>
@@ -358,7 +357,7 @@
     </view>
 
     <view class="voice-modal-footer">
-      <text class="voice-modal-tip" wx:if="{{voiceCanceling || transcribing}}">{{voiceCanceling ? '松开取消发送' : '处理中…'}}</text>
+      <text class="voice-modal-tip" wx:if="{{voiceCanceling}}">松开取消发送</text>
     </view>
   </view>
 
@@ -391,7 +390,10 @@
     <view class="opt-content">
       <view class="opt-points" wx:if="{{optimizeChanges.length > 0}}">
         <view class="opt-points-title">优化要点</view>
-        <view class="opt-point" wx:for="{{optimizeChanges}}" wx:key="*this">• {{item}}</view>
+        <view class="opt-point opt-point-probe" aria-hidden="true">行</view>
+        <view class="opt-points-scroll" style="{{optPointsScrollH ? 'max-height:' + optPointsScrollH + 'px' : ''}}">
+          <view class="opt-point" wx:for="{{optimizeChanges}}" wx:key="*this">• {{item}}</view>
+        </view>
       </view>
 
       <view class="opt-original-toggle" bindtap="toggleOriginal">

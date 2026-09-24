@@ -43,4 +43,10 @@
       </view>
     </view>
   </view>
+
+  <!-- 页脚（2026-09-24）：技术支持说明自设置页移入 [tech-credit-about v1] -->
+  <view class="tech-credit">
+    <text class="tech-credit-icon ri ri-quill-pen-line"></text>
+    <text class="tech-credit-text">{{appName}} 由DeepSeek、火山引擎、腾讯云提供技术支持</text>
+  </view>
 </view>

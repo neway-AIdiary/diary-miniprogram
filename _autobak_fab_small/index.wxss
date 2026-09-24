@@ -1,0 +1,392 @@
+/* ===== 首页 · 日记列表
+   美学：极简克制 · 琥珀暖色 · 编辑杂志风
+   规则：颜色一律走 app.wxss 令牌；标题用衬线展示字；靠发丝线与留白分层
+   —— 结构类名与 wxml 保持一致，仅改视觉 ===================== */
+.page {
+  min-height: 100vh;
+  background: var(--bg);
+}
+
+/* ---------- 工具行：日期范围胶囊（左）+ 导出/导入（右）[range-toolbar v1] ---------- */
+.toolbar-row {
+  display: flex;
+  align-items: center;
+  gap: 16rpx;
+  padding: 24rpx 24rpx 0;
+}
+
+/* 胶囊占剩余宽度；组件根 rp-row 已 width:100%，flex-wrap 兜底换行 */
+.toolbar-picker {
+  flex: 1;
+  min-width: 0;
+}
+
+/* 导出/导入：图标上、名称下的小操作块（名称都显示，22rpx 半粗小字）[index-ui2 v1 加粗一号] */
+.toolbar-actions {
+  display: flex;
+  flex-shrink: 0;
+}
+
+.toolbar-action {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  /* [index-ui2 v1] 124 -> 140rpx：下方名称升到 22rpx 半粗后「导出以下日记」6 字需 132rpx，
+     nowrap 在 124rpx 盒里会左右各溢 4rpx、两块文字互相贴住 ⇒ 预留 8rpx 余量
+     （宽度由范围胶囊的 flex 余量让出，胶囊侧实测仍有余裕） */
+  width: 140rpx;
+  padding: 4rpx 0 2rpx;
+}
+
+.toolbar-action .ri {
+  font-size: 36rpx;
+  color: var(--ink-soft);
+  line-height: 1.2;
+}
+
+.toolbar-action-text {
+  font-size: 22rpx;
+  font-weight: 600;
+  color: var(--ink-faint);
+  margin-top: 2rpx;
+  white-space: nowrap;
+}
+
+.toolbar-action-hover {
+  opacity: 0.6;
+}
+
+/* ---------- 搜索栏：暖灰槽 ---------- */
+.search-bar {
+  padding: 24rpx 24rpx 8rpx;
+  display: flex;
+  align-items: center;
+}
+
+.search-box {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  background: var(--bg-soft);
+  border: 1rpx solid transparent;
+  border-radius: var(--r-md);
+  padding: 18rpx 28rpx;
+  transition: border-color var(--dur) var(--ease), background var(--dur) var(--ease);
+}
+
+.search-box:focus-within {
+  background: var(--surface);
+  border-color: var(--brand);
+}
+
+.search-input {
+  flex: 1;
+  font-size: 28rpx;
+  color: var(--ink);
+}
+
+/* 空日记本下的导入入口已迁往写日记页侧栏 [empty-import-move v1] */
+
+.search-clear {
+  font-size: 28rpx;
+  color: var(--ink-faint);
+  padding: 0 8rpx;
+}
+
+/* 排序切换 [index-sort v1]：常驻搜索框右端；与左侧 × 清空以竖线分隔，位置不随搜索态抖动 */
+.sort-toggle {
+  display: flex;
+  align-items: center;
+  /* [index-ui2 v1] 分隔竖线：原 1rpx + --line(#E6DED2) 在暖灰槽上几乎看不见
+     ⇒ 加粗到 2rpx 并改用 --ink-faint（占位/图标级灰）；亮/暗两个主题下都清晰 */
+  margin-left: 14rpx;
+  padding: 4rpx 0 4rpx 20rpx;
+  border-left: 2rpx solid var(--ink-faint);
+  color: var(--ink-soft);
+}
+.sort-toggle-arrow {
+  font-size: 26rpx;
+  color: var(--brand);
+  margin-right: 4rpx;
+}
+.sort-toggle-label {
+  font-size: 24rpx;
+}
+.sort-toggle-hover {
+  opacity: 0.55;
+}
+
+.search-tip {
+  font-size: 24rpx;
+  color: var(--ink-soft);
+  padding: 16rpx 32rpx;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.search-tip-reset {
+  color: var(--brand);
+  letter-spacing: 0.5rpx;
+}
+
+.empty-sub {
+  font-size: 26rpx;
+  color: var(--brand);
+  margin-top: 16rpx;
+  padding-bottom: 4rpx;
+}
+
+/* ---------- 日记列表 ---------- */
+.diary-list {
+  padding: 16rpx 24rpx 48rpx;
+}
+
+.diary-item {
+  margin-bottom: 20rpx;
+}
+
+/* 卡片：暖白 + 发丝边框 + 左侧琥珀细标（编辑感来源） */
+.diary-card {
+  position: relative;
+  background: var(--surface);
+  border: 1rpx solid var(--line-soft);
+  border-radius: var(--r-lg);
+  padding: 32rpx 32rpx 28rpx 36rpx;
+  box-shadow: var(--shadow-sm);
+  transition: background var(--dur) var(--ease), border-color var(--dur) var(--ease), transform var(--dur) var(--ease);
+}
+
+.diary-card::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 28rpx;
+  bottom: 28rpx;
+  width: 4rpx;
+  border-radius: 0 4rpx 4rpx 0;
+  background: var(--brand);
+  opacity: 0;
+  transition: opacity var(--dur) var(--ease);
+}
+
+.diary-card:active {
+  background: var(--surface-press);
+  border-color: var(--line);
+  transform: scale(0.995);
+}
+
+.diary-card:active::before {
+  opacity: 1;
+}
+
+.diary-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 14rpx;
+}
+
+/* 标题：衬线展示字，杂志感核心 */
+.diary-title {
+  font-family: var(--font-display);
+  font-size: var(--title-2);
+  font-weight: var(--title-w);
+  color: var(--title-ink);
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  letter-spacing: var(--title-track);
+}
+
+/* AI 优化标签：琥珀描边小签 */
+.tag-ai {
+  font-size: 20rpx;
+  color: var(--ai-deep);
+  background: var(--ai-soft);
+  padding: 6rpx 16rpx;
+  border-radius: var(--r-sm);
+  flex-shrink: 0;
+  margin-left: 16rpx;
+  letter-spacing: 0.5rpx;
+}
+
+.diary-content {
+  font-family: var(--content-font);
+  font-size: calc(var(--content-size) - 3rpx);
+  color: var(--ink-mid);
+  line-height: 1.75;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+}
+
+/* ---------- 卡片媒体缩略图 ---------- */
+.diary-media {
+  display: flex;
+  gap: 12rpx;
+  margin-top: 20rpx;
+}
+
+.diary-media-item {
+  position: relative;
+  width: 200rpx;
+  height: 200rpx;
+  border-radius: var(--r-md);
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.diary-media-img {
+  width: 100%;
+  height: 100%;
+  display: block;
+  background: var(--bg-soft);
+}
+
+.diary-media-video {
+  background: var(--ink);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.diary-media-video-icon {
+  font-size: 48rpx;
+  color: var(--ink-invert);
+}
+
+/* 视频封面播放角标 */
+.diary-media-video-tag {
+  position: absolute;
+  right: 8rpx;
+  bottom: 8rpx;
+  display: flex;
+  align-items: center;
+  padding: 2rpx 10rpx;
+  border-radius: 16rpx;
+  background: rgba(0, 0, 0, 0.55);
+  color: var(--ink-invert);
+  font-size: 20rpx;
+  line-height: 1.5;
+}
+
+.diary-media-video-tag-dur {
+  margin-left: 4rpx;
+}
+
+/* ---------- 卡片位置 & 天气 ---------- */
+.diary-location {
+  font-size: 24rpx;
+  color: var(--ink-soft);
+  margin-top: 16rpx;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.diary-location .diary-weather {
+  margin-left: 24rpx;
+}
+
+.diary-card-footer {
+  margin-top: 20rpx;
+  padding-top: 18rpx;
+  border-top: 1rpx solid var(--line-soft);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.tag-mood {
+  font-size: 22rpx;
+  padding: 4rpx 16rpx;
+  border-radius: var(--r-sm);
+}
+
+.footer-left {
+  display: flex;
+  align-items: flex-start; /* 标签换行时，心情 pill 保持顶部一行，不被撑成两行 */
+  flex: 1;
+  min-width: 0;
+}
+
+.tag-list {
+  display: flex;
+  align-items: flex-start;
+  flex-wrap: wrap;
+  margin-left: 24rpx;
+}
+
+/* #标签（AI 自动生成）→ AI 语义蓝 chip；
+   尺寸/圆角与同卡片的心情 pill（.tag-mood）、AI 优化标签（.tag-ai）一致 */
+.tag-item {
+  font-size: 22rpx;
+  color: var(--ai-deep);
+  background: var(--ai-soft);
+  border: 1rpx solid var(--ai-tint-25);
+  padding: 4rpx 16rpx;
+  border-radius: var(--r-sm);
+  margin-right: 12rpx;
+  margin-bottom: 4rpx;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tag-mood {
+  font-size: 22rpx;
+  padding: 4rpx 16rpx;
+  border-radius: var(--r-sm);
+  white-space: nowrap;
+  flex-shrink: 0;
+  align-self: flex-start;
+  line-height: 1;
+}
+
+.diary-date {
+  font-size: 24rpx;
+  color: var(--ink-faint);
+  flex-shrink: 0;
+  letter-spacing: 0.5rpx;
+}
+
+/* 空状态按钮 */
+.empty-btn {
+  margin-top: var(--sp-xl);
+  padding: 20rpx 72rpx;
+  display: inline-block;
+}
+
+/* ===== 智能总结悬浮按钮（右下角，层级高于日记卡片）=====
+   [fab-circle v1] 2026-09-24：改辅助触控式正圆——只留羽毛笔居中、无文字；
+   底色沿用 AI 渐变令牌（--ai/--ai-deep 深浅主题各自取值，自动兼顾深色） */
+.summary-fab {
+  position: fixed;
+  right: 32rpx;
+  bottom: 64rpx;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 120rpx;
+  height: 120rpx;
+  background: linear-gradient(135deg, var(--ai) 0%, var(--ai-deep) 60%);
+  border-radius: 50%;
+  box-shadow: 0 8rpx 24rpx var(--ai-shadow-25);
+}
+
+.summary-fab:active {
+  transform: translateY(2rpx);
+  box-shadow: 0 6rpx 14rpx var(--ai-shadow-25);
+}
+
+.summary-fab-icon {
+  font-size: 44rpx;
+  line-height: 1;
+  color: var(--ink-invert);
+}
+

@@ -3,12 +3,13 @@
 
   <!-- 中部滚动区：时间范围 + 需求输入 + 快捷模板 + 结果 -->
   <scroll-view class="content-scroll" scroll-y enhanced show-scrollbar="{{false}}">
-    <view class="content-inner">
+    <view class="content-inner" style="{{scrollMinHeight ? 'min-height:' + scrollMinHeight + 'px' : ''}}">
 
       <!-- 筛选区：时间范围胶囊（公共组件 range-picker）[range-toolbar v1] -->
       <range-picker id="rangePicker" bind:change="onRangeChange" />
 
-      <!-- 需求输入区 -->
+      <!-- 需求输入区（[summary-freeze v1] 生成中 disabled：textarea 是原生组件，
+           同层渲染下未必被遮罩压住，这里必须是第二道闸） -->
       <view class="input-card">
         <view class="input-placeholder" wx:if="{{!prompt}}">
           <view>输入或说出你的总结需求</view>
@@ -17,6 +18,7 @@
         <textarea
           class="prompt-textarea"
           value="{{prompt}}"
+          disabled="{{loading}}"
           bindinput="onPromptInput"
           maxlength="-1"
           auto-height
@@ -54,7 +56,7 @@
         <!-- 初始状态 -->
         <view class="result-placeholder" wx:if="{{!loading && !error && !hasResult}}">
           <text class="ri ri-quill-pen-line placeholder-icon"></text>
-          <view class="placeholder-text">AI将根据您的指示生成总结</view>
+          <view class="placeholder-text">AI将根据你的指示生成总结</view>
         </view>
 
         <!-- Loading -->
@@ -78,17 +80,30 @@
     </view>
   </scroll-view>
 
+  <!-- [summary-freeze v1] 生成中整页冻结遮罩：吞掉全部点击与滑动（catchtap + catchtouchmove）
+       z-index 300 是数值夹逼出来的硬约束：
+         · 必须 > 201（range-picker 弹层 200/201）—— 低了盖不住时间胶囊本体与其弹层
+         · 必须 < 1000（.voice-modal 语音浮层）—— 高了会盖住浮层，导致「先按住说话 → 再点生成」
+           时松手事件被吞、录音永远结束不了
+       6% 极淡压暗表示「当前不可操作」：全透明会让用户误判卡死；不加文案/动画（结果区与底栏已有状态） -->
+  <view
+    class="gen-mask"
+    wx:if="{{loading}}"
+    catchtap="onFrozenTap"
+    catchtouchmove="onFrozenTap"
+  ></view>
+
   <!-- 底部固定底栏（与写日记主页 / 详情编辑页 / 档案页结构一致） -->
   <view class="input-bar-wrap">
     <view class="input-bar" style="padding-bottom: calc(22rpx + {{safeAreaBottom}}px);">
       <!-- 中间区：按住说话（默认语音输入） -->
       <view class="input-middle">
         <view
-          class="hold-talk {{recording ? 'recording' : ''}} {{connecting ? 'connecting' : ''}}"
+          class="hold-talk {{recording ? 'recording' : ''}} {{connectingSlow ? 'connecting' : ''}}"
           bindtouchstart="onHoldStart"
           bindtouchend="onHoldEnd"
           bindtouchcancel="onHoldEnd"
-        >{{recording ? '松开 结束' : (connecting ? '连接中…' : '按住 说话')}}</view>
+        >{{recording ? '松开 结束' : (connectingSlow ? '连接中…' : '按住 说话')}}</view>
       </view>
 
       <!-- 右侧：生成总结 -->
@@ -101,9 +116,9 @@
     <view class="voice-modal-mask"></view>
     <view class="voice-modal-body">
       <view class="voice-dot {{recording ? 'pulse' : ''}}"></view>
-      <view class="voice-title">{{transcribing ? '语音识别中' : (connecting ? '准备中' : '正在聆听')}}</view>
+      <view class="voice-title">{{transcribing ? '语音识别中' : (connectingSlow ? '准备中' : '正在聆听')}}</view>
       <scroll-view class="voice-text-scroll" scroll-y enhanced show-scrollbar="{{false}}">
-        <text class="voice-text">{{liveText || (recording ? '请说话…' : (connecting ? '请稍候…' : '识别中…'))}}</text>
+        <text class="voice-text">{{liveText || (connectingSlow ? '请稍候…' : (recording || connecting ? '请说话…' : '识别中…'))}}</text>
       </scroll-view>
     </view>
   </view>

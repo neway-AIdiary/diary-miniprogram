@@ -19,6 +19,12 @@ const SIDEBAR_DIARY_LIMIT = 3
 const MAX_IMAGES_PER_DAY = 6
 const MAX_VIDEOS_PER_DAY = 2
 
+// [privacy-weather-gate v2] 引导的第三个让路对象 = 系统定位授权弹框：
+//   兜底：定位回调长时间不来（极端：既不 success 也不 fail）→ 到点放行，绝不让引导永久卡住
+const LOCATE_SETTLE_TIMEOUT_MS = 3000
+//   缓冲：定位有结论后先停一拍再放引导 —— 原生弹框收起有动画，立刻糊上来观感很差
+const GUIDE_AFTER_LOCATE_MS = 450
+
 // 从日记的 AI 标签中挑侧栏展示的关键字：取第一个不超过 4 字的标签；没有则返回空（不显示）
 function pickSidebarKeyword(tags) {
   if (!Array.isArray(tags)) return ''
@@ -41,6 +47,7 @@ const textRules = require('../../utils/textRules.js')
 const reminder = require('../../utils/reminder.js')
 const guide = require('../../utils/guide.js')
 const appInfo = require('../../utils/appInfo.js')
+const shareCard = require('../../utils/shareCard.js') // [share-card-fallback v1] 品牌图探活与兜底
 // [dailyquote v1] 侧栏「每日一签」内容源（本地池 + 按日期确定性轮换）
 const dailyQuote = require('../../utils/dailyQuote.js')
 const quoteAsk = require('../../utils/quoteAsk.js')
@@ -138,6 +145,7 @@ Page({
     originalContent: '',
     optimizedContent: '',
     optimizeChanges: [],
+    optPointsScrollH: 0,   // [opt-points-scroll v2] 要点滚动区实测高度（px = 一行实测高 × 4）
     showOriginal: false,
     optimized: false,
     // ===== 实体备案弹窗 =====
@@ -157,6 +165,14 @@ Page({
     // 隐私查询是否有结论：false = 还不知道要不要弹隐私弹窗（异步查询在途）。
     // 引导靠它让路 —— 结论出来前绝不开播，否则两个弹层会叠着弹（见 maybeStartGuide）
     this._privacyChecked = false
+    // [privacy-weather-gate v1] 定位放行标记：隐私结论出来且「无需授权/已同意」才允许请求定位
+    this._locationAllowed = false
+    // [privacy-weather-gate v2] 定位询问闸门：true = 已出结论（默认，= 不拦）。
+    //   只在**真要发起 wx.getLocation 之前**由 armLocationGate() 置 false（见 refreshWeather）；
+    //   缓存够新时 loadWeather 会提前 return、根本不调定位 ⇒ 闸门保持 true，引导不白等。
+    this._locationSettled = true
+    this._locationTimer = null    // 兜底定时器（定位回调不来时放行）
+    this._guideDelayTimer = null  // 结论后的缓冲定时器
     // 日记本密码：冷启动首屏最早拦截点（需要锁且未解锁 → 立刻跳锁屏页）
     if (lock.guard()) return
     // 微信隐私协议：needAuthorization 为 true 时自绘弹窗征求同意（同意过/旧库均静默）。
@@ -284,6 +300,8 @@ Page({
 
   onUnload() {
     this.saveDraft()
+    // [voice-clearall-v1] 清空撤销条定时器随页面销毁清理
+    if (this._clearAllTimer) clearTimeout(this._clearAllTimer)
     if (this._offVoiceState) this._offVoiceState()
     // 兜底：写了媒体但未保存就离开页面时，清掉本会话新上传的云文件（避免孤儿）
     // 保存进行中（_savingMedia）不清理：等保存出口决定，防止误删即将被日记引用的媒体
@@ -517,6 +535,40 @@ Page({
     this.processInput(text, true)
   },
 
+  // ===== [voice-clearall-v1] 语音「清空全部」指令（2026-09-24 用户需求）=====
+  // 命中清空规则 → 清空输入框全部内容；毁灭性操作，旧正文存撤销条 5 秒内可一键恢复。
+  // 指令文本本身不写入正文（其余处理全部跳过）；正文本就为空时只吞掉指令不弹撤销条
+  tryClearAll(text) {
+    if (!aiEdit.matchClearAll(text)) return false
+    const prev = this.data.content || ''
+    if (prev) {
+      this._clearAllUndo = prev
+      if (this._clearAllTimer) clearTimeout(this._clearAllTimer)
+      this.setData({ clearAllUndo: true })
+      this._clearAllTimer = setTimeout(() => {
+        this._clearAllUndo = ''
+        this.setData({ clearAllUndo: false })
+      }, 5000)
+    }
+    this._setContent('')
+    return true
+  },
+
+  // 撤销条点击：恢复清空前的正文
+  onClearAllUndo() {
+    if (this._clearAllTimer) {
+      clearTimeout(this._clearAllTimer)
+      this._clearAllTimer = null
+    }
+    const prev = this._clearAllUndo || ''
+    this._clearAllUndo = ''
+    this.setData({ clearAllUndo: false })
+    if (prev) {
+      this._setContent(prev)
+      wx.showToast({ title: '已恢复原内容', icon: 'none', duration: 1500 })
+    }
+  },
+
   /**
    * 核心处理（语音输入入口；底栏已无键盘快捷输入，文字均在正文编辑框直接输入）：
    * 语音输入实时执行增删改指令——
@@ -535,6 +587,9 @@ Page({
       this._setContent(this.appendText(trimmed))
       return
     }
+
+    // [voice-clearall-v1] 语音清空全部指令：命中 → 清空输入框（旧内容进撤销条，5 秒）
+    if (this.tryClearAll(trimmed)) return
 
     // 备案名词优先匹配（仅语音输入）：识别结果中的同音字替换为档案中的正确名词
     let matchInfo = null
@@ -996,6 +1051,9 @@ Page({
   // 任何失败都「不清空」weatherInfo —— 宁可用上一次的值，也不要胶囊突然不见。
   loadWeather() {
     if (this._weatherLoading) return   // onLoad 与 onShow 紧邻触发，防重复请求
+    // [privacy-weather-gate v1] 定位让路隐私：wx.getLocation 是隐私接口，放行标记未置位前不请求
+    //（首启「隐私弹窗 + 定位弹窗」叠着弹的根治；放行后由 onPrivacyChecked / onPrivacyClosed 补拉）
+    if (!this._locationAllowed) return
     const cached = weather.readCache()
     if (cached) this.setData({ weatherInfo: cached.info })
     // [weather-city-backfill v1] 天气在但城市空 → 用缓存坐标单独补拉城市（天气本体不动）
@@ -1014,12 +1072,37 @@ Page({
   // 真实取数（定位 + 天气，带重试）；失败保留现有显示
   refreshWeather() {
     this._weatherLoading = true
-    weather.locateWeather().then((info) => {
+    // [privacy-weather-gate v2] 真要发起定位了（无缓存 / 缓存不够新）→ 关闸，引导先等；
+    //   并借 onSettle 拿「定位询问已出结论」的信号（定位回调是唯一出口）
+    this.armLocationGate()
+    weather.locateWeather({ onSettle: () => this.onLocationSettled() }).then((info) => {
       this._weatherLoading = false
       if (info && info.icon) this.setData({ weatherInfo: info })
     }).catch(() => {
       this._weatherLoading = false
     })
+  },
+
+  // ===== [privacy-weather-gate v2] 定位询问闸门（首启三弹层串行的最后一环）=====
+  // 背景：wx.getLocation 是隐私接口，首次调用会弹**系统定位授权弹框**（原生层，浮在页面之上）。
+  //   它恰在「隐私弹窗关闭」那一刻被 loadWeather 触发，而引导也在同一刻放行 ⇒ 两弹层同屏
+  //   （真机录屏 2026-09-24 报障）。修法：定位询问也纳入引导的让路链，严格串行：
+  //   隐私弹窗 → 定位授权弹框 → 新手引导。
+  /** 关闸：马上要发起定位了，引导先等（同时挂兜底，防止定位回调永不到来）*/
+  armLocationGate() {
+    this._locationSettled = false
+    if (this._locationTimer) clearTimeout(this._locationTimer)
+    this._locationTimer = setTimeout(() => this.onLocationSettled(), LOCATE_SETTLE_TIMEOUT_MS)
+  },
+
+  /** 定位询问已有结论（成功 / 失败 / 被拒 / 超时都算）→ 缓冲一小段再放引导 */
+  onLocationSettled() {
+    if (this._locationTimer) { clearTimeout(this._locationTimer); this._locationTimer = null }
+    if (this._locationSettled === true) return   // 兜底与真回调抢跑：只放行一次
+    this._locationSettled = true
+    // 缓冲：原生弹框收起有动画，立刻把引导糊上来观感很差（用户 2026-09-24 拍板 400~500ms）
+    if (this._guideDelayTimer) clearTimeout(this._guideDelayTimer)
+    this._guideDelayTimer = setTimeout(() => this.resumeGuide(), GUIDE_AFTER_LOCATE_MS)
   },
 
   // 指定坐标刷新天气（「添加」面板 → 位置，选完新位置后调用）
@@ -1076,7 +1159,10 @@ Page({
       // 注意用「查询是否有结论」而不是「此刻是否可见」：查询是异步的，
       // 用可见性判会在回调返回前误判成「没有弹层」（首启两弹叠着弹的根因）
       privacyChecked: this._privacyChecked === true,
-      privacyVisible: !!(popup && popup.data && popup.data.visible)
+      privacyVisible: !!(popup && popup.data && popup.data.visible),
+      // [privacy-weather-gate v2] 定位询问没结论前也让路（第三个弹层）；
+      // 用 !== false（不给 undefined 当「正在询问」）⇒ 老路径 / 未初始化一律放行
+      locationSettled: this._locationSettled !== false
     })
     // 让路：隐私弹窗可能马上冒出来 / 正开着 → 记住「在等」，由 onPrivacyClosed 接上
     if (action === 'wait') { this._guideWaiting = true; return }
@@ -1092,12 +1178,17 @@ Page({
     if (this._privacyTimer) { clearTimeout(this._privacyTimer); this._privacyTimer = null } // 结论已到，撤掉兜底定时器
     this._privacyChecked = true
     if (needAuth) return
+    // [privacy-weather-gate v1] 无需授权（老用户/已同意/旧基础库）→ 放行并补拉定位
+    this._locationAllowed = true
+    this.loadWeather()
     this.resumeGuide()
   },
 
   // 隐私弹窗关闭回调（组件 bind:close）
-  onPrivacyClosed() {
+  onPrivacyClosed(e) {
     this._privacyChecked = true // 关闭必然意味着查询已有结论（防御性补齐）
+    // [privacy-weather-gate v1] 「同意并继续」才放行定位；「暂不同意」本次会话不请求（下次同意后自然恢复）
+    if (e && e.detail && e.detail.agreed) { this._locationAllowed = true; this.loadWeather() }
     this.resumeGuide()
   },
 
@@ -1460,7 +1551,7 @@ Page({
           .concat(result.changes || [])
           .concat(opts.extraNotes || []),
         showOriginal: false
-      })
+      }, () => this.measureOptPoints())
     })
   },
 
@@ -1478,7 +1569,7 @@ Page({
       optimizedContent: (opts.text === undefined ? '' : opts.text),
       optimizeChanges: (this._localEditNotes || []).concat(opts.notes || []),
       showOriginal: false
-    })
+    }, () => this.measureOptPoints())
     if (opts.toast) wx.showToast({ title: opts.toast, icon: 'none', duration: 2500 })
   },
 
@@ -1513,7 +1604,7 @@ Page({
         optimizedContent: text,
         optimizeChanges: notes.concat(note ? [note] : []),
         showOriginal: false
-      })
+      }, () => this.measureOptPoints())
     }
 
     // ① 池内命中：本地直出
@@ -1564,7 +1655,7 @@ Page({
             optimizedContent: text,
             optimizeChanges: notes.concat([note + '；已展示现有文字，可直接编辑']),
             showOriginal: false
-          })
+          }, () => this.measureOptPoints())
         }
         if (clean && clean.trim().length >= 20) {
           wx.showToast({ title: '素材补全未成，已按普通润色继续', icon: 'none', duration: 2500 })
@@ -1581,6 +1672,22 @@ Page({
       if (quoteAsk.countPlain(body) > limit) body = quoteAsk.clampText(body, limit)
       const block = result.source ? body + '\n—— ' + result.source : body
       show(block, result.note || ('已补全' + (result.source ? '（' + result.source + '）' : '')))
+    })
+  },
+
+  // [opt-points-scroll v2] 要点框半行裁切修复：不同机型的真实行高与静态 rpx 预算
+  // 有偏差（Android 字体度量/取整差异），改为渲染后用探针节点实测一行高度，
+  // 把滚动区上限以 px 钉在恰好 4 行（探针继承要点正文同款字体与行高）
+  measureOptPoints() {
+    const query = wx.createSelectorQuery().in(this)
+    query.select('.opt-point-probe').boundingClientRect()
+    query.exec((res) => {
+      const rect = res && res[0]
+      if (!rect || !(rect.height > 0)) return
+      const h = Math.floor(rect.height * 4)
+      if (h > 0 && h !== this.data.optPointsScrollH) {
+        this.setData({ optPointsScrollH: h })
+      }
     })
   },
 
@@ -1987,9 +2094,15 @@ Page({
       //         排除 AI 误报的虚词（如「分别」）、带助词的短语（如「的第一天」），
       //         以及从更长专有名词里截出的子串（如「中国考古博物馆」→「古博物馆」）
       const existing = new Map(storage.getArchives().map(a => [a.name, a]))
+      // [entity-gate3-v1] 否决日志：被闸门拦下的词条打到控制台，真机核对代码版本用
+      const GATE_VER = 'gate-20260924c'
       const all = result.entities
         .filter(e => e.name && e.description && e.name.length >= 2 && e.name.length <= 6 && e.description.length >= 4)
-        .filter(e => entityClean.isExplainedNoun(e.name, content))
+        .filter(e => {
+          const gateOk = entityClean.isExplainedNoun(e.name, content, e.explanation || '')
+          if (!gateOk) console.log('[entity-gate ' + GATE_VER + '] 闸门已否决:', e.name)
+          return gateOk
+        })
         .map(e => {
           const old = existing.get(e.name)
           return {
@@ -2010,6 +2123,8 @@ Page({
 
       // 已备案的名词：不再弹窗提醒存档（避免重复打扰）
       const promptEntities = all.filter(e => !e.exists)
+      // [entity-gate3-v1] 弹窗清单日志：与上面「闸门已否决」成对，供真机核对代码版本
+      if (promptEntities.length > 0) console.log('[entity-gate ' + GATE_VER + '] 弹窗实体:', promptEntities.map(e => e.name).join('、'))
 
       if (promptEntities.length === 0) {
         finish()
@@ -2097,9 +2212,10 @@ Page({
   },
 
   onShareAppMessage() {
-    return {
-      title: appInfo.APP_NAME + ' — 记录每一天的故事',
+    // [share-card-fallback v1] 品牌图探活：取不到时自动回落「当前页面截图」，不再显示破图
+    return shareCard.build({
+      title: appInfo.APP_NAME + ' — 你的数字分身',
       path: '/pages/write/write'
-    }
+    })
   }
 })

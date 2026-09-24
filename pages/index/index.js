@@ -8,6 +8,7 @@ const fontSetting = require('../../utils/fontSetting.js')
 const theme = require('../../utils/theme.js')
 const lock = require('../../utils/lock.js')
 const appInfo = require('../../utils/appInfo.js')
+const shareCard = require('../../utils/shareCard.js') // [share-card-fallback v1] 品牌图探活与兜底
 const tagFit = require('../../utils/tagFit.js') // [tag-fit v1] 列表标签两行自适应
 
 Page({
@@ -71,7 +72,10 @@ Page({
       d.tags = Array.isArray(d.tags) ? d.tags.slice(0, 5) : []
       // [tag-fit v1] 卡片标签最多两行：估算溢出时从末尾丢（保底留 1 个）。
       // 只改展示 —— d.tags 仍是完整数据，搜索 / 详情页 / 导出 / 备份不受影响
-      d.tagsShown = tagFit.fitTags(d.tags, d.moodText).shown
+      // [date-year v1] 跨年（条目不在今年）时日期文案变长「2026/12/20 周六」，
+      // 标签可用宽度相应收窄，否则估 2 行、实排 3 行（tag-fit 的初衷被破坏）
+      d.tagsShown = tagFit.fitTags(d.tags, d.moodText,
+        util.isCrossYearDate(d.created_at) ? tagFit.WIDTHS.dateWidthCrossYear : 0).shown
       // 位置：显示位置名
       d.locationText = (d.location && d.location.name) ? d.location.name : ''
       // 天气：图标 + 文本（如「晴 28° · 深圳」），供列表展示与搜索
@@ -299,9 +303,10 @@ Page({
   },
 
   onShareAppMessage() {
-    return {
-      title: appInfo.APP_NAME + ' — 记录每一天的故事',
+    // [share-card-fallback v1] 品牌图探活：取不到时自动回落「当前页面截图」，不再显示破图
+    return shareCard.build({
+      title: appInfo.APP_NAME + ' — 你的数字分身',
       path: '/pages/index/index'
-    }
+    })
   }
 })

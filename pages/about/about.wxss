@@ -68,3 +68,25 @@
   border: 1rpx solid var(--brand-tint-25);
   border-radius: var(--r-pill);
 }
+
+/* ===== 页脚：技术支持说明（2026-09-24 自设置页移入）[tech-credit-about v1] ===== */
+.tech-credit {
+  margin-top: 48rpx;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6rpx;
+}
+
+.tech-credit-icon {
+  font-size: 22rpx;
+  color: var(--ink-faint);
+  opacity: 0.7;
+}
+
+.tech-credit-text {
+  font-size: 20rpx;
+  line-height: 1.2;
+  color: var(--ink-faint);
+  letter-spacing: 0.5rpx;
+}

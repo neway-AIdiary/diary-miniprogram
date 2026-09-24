@@ -533,7 +533,16 @@ function calculateStreak(list) {
 
   let streak = 0
   const today = new Date()
-  for (let i = 0; i < 365; i++) {
+  // [streak-uncap v1] 旧上限 365 把「连续记录满一年」的结果永久钉死在 365（第 366 天不再增长）。
+  // 上限改为「距最早一篇日记的天数 + 1」：同年内数据跨度必然小于 365，循环照旧遇到空档即 break，
+  // 所以非跨年场景与旧版逐字一致，只有跨年连续记录才会用上新上限。
+  let oldest = today.getTime()
+  list.forEach(d => {
+    const t = new Date(d.created_at).getTime()
+    if (!isNaN(t) && t < oldest) oldest = t
+  })
+  const span = Math.max(1, Math.ceil((today.getTime() - oldest) / 86400000) + 1)
+  for (let i = 0; i < span; i++) {
     const d = new Date(today)
     d.setDate(d.getDate() - i)
     const key = d.getFullYear() + '-' + d.getMonth() + '-' + d.getDate()

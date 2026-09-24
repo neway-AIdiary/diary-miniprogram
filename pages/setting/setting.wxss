@@ -172,3 +172,5 @@
 .menu-icon.danger {
   color: var(--danger);
 }
+
+

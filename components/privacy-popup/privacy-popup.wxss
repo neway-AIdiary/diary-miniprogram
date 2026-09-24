@@ -55,6 +55,15 @@
   text-align: center;
 }
 
+.pp-strong {
+  font-weight: 600;
+  color: var(--ink-mid);
+}
+
+.pp-desc-soft-line2 {
+  margin-top: 4rpx;
+}
+
 .pp-btn-agree {
   margin-top: 32rpx;
   width: 100%;

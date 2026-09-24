@@ -534,6 +534,17 @@
   height: 44rpx;
 }
 
+/* [voice-ready-guard v1] 波形占位：非录音态也保留这 64rpx（20 外边距 + 44 高），
+   否则录音一开始波形出现会把整张卡片顶上去，与文案切换叠加成「两段式跳动」。
+   占位期间同时停掉动画，避免空转。 */
+.voice-waves-idle {
+  visibility: hidden;
+}
+
+.voice-waves-idle .voice-wave {
+  animation: none;
+}
+
 .voice-wave {
   width: 6rpx;
   border-radius: 3rpx;

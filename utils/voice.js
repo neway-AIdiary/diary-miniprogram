@@ -14,6 +14,14 @@
 //    结果同样先净化再交付。
 //
 // 注意：净化（删语气词）是第一层处理，AI 优化（写日记页的润色按钮）是第二层，互不替代。
+//
+// [voice-ready-guard v1] 「准备中」防闪：connecting 是**开麦/建链的原生耗时**（真机常见 100~300ms），
+// 直接映射到浮层文案必然「准备中 → 正在聆听」一闪而过。这里把 connecting（真实状态）与
+// connectingSlow（呈现层信号）拆开：
+//   · 按下后 300ms 内 connecting 就结束（多数情况）⇒ connectingSlow 恒为 false，用户全程只看到「正在聆听」
+//   · 超过 300ms ⇒ 显示「准备中」；且一旦显示，最短停留 400ms，避免「刚显示就被切走」的第二段闪
+// connectingSlow 不参与任何录音/识别/超时逻辑，只驱动浮层文案与卡片样式（可安全忽略）。
+// 浮层的 wx:if 仍然只认 recording || transcribing || connecting ⇒ 按下即弹的响应感不变。
 
 const voiceFilter = require('./voiceFilter.js')
 const volcProto = require('./volcProto.js')
@@ -26,6 +34,7 @@ let state = {
   transcribing: false,
   seconds: 0,
   connecting: false,  // 实时链路建立中（授权→取配置→WS建连），按钮显示「连接中」
+  connectingSlow: false,  // [voice-ready-guard v1] connecting 已持续够久（呈现层：慢链路才显示「准备中」，快链路全程「正在聆听」）
   // ===== 实时链路 =====
   liveText: '',      // 当前净化后的实时识别文本（用户所见）
   liveRaw: '',       // 原始识别文本（存档/回溯用）
@@ -48,6 +57,13 @@ let currentContextText = ''
 // [hold-fast v1] 按下即起录后的「误触时长下限」：与旧版 300ms 防误触**同值**，
 // 保证「多短算点按、多长算长按」的语义逐字不变；不足此值的整段静默丢弃。
 const HOLD_MIN_MS = 300
+// [voice-ready-guard v1] 慢链路判定与最短停留（只影响呈现，见文件头说明）
+const CONNECT_SLOW_MS = 300          // connecting 超过它才允许显示「准备中」
+const CONNECT_SLOW_MIN_SHOW_MS = 400 // 一旦显示「准备中」，至少停留这么久（防阈值边缘的第二次闪）
+let connectingSlowTimer = null       // 显示计时器（到点才置 connectingSlow=true）
+let connectingSlowHoldTimer = null   // 最短停留计时器（延迟收起）
+let connectingSlow = false           // 判定结果，同步进 state.connectingSlow
+let connectingSlowShownAt = 0        // 本次「准备中」开始显示的时刻
 let sessionStartAt = 0           // 本次按下的时刻（stop() 用它和松手时刻求差，判定误触）
 const REC_AUTHED_KEY = 'voice_rec_authed_v1'   // 麦克风授权态持久化（跨冷启动，省掉一次 wx.authorize 往返）
 let recAuthTrusted = false       // 授权态取自持久化、尚未被本会话的 recorder 证实
@@ -76,8 +92,46 @@ function beginSession() {
   }, 1000)
 }
 
+// [voice-ready-guard v1] 按 state.connecting 起/停「慢链路」计时器，并把结果同步进 state。
+// 挂在 emitState 里而不是 9 处赋值点逐处插桩：所有改 connecting 的分支后面都紧跟一次 emitState
+// （beginSession / beginRecording 取消分支 / authorize fail / cancelSession / onStop / onError /
+// onOpen / finalizeStream），一处覆盖全部路径 ⇒ 少插桩、少出错。
+// 递归安全：内层 emitState 再进来时 connectingSlow 已为 true，不会重复排显示计时器。
+function syncConnectingSlow() {
+  if (state.connecting) {
+    // 新链路建立中：先把「延迟收起」作废（否则会把新一轮的标记提前关掉）
+    if (connectingSlowHoldTimer) { clearTimeout(connectingSlowHoldTimer); connectingSlowHoldTimer = null }
+    if (!connectingSlow && !connectingSlowTimer) {
+      connectingSlowTimer = setTimeout(() => {
+        connectingSlowTimer = null
+        if (state.connecting) {
+          connectingSlow = true
+          connectingSlowShownAt = Date.now()
+          emitState()
+        }
+      }, CONNECT_SLOW_MS)
+    }
+  } else {
+    if (connectingSlowTimer) { clearTimeout(connectingSlowTimer); connectingSlowTimer = null }
+    if (connectingSlow && Date.now() - connectingSlowShownAt < CONNECT_SLOW_MIN_SHOW_MS) {
+      // 已显示且未满最短停留：延迟收起（只排一次），期间继续保持显示
+      if (!connectingSlowHoldTimer) {
+        connectingSlowHoldTimer = setTimeout(() => {
+          connectingSlowHoldTimer = null
+          emitState()
+        }, CONNECT_SLOW_MIN_SHOW_MS - (Date.now() - connectingSlowShownAt))
+      }
+      state.connectingSlow = true
+      return
+    }
+    connectingSlow = false
+  }
+  state.connectingSlow = connectingSlow
+}
+
 // 向所有订阅页面广播当前状态
 function emitState() {
+  syncConnectingSlow()
   const snapshot = Object.assign({}, state)
   for (let i = 0; i < stateHandlers.length; i++) {
     try {
@@ -491,7 +545,11 @@ function initRecorder() {
 
   recorderManager.onError(() => {
     if (recordTimer) { clearInterval(recordTimer); recordTimer = null }
-    state = { recording: false, transcribing: false, seconds: 0, connecting: false, liveText: '', liveRaw: '', liveRemoved: 0, liveMode: false }
+    if (connectingSlowTimer) { clearTimeout(connectingSlowTimer); connectingSlowTimer = null }
+    if (connectingSlowHoldTimer) { clearTimeout(connectingSlowHoldTimer); connectingSlowHoldTimer = null }
+    connectingSlow = false
+    connectingSlowShownAt = 0
+    state = { recording: false, transcribing: false, seconds: 0, connecting: false, connectingSlow: false, liveText: '', liveRaw: '', liveRemoved: 0, liveMode: false }
     emitState()
     // [hold-fast v1] 先处理「信任持久化授权态、却始终没能开录」这一路：
     // recAuthTrusted 为真 ⇒ 本会话从未成功开录 ⇒ 最可能是权限被撤销，或录音被别的应用占用。
@@ -545,7 +603,7 @@ async function transcribe(filePath, format) {
       data: {
         fileID: uploadRes.fileID,
         format: format || 'wav',
-        // 热词随请求上传：与流式链路同源（草稿上下文 + 档案名词优先 + 近十天高频词，token 预算 100），
+        // 热词随请求上传：与流式链路同源（草稿上下文 + 档案名词优先 + 近十天高频词，token 预算 150），
         // build 内部按自然日缓存基础词，草稿上下文每次按 currentContextText 重算，本地毫秒级返回
         hotwords: (() => {
           try {
@@ -628,7 +686,14 @@ function start(opts) {
   state.liveText = ''
   state.liveRaw = ''
   state.liveRemoved = 0
+  // [voice-ready-guard v1] 新一轮按下：慢链路标记连同两个计时器一起复位
+  // （否则上一轮的标记会被本轮继承 ⇒ 新会话一上来就显示「准备中」）
+  if (connectingSlowTimer) { clearTimeout(connectingSlowTimer); connectingSlowTimer = null }
+  if (connectingSlowHoldTimer) { clearTimeout(connectingSlowHoldTimer); connectingSlowHoldTimer = null }
+  connectingSlow = false
+  connectingSlowShownAt = 0
   state.connecting = true
+  state.connectingSlow = false
   emitState()
 
   const stream = canStream()
@@ -769,4 +834,4 @@ function getState() {
   return Object.assign({}, state)
 }
 
-module.exports = { start, stop, onStateChange, getState, warmup, HOLD_MIN_MS }
+module.exports = { start, stop, onStateChange, getState, warmup, HOLD_MIN_MS, CONNECT_SLOW_MS, CONNECT_SLOW_MIN_SHOW_MS }

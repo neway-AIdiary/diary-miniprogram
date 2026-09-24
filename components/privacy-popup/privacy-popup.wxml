@@ -7,7 +7,8 @@
       <text class="pp-link" data-tab="terms" bindtap="goTerms">《用户协议》</text>
       <text class="pp-link" bindtap="goAgreement">《隐私政策》</text>
     </view>
-    <view class="pp-desc-soft">我们会按政策约定保护你的日记与个人信息；不同意也可继续使用基础记录功能。</view>
+    <view class="pp-desc-soft">我们会按约定保护你的个人信息，<text class="pp-strong">只有你能看到你的日记</text>；</view>
+    <view class="pp-desc-soft pp-desc-soft-line2">不同意也可继续使用基础记录功能。</view>
     <button
       class="pp-btn-agree"
       open-type="agreePrivacyAuthorization"

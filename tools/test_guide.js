@@ -214,9 +214,11 @@ ok(pjson.indexOf('guide-mask') !== -1 && sjson.indexOf('guide-mask') !== -1, 'E-
 ok(count(pj, "require('../../utils/guide.js')") === 1, 'E-8 写日记页只 require 一次 guide', count(pj, "require('../../utils/guide.js')"))
 ok(pj.indexOf('this.maybeStartGuide()') !== -1, 'E-9 onShow 里有启动入口')
 ok(pj.indexOf('popup.data.visible') !== -1, 'E-10 启动前检查隐私弹窗是否还开着（两弹层不叠着弹）')
-ok(pw.indexOf('bind:close="onPrivacyClosed"') !== -1 && pj.indexOf('onPrivacyClosed()') !== -1,
-  'E-11 隐私弹窗关闭后回调接上引导（串行，不抢弹）')
-ok(count(pp, "triggerEvent('close')") === 2, 'E-12 隐私弹窗「同意」「不同意」都通知关闭', count(pp, "triggerEvent('close')"))
+ok(pw.indexOf('bind:close="onPrivacyClosed"') !== -1 && pj.indexOf('onPrivacyClosed(e)') !== -1,
+  'E-11 隐私弹窗关闭后回调接上引导（串行，不抢弹；[privacy-weather-gate v1] 起收 event 参数）')
+ok(count(pp, "triggerEvent('close'") === 2, 'E-12 隐私弹窗「同意」「不同意」都通知关闭（[privacy-weather-gate v1] 起带 { agreed } 标记）', count(pp, "triggerEvent('close'"))
+ok(count(pp, "{ agreed: true }") === 1 && count(pp, "{ agreed: false }") === 1,
+  'E-12b [privacy-weather-gate v1] close 事件区分同意/不同意（页面据此决定是否补拉定位）')
 ok(pj.indexOf("step.pre === 'sidebar'") !== -1, 'E-13 侧栏步骤先开侧栏')
 ok(pj.indexOf('showSidebar: true') !== -1 && pj.indexOf('}, () => {') !== -1,
   'E-14 开侧栏后等 setData 回调再计时（抽屉是 transform 过渡，不等动画会量到屏外坐标）')
@@ -315,13 +317,55 @@ ok(pj.indexOf('this.onPrivacyChecked(false)') !== -1 && count(pj, 'onPrivacyChec
 ok(pj.indexOf('const action = guide.evalStart({') !== -1, 'G-17 裁决走 guide.evalStart（单一来源，不在这页重写）')
 ok(pj.indexOf("if (action === 'wait') { this._guideWaiting = true; return }") !== -1,
   'G-18 让路时留下「在等」标记')
-ok(count(pj, 'this.resumeGuide()') === 2 && pj.indexOf('this.maybeStartGuide()') !== -1,
-  'G-19 让路结束（结论回来 / 弹窗关闭）都走 resumeGuide 重新裁决', count(pj, 'this.resumeGuide()'))
+ok(count(pj, 'this.resumeGuide()') === 3 && pj.indexOf('this.maybeStartGuide()') !== -1,
+  'G-19 让路结束（结论回来 / 弹窗关闭 / 定位询问结束）都走 resumeGuide 重新裁决', count(pj, 'this.resumeGuide()'))
 ok(pp.indexOf('return new Promise((resolve)') !== -1 && pp.indexOf('resolve(need)') !== -1,
   'G-20 privacy-popup.tryShow 返回结论（Promise<boolean>）')
 ok(pp.indexOf('return Promise.resolve(false)') !== -1, 'G-21 旧基础库分支也返回 Promise（不返回 undefined）')
 ok(pj.indexOf('this._privacyTimer = setTimeout(') !== -1 && pj.indexOf('clearTimeout(this._privacyTimer)') !== -1,
   'G-22 查询超时有兜底（极端情况引导不会被永久卡住），且结论一到就撤掉定时器')
+
+/* ===== G2. 第三个弹层：系统定位授权弹框也要让路（[privacy-weather-gate v2]）=====
+ * 现象（真机录屏 2026-09-24）：隐私弹窗点「同意并继续」后，定位授权弹框与引导第 1 步同屏。
+ * 根因：wx.getLocation 在「隐私弹窗关闭」那一刻被触发（原生弹框当帧弹出），引导也在同一刻放行
+ *       —— 当年的两两串行只做了两条边（隐私↔定位、隐私↔引导），定位↔引导这条边从未接。
+ * 修法：定位询问纳入让路链 + 结论后 450ms 缓冲（等原生弹框收起动画走完）。 */
+console.log('== G2. 定位询问串行 ==')
+ok(ev({ active: false, shouldAuto: true, privacyChecked: true, privacyVisible: false, locationSettled: false }) === 'wait',
+  'G2-1 定位询问未出结论 → 让路等（本次 bug 的正面修复）')
+ok(ev({ active: false, shouldAuto: true, privacyChecked: true, privacyVisible: false, locationSettled: true }) === 'start',
+  'G2-2 定位询问已出结论 → 开播（弹框已处理完）')
+ok(ev({ active: false, shouldAuto: true, privacyChecked: true, privacyVisible: false }) === 'start',
+  'G2-3 不传 locationSettled = 已结论（向后兼容：与上面 G-3 逐字同判）')
+ok(ev({ active: false, shouldAuto: true, privacyChecked: false, locationSettled: false }) === 'wait',
+  'G2-4 隐私仍在前：两个让路条件同时成立也只回 wait（顺序由页面串起来）')
+ok(ev({ active: true, belongsHere: true, locationSettled: false }) === 'resume' &&
+  ev({ active: true, belongsHere: false, locationSettled: false }) === 'abort',
+  'G2-5 已在播时先判归属（半途失效优先，不被定位闸门挂住）')
+const oldLocVerdict = (privacyVisible) => (privacyVisible ? 'wait' : 'start') // 旧判据：只看隐私
+ok(oldLocVerdict(false) === 'start' &&
+  ev({ active: false, shouldAuto: true, privacyChecked: true, privacyVisible: false, locationSettled: false }) === 'wait',
+  'G2-6 红灯自检：同一时刻旧判据开播（→ 与定位弹框同屏）、新判据等待 —— 断言正对准本次 bug')
+
+/* 静态护栏：闸门必须真接线（纯函数好看但没接上 = 白搭） */
+ok(pj.indexOf('this._locationSettled = true') !== -1, 'G2-7 写日记页有「定位结论」状态（默认放行）')
+ok(pj.indexOf('locationSettled: this._locationSettled !== false') !== -1,
+  'G2-8 裁决读它（不把 undefined 当「正在询问」）')
+ok(pj.indexOf('this.armLocationGate()') !== -1 && pj.indexOf('armLocationGate() {') !== -1,
+  'G2-9 发起定位前关闸（定义 + 调用各一处）')
+ok(pj.indexOf('weather.locateWeather({ onSettle: () => this.onLocationSettled() })') !== -1,
+  'G2-10 定位结论经 onSettle 回页（weather.js 提供的唯一出口）')
+const wgSrc = read(path.join(base, 'utils', 'weather.js'))
+ok(wgSrc.indexOf('opts.onSettle') !== -1 && count(wgSrc, 'markSettled()') >= 3,
+  'G2-11 weather.locateWeather 支持 onSettle，成功 / 失败 / 空坐标三条路都算结论',
+  count(wgSrc, 'markSettled()'))
+ok(pj.indexOf('this._locationTimer = setTimeout(() => this.onLocationSettled(), LOCATE_SETTLE_TIMEOUT_MS)') !== -1,
+  'G2-12 定位回调超时有兜底（极端情况引导不会被永久卡住）')
+const mBuf = /const GUIDE_AFTER_LOCATE_MS = (\d+)/.exec(pj)
+ok(!!mBuf && Number(mBuf[1]) >= 400 && Number(mBuf[1]) <= 500,
+  'G2-13 结论后的缓冲落在 400~500ms（用户拍板口径）', mBuf && mBuf[1])
+ok(pj.indexOf('privacyVisible: !!(popup && popup.data && popup.data.visible),') !== -1,
+  'G2-14 locationSettled 与既有判据并列（不是替换掉隐私判据）')
 
 /* ============ 6. 红灯自检 ============ */
 console.log('== F. 红灯自检（对改动前的备份文件，断言必须不通过）==')
@@ -370,6 +414,8 @@ if (exists(b2PP)) {
  * 页面里确实有「检查隐私弹窗」的代码，只是判据读的是异步未落地的状态。
  * 这节直接把 write.js 加载起来（vm + wx 桩），用手指头把时序按一遍。 */
 const flush = () => new Promise((r) => setTimeout(r, 0))
+// [privacy-weather-gate v2] 等「定位结论 + 缓冲」走完（GUIDE_AFTER_LOCATE_MS = 450）
+const wait = (ms) => new Promise((r) => setTimeout(r, ms))
 
 function mkCtx(writeFile) {
   // 每个场景全新模块实例，避免互相污染（页面/工具模块都是单例）
@@ -481,7 +527,12 @@ function boot(ctx) {
     boot(ctx)
     await flush()
     ok(ctx.page._privacyChecked === true, 'I-11 无需授权：结论照样落地（不能因为「不弹」就不给结论）', ctx.page._privacyChecked)
-    ok(g.isActive() === true, 'I-12 无需授权时引导直接开播（不等一个永远不会来的弹窗）')
+    // [privacy-weather-gate v2] 定位询问也要走一遍「有结论 + 缓冲」：桩里 getLocation 同步失败
+    // ⇒ 结论立刻落地，但引导要等缓冲（450ms）走完才开播
+    ok(ctx.page._locationSettled === true, 'I-12a 定位询问已出结论（桩：同步失败）')
+    ok(g.isActive() === false, 'I-12b 缓冲期内还没开播（等原生弹框收起）')
+    await wait(600)
+    ok(g.isActive() === true, 'I-12c 缓冲走完 → 开播（不等一个永远不会来的弹窗）')
   }
 
   /* 场景 3：有「已看过」标记 → 首启不播（2.A 回归） */
@@ -505,7 +556,9 @@ function boot(ctx) {
     ctx.page.selectComponent = () => null
     boot(ctx)
     await flush()
-    ok(g.isActive() === true, 'I-15 取不到隐私组件 → 按「无需授权」放行（引导不会被永久卡住）')
+    ok(ctx.page._locationSettled === true, 'I-15a 定位询问已出结论（进了同一条闸门）')
+    await wait(600)
+    ok(g.isActive() === true, 'I-15b 取不到隐私组件 → 按「无需授权」放行（引导不会被永久卡住）')
   }
 
   /* 场景 5：中途从设置页返回（当前步不属于本页）→ 中止，不重播 */
@@ -539,6 +592,29 @@ function boot(ctx) {
       ok(!ctx.page._guideWaiting, 'I-20 红灯自检：旧代码没有「等待」概念', ctx.page._guideWaiting)
       if (resolvePrivacy) resolvePrivacy(true) // 收尾：别留悬挂 Promise
     }
+  }
+
+  /* 场景 7：★ 本次报障的原样复现 —— 点「同意并继续」后，定位弹框与引导绝不同屏（v2 修复） */
+  {
+    const ctx = mkCtx()
+    const g = ctx.guide
+    g.abort()
+    delete ctx.store[g.DONE_KEY]
+    let resolvePrivacy = null
+    const comp = { data: { visible: false }, tryShow: () => new Promise((r) => { resolvePrivacy = r }) }
+    ctx.page.selectComponent = () => comp
+    boot(ctx)
+    comp.data.visible = true
+    resolvePrivacy(true)
+    await flush()
+    ok(g.isActive() === false, 'I-21 隐私弹窗显示中：引导仍在让路')
+    comp.data.visible = false
+    ctx.page.onPrivacyClosed({ detail: { agreed: true } }) // 用户点「同意并继续」
+    await flush()
+    ok(ctx.page._locationSettled === true, 'I-22a 定位询问已出结论（桩：同步失败）')
+    ok(g.isActive() === false, 'I-22b ★ 定位弹框被处理完之前，引导绝不开播（不再同屏）')
+    await wait(600)
+    ok(g.isActive() === true, 'I-23 定位结论 + 缓冲之后才开播（严格串行：隐私 → 定位 → 引导）')
   }
 
   console.log('\n[test_guide] ' + pass + ' passed, ' + fail + ' failed')

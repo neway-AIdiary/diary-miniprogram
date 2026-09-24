@@ -10,6 +10,7 @@
  *   - 「暂不同意」/点蒙层 = 仅收起，不阻断功能；之后真触发隐私接口时，
  *     平台会弹官方默认弹窗兜底（未自绘监听 onNeedPrivacyAuthorization 的默认行为）
  *   - 颜色全部走主题令牌，深浅色由页面根节点 theme-dark 覆盖令牌自动生效
+ *   - [privacy-weather-gate v1] close 事件带 { agreed }：页面据此决定是否补拉定位
  */
 Component({
   data: {
@@ -39,14 +40,16 @@ Component({
     /* 官方同意按钮：open-type="agreePrivacyAuthorization" 回调 */
     onAgree() {
       this.setData({ visible: false })
-      // 通知页面「弹窗已收」：新手引导靠这个回调接上，两个弹层不叠着弹
-      this.triggerEvent('close')
+      // 通知页面「弹窗已收」：新手引导靠这个回调接上，两个弹层不叠着弹。
+      // [privacy-weather-gate v1] 带 agreed 标记：页面只在「同意」后才补拉定位
+      this.triggerEvent('close', { agreed: true })
     },
 
     /* 暂不同意 / 点蒙层：只收起，不缓存「已拒绝」（下次仍会询问） */
     onDisagree() {
       this.setData({ visible: false })
-      this.triggerEvent('close')
+      // [privacy-weather-gate v1] 不同意：页面不补拉定位（下次会话同意后自然恢复）
+      this.triggerEvent('close', { agreed: false })
     },
 
     /* 跳协议全文页（弹窗保持：返回后继续完成同意/不同意） */

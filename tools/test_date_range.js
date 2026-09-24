@@ -107,6 +107,11 @@ ok(dateRange.rangeText('month') === '本月', 'rangeText(month)')
 ok(dateRange.rangeText('custom', '2026-08-01', '2026-08-31') === '8月1日 至 8月31日', 'rangeText(custom)')
 ok(dateRange.rangeText('custom', '', '') === '所选时间段', 'rangeText(custom 未完成) 兜底')
 ok(dateRange.rangeText('all') === '全部时间', 'rangeText(all)')
+// [date-year v1] 跨年区间两端带年份；同年区间保持原样（上方 8月1日 至 8月31日 断言）
+ok(dateRange.rangeText('custom', '2025-12-20', '2026-01-05') === '2025年12月20日 至 2026年1月5日',
+  'rangeText(custom 跨年) 两端带年份')
+ok(dateRange.rangeText('custom', '2026-12-20', '2027-01-05') === '2026年12月20日 至 2027年1月5日',
+  'rangeText(custom 跨年) 跨到再下一年同样带年份')
 
 // =====================================================================
 console.log('---- B. components/range-picker 静态契约 ----')

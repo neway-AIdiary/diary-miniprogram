@@ -13,8 +13,11 @@ const app = getApp()
 // chip = 前几字（按钮：点击即按整句生成）；label = 整句（行内点按只填入输入框，不生成）
 // 口径（拍板 1）：输入框所见即所得 —— prompt 就是 label 原句，不加任何前缀包装
 // [v1.2] 不联动时间范围：点 chip 只填需求 + 生成，范围完全由顶部胶囊决定（原「拍板 2」撤销）
+// [monthly-review v1] 例外：「月度复盘」chip 点击即按「本月 + 上月」生成（固定近两月，不看顶部胶囊）；
+//   近两月无日记 → 提示「近两月没有日记记录，无法分析」。整句填入路径不触发该区间；
+//   用户手动改过输入框后标志失效（恢复由胶囊决定）。见 onQuickGenerate / onGenerate 的 review 分支
 const SHORTCUTS = [
-  { chip: '月度复盘', label: '本月日记的整体回顾' },
+  { chip: '月度复盘', label: '近两月日记的整体回顾' },
   { chip: '心迹追踪', label: '分析情绪与心态变化' },
   { chip: '强身规划', label: '对比运动记录拟定健身方案' },
   { chip: '学途建言', label: '总结学习情况给出提升建议' },
@@ -37,6 +40,9 @@ Page({
     fontStyle: '',
     // 底部安全区适配
     safeAreaBottom: 0,
+    // [footer-center v1.1] content-inner 实测最小高度（px）：scroll-view 内百分比
+    // min-height 真机不生效，改 JS 测量兜底 —— 空态提示据此在末条模板与底栏间垂直居中
+    scrollMinHeight: 0,
     prompt: '',
     loading: false,
     hasResult: false,
@@ -75,11 +81,30 @@ Page({
     })
   },
 
+  onReady() {
+    this.measureContent()
+  },
+
+  // [footer-center v1.1] 实测滚动区高度 → content-inner 的 px 最小高度
+  // （scroll-view 内百分比 min-height 真机不生效，见 2026-09-23 用户反馈）
+  measureContent() {
+    if (!wx.createSelectorQuery) return
+    const q = wx.createSelectorQuery()
+    q.select('.content-scroll').boundingClientRect()
+    q.exec((res) => {
+      const rect = res && res[0]
+      if (rect && rect.height > 0) {
+        this.setData({ scrollMinHeight: Math.round(rect.height) })
+      }
+    })
+  },
+
   onShow() {
     theme.applyTo(this)
     // 日记本密码：需要锁且本会话未解锁 → 跳锁屏页（页面栈清空，退不回内容页）
     if (lock.guard()) return
     this.setData({ fontStyle: fontSetting.buildStyle() })
+    this.measureContent() // [footer-center v1.1] 返回本页 / 字体设置变化后重测
     // 注册语音目标：按住说话识别结果填入输入框
     this._voiceHandle = (text) => this.appendPrompt(text)
     app.globalData.voiceTarget = {
@@ -104,6 +129,10 @@ Page({
 
   // ===== 输入 =====
   onPromptInput(e) {
+    // [summary-freeze v1] 生成中冻结整页：不接收输入（遮罩已挡，此处是原生 textarea 的兜底）
+    if (this.data.loading) return
+    // [monthly-review v1] 手动改过需求 → 近两月固定区间失效（恢复由顶部胶囊决定）
+    this._reviewRange = false
     this.setData({ prompt: e.detail.value })
   },
 
@@ -116,6 +145,9 @@ Page({
 
   // ===== 语音（按住说话）=====
   onHoldStart() {
+    // [summary-freeze v1] 生成中冻结整页：不起录
+    // ⚠️ onHoldEnd **故意不加守卫** —— 生成开始前已在录音的会话必须能正常松手收尾，否则录音挂死
+    if (this.data.loading) return
     this._suppressEnd = false
     // [hold-fast v1] 按下即起录：不再等 300ms，误触判定移到 voice.js#stop()
     this._isHolding = true
@@ -133,6 +165,9 @@ Page({
 
   // ===== 时间范围（range-picker 公共组件）[range-toolbar v1] =====
   onRangeChange(e) {
+    // [summary-freeze v1] 生成中冻结整页：忽略范围变更
+    // （本次生成已取区间快照，生成中改范围只会让用户误以为「改了生效」）
+    if (this.data.loading) return
     const d = (e && e.detail) || {}
     this._rangeState = { range: d.range || 'all', customStart: d.customStart || '', customEnd: d.customEnd || '' }
   },
@@ -140,7 +175,11 @@ Page({
   // ===== 快捷模板 =====
   // 行内非 chip 区域（整句描述）：只填入输入框，用户可改完再点「生成总结」
   onShortcut(e) {
+    // [summary-freeze v1] 生成中冻结整页：静默忽略（静默是用户口径：整页无响应，
+    // 不再用 toast 提示「你点错了」；chip 压暗 + 遮罩压暗已给出「不可操作」信号）
+    if (this.data.loading) return
     const fill = e.currentTarget.dataset.fill
+    this._reviewRange = false // [monthly-review v1] 整句填入只填需求，不触发近两月固定区间
     this.setData({ prompt: fill })
     // [summary-shortcut v1.3] 点整句只填入、不生成 —— 用 toast 交代去向（否则用户不知道它去哪了）
     if (fill) wx.showToast({ title: '已填入输入框，可修改后生成', icon: 'none' })
@@ -149,11 +188,14 @@ Page({
   // [summary-shortcut v1.3] 点 chip（前几字）：填入整句后立即生成（不改动时间范围）
   onQuickGenerate(e) {
     const ds = (e && e.currentTarget && e.currentTarget.dataset) || {}
-    // 生成中给反馈，不静默早退（本项目铁律：任何早退都要有面板）
-    if (this.data.loading) {
-      wx.showToast({ title: '正在生成，请稍候', icon: 'none' })
-      return
-    }
+    // [summary-freeze v1] 生成中整页冻结：静默早退。
+    // 前身是 v1.3 的「给反馈、不静默早退」——那条铁律的初衷是防**静默失败**（用户以为操作生效了），
+    // 此处不适用：已有一个生成在跑 + 遮罩压暗 + chip 压暗，用户不会误解为「已按新要求生成」。
+    // 用户 2026-09-23 拍板：生成中整页点击不反应（静默是口径的一部分）
+    if (this.data.loading) return
+    // [monthly-review v1] 「月度复盘」chip：本次生成固定用近两月区间（上月 1 日 ~ 今天），
+    // 不看顶部胶囊；其余 chip 照旧只管需求
+    this._reviewRange = (ds.chip === '月度复盘')
     if (ds.label) this.setData({ prompt: ds.label })
     this.onGenerate()
     // [v1.3] 确认反馈：让用户知道点对了地方。**只在真的进入生成态时才弹** ——
@@ -163,6 +205,12 @@ Page({
       wx.showToast({ title: '正在按「' + (ds.chip || '模板') + '」生成', icon: 'none' })
     }
   },
+
+  // [summary-freeze v1] 冻结遮罩的点击/滑动接收器：**故意空实现**。
+  // wxml 里它同时挂在 catchtap 与 catchtouchmove 上 —— 事件在遮罩层就被吃掉（catch 不冒泡），
+  // 下面的胶囊/输入框/快捷模板/按住说话因此收不到任何触摸。
+  // 这里不做任何事，也绝不允许有副作用（B27 盯这条）
+  onFrozenTap() {},
 
   // ===== 生成总结 =====
   onGenerate() {
@@ -184,13 +232,29 @@ Page({
       return
     }
 
+    // [monthly-review v1] 生效区间：默认跟随顶部胶囊；「月度复盘」chip 强制近两月
+    // （上月 1 日 00:00 ~ 今天 23:59，与 custom 档同口径）。只影响本次生成的区间，胶囊状态不动
+    const review = this._reviewRange === true
+    let effRange = rs.range
+    let effStart = rs.customStart
+    let effEnd = rs.customEnd
+    if (review) {
+      const now = new Date()
+      const pad = (x) => (x < 10 ? '0' + x : '' + x)
+      const lmFirst = new Date(now.getFullYear(), now.getMonth() - 1, 1)
+      effRange = 'custom'
+      effStart = lmFirst.getFullYear() + '-' + pad(lmFirst.getMonth() + 1) + '-01'
+      effEnd = now.getFullYear() + '-' + pad(now.getMonth() + 1) + '-' + pad(now.getDate())
+    }
+
     // 读本地日记 + 按时间筛选
     const all = storage.getAllDiaries()
     // 静默排除「AI 总结」生成的日记：总结结果是产出物，不再作为下一轮总结的输入
     const sourceList = all.filter(d => !util.isAiSummaryDiary(d))
-    const filtered = dateRange.filterByRange(sourceList, rs.range, rs.customStart, rs.customEnd) // [range-toolbar v1]
+    const filtered = dateRange.filterByRange(sourceList, effRange, effStart, effEnd) // [range-toolbar v1]
     if (!filtered.length) {
-      this.setData({ error: '所选时间段暂无日记，请更换时间范围或去写日记', hasResult: false, result: '' })
+      // [monthly-review v1] 近两月固定区间下无日记：按用户口径提示，不引导去换时间范围
+      this.setData({ error: review ? '近两月没有日记记录，无法分析' : '所选时间段暂无日记，请更换时间范围或去写日记', hasResult: false, result: '' })
       return
     }
 
@@ -221,7 +285,7 @@ Page({
     const frontTruncated = diaries.length < totalCount
     this.setData({ truncated: frontTruncated })
     if (!diaries.length) {
-      this.setData({ error: '所选时间段暂无日记', hasResult: false, result: '' })
+      this.setData({ error: review ? '近两月没有日记记录，无法分析' : '所选时间段暂无日记', hasResult: false, result: '' })
       return
     }
 
@@ -235,7 +299,7 @@ Page({
       return
     }
 
-    const rangeDate = dateRange.rangeDateKeys(rs.range, rs.customStart, rs.customEnd) // [range-toolbar v1]
+    const rangeDate = dateRange.rangeDateKeys(effRange, effStart, effEnd) // [range-toolbar v1]
     wx.cloud.callFunction({
       name: 'aiSummary',
       data: {
@@ -251,7 +315,7 @@ Page({
         const payload = {
           content: r.summaryText,
           prompt: prompt,
-          rangeText: dateRange.rangeText(rs.range, rs.customStart, rs.customEnd), // [range-toolbar v1]
+          rangeText: dateRange.rangeText(effRange, effStart, effEnd), // [range-toolbar v1]
           diaryCount: r.diaryCount || diaries.length,
           truncated: !!r.truncated || frontTruncated,
           // [summary-token-cap v1] 输出被长度上限截断（内容没生成完）：透传给结果页如实提示
@@ -292,6 +356,7 @@ Page({
   // 结果展示/复制/保存已移至「总结结果」页（pages/summary-result），本页只负责生成
 
   onReset() {
+    this._reviewRange = false // [monthly-review v1] 重置清标志
     this.setData({
       prompt: '',
       error: ''

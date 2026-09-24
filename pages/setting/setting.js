@@ -1,4 +1,5 @@
 const theme = require('../../utils/theme.js')
+const appInfo = require('../../utils/appInfo.js')
 const lock = require('../../utils/lock.js')
 const storage = require('../../utils/storage.js')
 const guide = require('../../utils/guide.js')
@@ -7,6 +8,7 @@ const app = getApp()
 
 Page({
   data: {
+    appName: appInfo.APP_NAME,
     themeMode: 'light',
     themeLabel: '浅色',
     themePanelOpen: false,

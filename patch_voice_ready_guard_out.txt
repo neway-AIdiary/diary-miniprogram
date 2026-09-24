@@ -1,0 +1,41 @@
+SKIP(已应用) utils/voice.js             [voice-ready-guard v1] 「准备中」防闪：connecting 是*
+SKIP(已应用) utils/voice.js             connectingSlow: false,  // [voice-ready-guar
+SKIP(已应用) utils/voice.js             const CONNECT_SLOW_MIN_SHOW_MS = 400
+SKIP(已应用) utils/voice.js             function syncConnectingSlow() {
+SKIP(已应用) utils/voice.js             // [voice-ready-guard v1] 新一轮按下：慢链路标记连同两个计时器
+SKIP(已应用) utils/voice.js             connecting: false, connectingSlow: false, li
+SKIP(已应用) utils/voice.js             HOLD_MIN_MS, CONNECT_SLOW_MS, CONNECT_SLOW_M
+SKIP(已应用) pages/write/write.wxml     connectingSlow ? '准备中' : '正在聆听'
+SKIP(已应用) pages/write/write.wxml     connectingSlow ? '请稍候…' : (recording || conn
+SKIP(已应用) pages/write/write.wxml     (connectingSlow || transcribing) ? 'voice-ca
+SKIP(已应用) pages/write/write.wxml     voice-waves {{recording ? '' : 'voice-waves-
+SKIP(已应用) pages/write/write.wxml     音频波形（常驻占位、非录音态隐藏
+SKIP(已应用) pages/write/write.wxml     connectingSlow ? '连接中…' : '按住 说话'
+SKIP(已应用) pages/archive/archive.wxml connectingSlow ? '准备中' : '正在聆听'
+SKIP(已应用) pages/archive/archive.wxml connectingSlow ? '请稍候…' : (recording || conn
+SKIP(已应用) pages/archive/archive.wxml (connectingSlow || transcribing) ? 'voice-ca
+SKIP(已应用) pages/archive/archive.wxml voice-waves {{recording ? '' : 'voice-waves-
+SKIP(已应用) pages/archive/archive.wxml 音频波形（常驻占位、非录音态隐藏
+SKIP(已应用) pages/archive/archive.wxml connectingSlow ? '连接中…' : '按住 说话'
+SKIP(已应用) pages/detail/detail.wxml   connectingSlow ? '准备中' : '正在聆听'
+SKIP(已应用) pages/detail/detail.wxml   connectingSlow ? '请稍候…' : (recording || conn
+SKIP(已应用) pages/detail/detail.wxml   (connectingSlow || transcribing) ? 'voice-ca
+SKIP(已应用) pages/detail/detail.wxml   voice-waves {{recording ? '' : 'voice-waves-
+SKIP(已应用) pages/detail/detail.wxml   connectingSlow ? '连接中…' : '按住 说话'
+SKIP(已应用) pages/summary/summary.wxml connectingSlow ? '准备中' : '正在聆听'
+SKIP(已应用) pages/summary/summary.wxml connectingSlow ? '请稍候…' : (recording || conn
+SKIP(已应用) pages/summary/summary.wxml connectingSlow ? '连接中…' : '按住 说话'
+SKIP(已应用) pages/summary/summary.wxml {{connectingSlow ? 'connecting' : ''}}
+SKIP(已应用) pages/write/write.wxss     .voice-waves-idle {
+SKIP(已应用) pages/archive/archive.wxss .voice-waves-idle {
+SKIP(已应用) pages/detail/detail.wxss   .voice-waves-idle {
+backup skip(已存在) pages/archive/archive.wxml
+backup skip(已存在) pages/archive/archive.wxss
+backup skip(已存在) pages/detail/detail.wxml
+backup skip(已存在) pages/detail/detail.wxss
+backup skip(已存在) pages/summary/summary.wxml
+backup skip(已存在) pages/write/write.wxml
+backup skip(已存在) pages/write/write.wxss
+backup skip(已存在) utils/voice.js
+WROTE 8 文件
+汇总: write applied=0 skipped=31 failed=0

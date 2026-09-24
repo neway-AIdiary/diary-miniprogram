@@ -6,6 +6,7 @@ const mediaGuard = require('../../utils/mediaGuard.js')
 const aiCloud = require('../../utils/aiCloud.js')
 const reminder = require('../../utils/reminder.js')
 const appInfo = require('../../utils/appInfo.js')
+const shareCard = require('../../utils/shareCard.js') // [share-card-fallback v1] 品牌图探活与兜底
 const app = getApp()
 
 // 编辑模式媒体限额（与写日记页一致）：图片最多 6 张、视频最多 2 个（按日记所属日期统计）
@@ -1018,9 +1019,10 @@ Page({
   onShareAppMessage() {
     const d = this.data.diary
     const id = this.data.id
-    return {
+    // [share-card-fallback v1] 品牌图探活：取不到时自动回落「当前页面截图」，不再显示破图
+    return shareCard.build({
       title: d ? (util.resolveDiaryTitle(d) || '我的日记') : '我的' + appInfo.APP_NAME,
       path: id ? '/pages/detail/detail?id=' + encodeURIComponent(id) + '&share=1' : '/pages/write/write'
-    }
+    })
   }
 })

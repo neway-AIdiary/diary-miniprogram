@@ -361,7 +361,10 @@
   display: inline-block;
 }
 
-/* ===== 智能总结悬浮按钮（右下角，层级高于日记卡片） ===== */
+/* ===== 智能总结悬浮按钮（右下角，层级高于日记卡片）=====
+   [fab-circle v1] 2026-09-24：改辅助触控式正圆——只留羽毛笔居中、无文字；
+   底色沿用 AI 渐变令牌（--ai/--ai-deep 深浅主题各自取值，自动兼顾深色） */
+/* [fab-small v1] 直径 120rpx -> 60rpx（2026-09-24 用户指令：悬浮按钮缩小，直径改为一半） */
 .summary-fab {
   position: fixed;
   right: 32rpx;
@@ -369,26 +372,22 @@
   z-index: 100;
   display: flex;
   align-items: center;
-  gap: 10rpx;
-  padding: 22rpx 32rpx;
+  justify-content: center;
+  width: 60rpx;
+  height: 60rpx;
   background: linear-gradient(135deg, var(--ai) 0%, var(--ai-deep) 60%);
-  border-radius: var(--r-pill);
-  box-shadow: 0 8rpx 24rpx var(--ai-shadow-25);
+  border-radius: 50%;
+  box-shadow: 0 4rpx 12rpx var(--ai-shadow-25);
 }
 
 .summary-fab:active {
-  transform: translateY(2rpx);
-  box-shadow: 0 6rpx 14rpx var(--ai-shadow-25);
+  transform: translateY(1rpx);
+  box-shadow: 0 3rpx 8rpx var(--ai-shadow-25);
 }
 
 .summary-fab-icon {
-  font-size: 32rpx;
+  font-size: 24rpx;
   line-height: 1;
   color: var(--ink-invert);
 }
 
-.summary-fab-text {
-  font-size: 28rpx;
-  color: var(--ink-invert);
-  font-weight: 500;
-}

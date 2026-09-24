@@ -11,6 +11,9 @@
  * 启动前置条件（两页各自判断）：
  *   - 日记本密码：lock.guard() 已拦截（未解锁根本进不来）
  *   - 微信隐私弹窗：privacy-popup 关闭后（bind:close）才启动，绝不两弹窗叠着弹
+ *   - 系统定位授权弹框 [privacy-weather-gate v2]：wx.getLocation 首次调用会弹原生授权框，
+ *     而它恰在「隐私弹窗关闭」同一刻被触发 ⇒ 引导必须一并等它（判据 = evalStart.locationSettled）。
+ *     完整串行：隐私弹窗 → 定位授权弹框 → 新手引导。
  *   - 名词备案弹窗：引导期间不会出现（首启无日记），但写日记页仍加了在途判断
  *
  * 页面契约：目标元素必须带 id（见每步 target），且必须**唯一**。
@@ -214,6 +217,7 @@ function stepBelongsTo(page) {
  *   shouldAuto      是否还没有「已看过」标记（guide.shouldAutoStart()）
  *   privacyChecked  隐私查询是否已有结论（未回来前一律不算数）
  *   privacyVisible  隐私弹窗此刻是否可见
+ *   locationSettled [v2] 定位询问是否已出结论（显式 false = 正在询问 ⇒ 让路；不传 = 已结论）
  * @returns {'resume'|'abort'|'wait'|'start'|'none'}
  *   resume 继续播当前步｜abort 中途失效｜wait 让路等隐私弹窗｜start 开播｜none 不动
  */
@@ -224,6 +228,10 @@ function evalStart(s) {
   // 隐私弹窗是首启两个弹层里的第一个：查询没结论 / 弹窗还开着，都让路
   if (!s.privacyChecked) return 'wait'
   if (s.privacyVisible) return 'wait'
+  // [privacy-weather-gate v2] 第三个弹层也要让路：wx.getLocation 触发的**系统定位授权弹框**
+  //（原生层，浮在页面之上）。只认显式 false —— 不传（undefined）= 已结论，
+  // 老调用点与既有断言（G-3 等）行为逐字不变。
+  if (s.locationSettled === false) return 'wait'
   return 'start'
 }
 

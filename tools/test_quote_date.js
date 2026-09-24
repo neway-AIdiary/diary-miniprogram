@@ -45,6 +45,7 @@ ok(h.gregorian === '2026年09月21日', '2026-9-21 gregorian=2026年09月21日�
 ok(h.weekday === '星期一', '2026-9-21 weekday=星期一（got ' + h.weekday + '）')
 ok(h.constellation === '处女座', '2026-9-21 constellation=处女座（got ' + h.constellation + '）')
 ok(h.lunarFull === '丙午年八月十一', '2026-9-21 lunarFull=丙午年八月十一（got ' + h.lunarFull + '）')
+ok(h.zodiac === '马', '2026-9-21 zodiac=马（丙午马年，got ' + h.zodiac + '）')
 ok(h.termName === '白露' && h.termIcon === '💧', '2026-9-21 节气段=白露💧（1.B 常驻，got ' + h.termName + h.termIcon + '）')
 
 h = lunarDate.header(new Date(2026, 8, 23))
@@ -52,6 +53,7 @@ ok(h.termName === '秋分' && h.termIcon === '🍁', '2026-9-23 起进入秋分�
 
 h = lunarDate.header(new Date(2024, 1, 10)) // 2024 春节
 ok(h.lunarFull === '甲辰年正月初一', '2024-2-10（春节）lunarFull=甲辰年正月初一（got ' + h.lunarFull + '）')
+ok(h.zodiac === '龙', '2024-2-10（甲辰）zodiac=龙（got ' + h.zodiac + '）')
 ok(h.weekday === '星期六', '2024-2-10 weekday=星期六')
 ok(h.termName === '立春' && h.termIcon === '🌱', '2024-2-10 节气段=立春🌱（got ' + h.termName + h.termIcon + '）')
 
@@ -116,7 +118,8 @@ if (termOfFn && h.gregorian !== undefined) {
 h = lunarDate.header()
 ok(h && typeof h.gregorian === 'string' && typeof h.weekday === 'string' &&
    typeof h.constellation === 'string' && typeof h.termName === 'string' &&
-   typeof h.lunarFull === 'string', 'header() 缺省返回完整结构（v2 字段）')
+   typeof h.lunarFull === 'string' && typeof h.zodiac === 'string',
+  'header() 缺省返回完整结构（v2 字段 + zodiac）')
 
 // =====================================================================
 console.log('---- B. dailyQuote 按日期确定性 ----')
@@ -232,6 +235,7 @@ if (hasBehavior) {
   p.onLoad({ d: '2024-02-10' })
   ok(p.data.dateStr === '2024-02-10' && p.data.gregorian === '2024年02月10日', '?d 合法过去日期 → 直达（2024-2-10）')
   ok(p.data.lunarFull === '甲辰年正月初一', '2024-2-10 农历行=甲辰年正月初一')
+  ok(p.data.zodiac === '龙', '2024-2-10 生肖=龙（页面数据透传）')
   ok(p.data.canNext === true, '过去日期 canNext=true')
   ok(p.data.body === dailyQuote.getDetail(null, new Date(2024, 1, 10)).body, '?d 日期的一签 = 按该日取模')
 
@@ -260,14 +264,25 @@ const wxss = rd('pages/quote/quote.wxss')
 const qjs = rd('pages/quote/quote.js')
 
 ok(wxml.indexOf('date-head') >= 0 && wxml.indexOf('bindtap="onPrevDay"') >= 0 &&
-   wxml.indexOf('bindtap="onNextDay"') >= 0, 'wxml：日期头与翻日绑定在位（箭头移至「诗词」行）')
+   wxml.indexOf('bindtap="onNextDay"') >= 0 &&
+   wxml.indexOf('<view class="date-nav">') > wxml.indexOf('date-head') &&
+   wxml.indexOf('<view class="date-nav">') < wxml.indexOf('date-rule'),
+  'wxml [nav-move]：‹›翻日移入日期头（date-nav 在 date-head 与 date-rule 之间、贴右）')
+const kindRowSeg = wxml.slice(wxml.indexOf('quote-kind-row'), wxml.indexOf('quote-head'))
 ok(wxml.indexOf('quote-kind-row') >= 0 && wxml.indexOf('quote-nav-btn') >= 0 &&
-   wxml.indexOf('quote-nav-off') >= 0, 'wxml：「诗词」行 + 翻日按钮（2.A 紧贴标签右侧）')
+   wxml.indexOf('quote-nav-off') >= 0 && kindRowSeg.indexOf('onPrevDay') === -1,
+  'wxml [nav-move]：「诗词」行不再含翻日按钮（已挪至日期头右侧）')
 ok(wxml.indexOf('date-big') === -1 && wxml.indexOf('{{dayNum}}') === -1 &&
    wxml.indexOf('date-vert') === -1, 'wxml：旧版大数字/竖排结构整体移除')
-ok(wxml.indexOf('date-line2') >= 0 && wxml.indexOf('公历') >= 0 && wxml.indexOf('农历') >= 0 &&
-   wxml.indexOf('{{gregorian}}') >= 0 && wxml.indexOf('{{lunarFull}}') >= 0,
-  'wxml：第二行 = 公历 + 农历（干支年）')
+ok(wxml.indexOf('date-line1') >= 0 && wxml.indexOf('{{gregorian}}') >= 0 &&
+   wxml.indexOf('{{weekday}}') >= 0 && wxml.indexOf('date-cal') === -1 &&
+   wxml.indexOf('公历') === -1 && wxml.indexOf('农历') === -1,
+  'wxml [quote-date v4]：第一行 = 公历日期 + 星期几，「公历/农历」标签字样清零')
+ok(wxml.indexOf('{{lunarFull}}') >= 0 && wxml.indexOf('{{zodiac}} · ') >= 0 &&
+   wxml.indexOf('{{constellation}}') >= 0 && wxml.indexOf('{{termName}}') >= 0 &&
+   wxml.indexOf('{{zodiac}} · ') > wxml.indexOf('{{lunarFull}}') &&
+   wxml.indexOf('{{zodiac}} · ') < wxml.indexOf('{{constellation}}'),
+  'wxml [quote-zodiac]：第二行 = 干支日期 + 生肖 + 星座 + 节气（生肖在农历与星座之间）')
 ok(wxml.indexOf('wx:if="{{termName}}"') >= 0 && wxml.indexOf('{{termName}}') >= 0 &&
    wxml.indexOf('termIcon') === -1,
   'wxml：节气段绑定且不带 emoji [quote-date v3]（2.A）')
@@ -279,12 +294,14 @@ ok(wxml.indexOf('date-text') >= 0 && wxml.indexOf('date-line1') >= 0 &&
 ok(wxml.indexOf('date-rule') >= 0 && wxss.indexOf('.date-rule') >= 0 &&
    wxss.indexOf('font-weight: 600;') === -1,
   'wxml/wxss：区隔线在位 + 第1行已去加粗 [quote-date v3.1]')
-ok(wxml.indexOf('{{weekday}}') >= 0 && wxml.indexOf('{{constellation}}') >= 0,
-  'wxml：第二行 = 星期 · 星座 · 节气 [quote-date v3]')
+ok(wxml.indexOf('quote-foot') >= 0 &&
+   wxml.indexOf('{{appName}} · 以一灯传诸灯，终至万灯皆明') >= 0,
+  'wxml [quote-date v4]：页脚 = {{appName}} · 以一灯传诸灯，终至万灯皆明（无品牌字面量）')
 ok(wxss.indexOf('.quote-nav-off') >= 0 && wxss.indexOf('.quote-nav-hover') >= 0,
   'wxss：翻日按钮态（可用/悬停/越界置灰）')
-ok(wxss.indexOf('.date-big') === -1 && wxss.indexOf('.date-vert') === -1 && wxss.indexOf('.date-lunar') === -1,
-  'wxss：旧版大数字/竖排/农历行样式整体移除')
+ok(wxss.indexOf('.date-big') === -1 && wxss.indexOf('.date-vert') === -1 &&
+   wxss.indexOf('.date-lunar') === -1 && wxss.indexOf('.date-cal') === -1,
+  'wxss：旧版大数字/竖排/农历行/「公历农历」小标签样式整体移除')
 ok(wxss.indexOf('.date-icon-dot') >= 0 && wxss.indexOf('var(--brand)') >= 0,
   'wxss：琥珀强调收进图标日期圆点 [quote-date v3]')
 // 深浅主题：日期头不引入任何写死色值（v2 起点的后续段复核）

@@ -24,15 +24,15 @@
   background: var(--brand-tint-08);
 }
 
-/* 「诗词」行 + ‹›翻日 [quote-date v2]（2.A 紧贴标签右侧，无框、越界置灰） */
+/* 「诗词」行 [quote-date v2]（‹›翻日已挪至日期头右侧 .date-nav，无框、越界置灰） */
 .quote-kind-row {
   display: flex;
   align-items: center;
 }
 .quote-nav-btn {
-  margin-left: 16rpx;
-  padding: 4rpx 10rpx;
-  font-size: 34rpx;
+  margin-left: 24rpx;
+  padding: 6rpx 15rpx;
+  font-size: 51rpx;
   line-height: 1;
   color: var(--ink-soft);
   transition: opacity var(--dur) var(--ease);
@@ -110,9 +110,9 @@
   letter-spacing: 1rpx;
 }
 
-/* ===== [quote-date v3] 日期头：日历图标 + 两行文字，整块左对齐 =====
-   拍板 1.B：整块贴左（杂志页眉感）；2.A：节气不带 emoji；
-   第 1 行主视觉（公历+农历，深墨加大加粗）；第 2 行浅灰小字（星期·星座·节气）；
+/* ===== [quote-date v4] 日期头：日历图标 + 两行文字，整块左对齐 =====
+   整块贴左（杂志页眉感）；节气不带 emoji；
+   第 1 行主视觉（公历日期+星期几）；第 2 行浅灰小字（农历·星座·节气）；
    「星 ↔ 公」对齐 = 图标列宽即悬挂缩进；琥珀强调收进图标日期圆点；
    纯 CSS 绘制图标，颜色全走令牌，深色模式由 theme-dark 覆盖令牌生效 */
 .date-head {
@@ -185,6 +185,11 @@
   color: var(--ink-soft);
   letter-spacing: 2rpx;
 }
-.date-cal {
-  color: var(--ink-faint);
+/* ‹›翻日：贴日期头右侧（margin-left:auto 顶到 48rpx 内边距右缘），相对两行日期垂直居中 */
+.date-nav {
+  margin-left: auto;
+  align-self: center;
+  display: flex;
+  align-items: center;
 }
+/* [quote-date v4] 日期原小标签样式类已随标签字样一并移除 */

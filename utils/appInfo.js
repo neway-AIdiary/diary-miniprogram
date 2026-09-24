@@ -29,6 +29,11 @@ const PRODUCER = '北京伟帆科技中心'
 /* 联系方式 */
 const WECHAT_ID = 'baguanshanren'
 
+/* [share-card v1] 分享卡片品牌图（云存储文件 ID）：各页 onShareAppMessage 统一引用。
+ * 图片位于云存储 media/share-card.png（5:4，1000x800）；换图只改这一行。
+ * ⚠️ 若控制台实际 fileID 与此处不一致，以控制台复制为准替换。 */
+const SHARE_CARD_FILEID = 'cloud://aidiary-d6grgxkct50c30f45.6169-aidiary-d6grgxkct50c30f45-1468488197/media/share-card.png'
+
 module.exports = {
   APP_NAME,
   APP_SLOGAN,
@@ -37,5 +42,6 @@ module.exports = {
   ICP_NO,
   ICP_SITE,
   PRODUCER,
-  WECHAT_ID
+  WECHAT_ID,
+  SHARE_CARD_FILEID
 }

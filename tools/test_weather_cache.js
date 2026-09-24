@@ -182,6 +182,38 @@ async function main() {
   ok(info === null && ctl.locateCalls === 3,
     'C6 全失败共 3 次尝试（1 + RETRY_DELAYS.length）', ctl.locateCalls)
 
+  /* C7~C9 [privacy-weather-gate v2] onSettle：定位结论出口（引导靠它放行） */
+  resetStore(); ctl.locateCalls = 0; ctl.cloudOk = true; ctl.requestOk = false
+  let settleCount = 0
+  info = await locateWeather({
+    locate: makeLocate([false, true]), timer: immTimer, onSettle: () => { settleCount++ }
+  })
+  ok(settleCount === 1, 'C7 首次失败又重试成功 → onSettle 只回调一次（引导只放行一次）', settleCount)
+
+  resetStore(); ctl.locateCalls = 0; ctl.cloudOk = true; ctl.requestOk = false
+  settleCount = 0
+  info = await locateWeather({
+    locate: makeLocate([true]), timer: immTimer, onSettle: () => { settleCount++ }
+  })
+  ok(settleCount === 1, 'C8 定位成功 → onSettle 回调一次', settleCount)
+
+  resetStore(); ctl.locateCalls = 0
+  settleCount = 0
+  info = await locateWeather({
+    locate: () => { throw new Error('boom') }, timer: immTimer, onSettle: () => { settleCount++ }
+  })
+  ok(settleCount === 0 && info === null,
+    'C9 定位调用直接抛（回调都没走）→ 不回调，由页面兜底超时放行', settleCount)
+
+  resetStore(); ctl.locateCalls = 0; ctl.cloudOk = true; ctl.requestOk = false
+  settleCount = 0
+  info = await locateWeather({
+    locate: makeLocate([true]), timer: immTimer,
+    onSettle: () => { throw new Error('caller boom') }
+  })
+  ok(info && info.icon === '☀️' && settleCount === 0,
+    'C10 onSettle 回调自己抛异常 → 被吞掉，取天气照常完成（引导的事绝不拖累天气）')
+
   console.log('== D) fetchByCoords：直连降级（真机已配合法域名）==')
   resetStore(); ctl.cloudOk = false; ctl.requestOk = true; ctl.requests = 0
   info = await fetchByCoords(22.54, 114.06, { timer: immTimer })
@@ -242,11 +274,18 @@ async function main() {
   const idx = wjs.indexOf('loadWeather() {')
   const seg = wjs.slice(idx, wjs.indexOf('  closeAllPanels() {'))
   ok(idx >= 0 && seg.indexOf('weather.readCache()') >= 0, 'E1 loadWeather 先读本地缓存')
-  ok(seg.indexOf('weather.locateWeather()') > seg.indexOf('weather.readCache()'),
+  // [privacy-weather-gate v2] locateWeather 现在带 onSettle 回调（定位结论出口），调用形式变了
+  // ⇒ 断言改为容忍参数，判的还是同一件事：网络请求发生在缓存展示之后
+  ok(seg.search(/weather\.locateWeather\(/) > -1 &&
+    seg.search(/weather\.locateWeather\(/) > seg.indexOf('weather.readCache()'),
     'E2 缓存展示在网络请求之前（先秒显、再刷新）')
   ok(/cached\.age < weather\.FRESH_MS/.test(seg), 'E3 缓存够新则不打网络（省云函数调用）')
   ok(!/weatherInfo:\s*null/.test(seg), 'E4 失败不清空 weatherInfo（胶囊不消失）')
   ok(/if \(this\._weatherLoading\) return/.test(seg), 'E5 防重复请求（onLoad + onShow 紧邻触发）')
+  ok(/if \(!this\._locationAllowed\) return/.test(seg),
+    'E5b [privacy-weather-gate v1] 定位让路隐私：放行标记未置位不请求（首启「隐私弹窗+定位弹窗」叠弹的根治）')
+  ok(wjs.indexOf('this._locationAllowed = true') >= 0 && wjs.indexOf('e.detail.agreed') >= 0,
+    'E5c 无需授权/点「同意」才放行定位；「暂不同意」本次会话不请求（下次同意后自然恢复）')
   ok(/if \(!this\.data\.weatherInfo\) this\.loadWeather\(\)/.test(wjs), 'E6 onShow 缺天气时补拉一次')
   ok(/weather\.fetchByCoords\(latitude, longitude\)/.test(wjs),
     'E7「选完位置刷新天气」也走带重试的入口')

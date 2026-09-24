@@ -130,6 +130,28 @@ function recognizeFlash(audioBuffer, format, hotwords) {
   })
 }
 
+// [ai-usage v1] 商业化埋点：每次语音识别写一条 ai_usage（绝不阻塞业务返回）
+function getBeijingDateKey() {
+  const now = new Date(Date.now() + 8 * 3600 * 1000)
+  const pad = n => n < 10 ? '0' + n : '' + n
+  return now.getUTCFullYear() + '-' + pad(now.getUTCMonth() + 1) + '-' + pad(now.getUTCDate())
+}
+async function logAiUsage(fields) {
+  try {
+    const wxContext = cloud.getWXContext()
+    await cloud.database().collection('ai_usage').add({
+      data: Object.assign({
+        openid: (wxContext && wxContext.OPENID) || 'unknown',
+        fn: 'speechToText',
+        date: getBeijingDateKey(),
+        ts: Date.now()
+      }, fields)
+    })
+  } catch (e) {
+    console.warn('[ai-usage] speechToText 记账失败(不阻塞):', e && e.message)
+  }
+}
+
 exports.main = async (event) => {
   const { fileID, format, hotwords } = event
   const audioFormat = format === 'pcm' ? 'pcm' : 'wav'  // 流式回退传 pcm，默认 wav
@@ -147,6 +169,7 @@ exports.main = async (event) => {
     return { error: '未配置火山ASR密钥' }
   }
 
+  const startedAt = Date.now()
   try {
     // 1. 从云存储下载录音文件
     const fileRes = await cloud.downloadFile({ fileID })
@@ -154,10 +177,14 @@ exports.main = async (event) => {
     const text = await recognizeFlash(fileRes.fileContent, audioFormat, hotwords)
     // 3. 清理临时文件
     try { await cloud.deleteFile({ fileList: [fileID] }) } catch (e) {}
+    // [ai-usage v1] 记账：成功也记（阻塞 await，防云函数提前冻结丢记录）
+    await logAiUsage({ ok: true, audioBytes: fileRes.fileContent.length, costMs: Date.now() - startedAt })
     return { text }
   } catch (err) {
     // 出错也清理临时文件
     try { await cloud.deleteFile({ fileList: [fileID] }) } catch (e) {}
+    // [ai-usage v1] 记账：失败也记（算失败率，不阻塞错误返回）
+    await logAiUsage({ ok: false, error: String((err && err.message) || 'asr error').slice(0, 120), costMs: Date.now() - startedAt })
     return { error: err.message || '语音识别失败' }
   }
 }

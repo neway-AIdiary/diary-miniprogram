@@ -1,7 +1,9 @@
 {
   "name": "optimizeDiary",
   "version": "1.0.0",
-  "description": "调用 DeepSeek 大模型优化/续写日记（零依赖，仅用 Node 内置模块）",
+  "description": "调用 DeepSeek 大模型优化/续写日记（[ai-usage v1] 起依赖 wx-server-sdk 记账）",
   "main": "index.js",
-  "dependencies": {}
+  "dependencies": {
+    "wx-server-sdk": "~2.6.3"
+  }
 }

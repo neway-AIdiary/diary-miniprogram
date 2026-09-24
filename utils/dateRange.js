@@ -98,12 +98,21 @@ function rangeText(range, customStart, customEnd) {
   if (range === 'lastMonth') return '上月'
   if (range === 'week7') return '近 7 天'
   if (range === 'custom') {
-    const cn = s => {
+    // [date-year v1] 起止跨年时两端都带年份：否则「12月20日 至 1月5日」与同年区间同形，
+    // 看不出实际跨了年（2025-12-20 ~ 2026-01-05）。同年内保持原样。
+    const dt = s => {
       const d = new Date(s + 'T00:00:00')
-      return isNaN(d.getTime()) ? '' : (d.getMonth() + 1) + '月' + d.getDate() + '日'
+      return isNaN(d.getTime()) ? null : d
     }
-    const a = cn(customStart)
-    const b = cn(customEnd)
+    const d1 = dt(customStart)
+    const d2 = dt(customEnd)
+    const withYear = !!(d1 && d2 && d1.getFullYear() !== d2.getFullYear())
+    const cn = d => {
+      if (!d) return ''
+      return (withYear ? d.getFullYear() + '年' : '') + (d.getMonth() + 1) + '月' + d.getDate() + '日'
+    }
+    const a = cn(d1)
+    const b = cn(d2)
     return (a && b) ? a + ' 至 ' + b : '所选时间段'
   }
   return '全部时间'

@@ -220,7 +220,10 @@ ok(wxml.indexOf('class="tag-list"') > 0 && wxml.indexOf('class="footer-left"') >
 ok(idxJs.indexOf("const tagFit = require('../../utils/tagFit.js')") > 0, 'F7 index.js 已引入 tagFit')
 ok(idxJs.indexOf('d.tags = Array.isArray(d.tags) ? d.tags.slice(0, 5) : []') > 0,
   'F8 d.tags 仍是完整数据（未被 tagsShown 覆盖 ⇒ 搜索/详情页不受影响）')
-ok(idxJs.indexOf('d.tagsShown = tagFit.fitTags(d.tags, d.moodText).shown') > 0, 'F9 产出 tagsShown 字段')
+ok(idxJs.indexOf('d.tagsShown = tagFit.fitTags(d.tags, d.moodText,') > 0, 'F9 产出 tagsShown 字段')
+// [date-year v1] 跨年日期文案变长 ⇒ 必须把跨年宽度档传进去，否则标签会排到第三行
+ok(idxJs.indexOf('util.isCrossYearDate(d.created_at) ? tagFit.WIDTHS.dateWidthCrossYear : 0') > 0,
+  'F9b 跨年日期宽度已传入标签自适应')
 ok(idxJs.indexOf('util.formatRelativeTime(d.created_at, true)') > 0, 'F10 列表日期走紧凑档')
 ok(idxJs.indexOf('util.formatRelativeTime(d.created_at)\n') < 0, 'F11 列表旧调用已无残留')
 ok(idxJs.indexOf('d.moodText = util.getMoodLabel') < idxJs.indexOf('d.tagsShown = tagFit.fitTags'),

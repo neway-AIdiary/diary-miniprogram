@@ -188,11 +188,21 @@ function mergeCityFromCache(info) {
 // ===== ③ 页面级入口（都自带缓存写入，页面只管 setData）=====
 /**
  * 定位 + 取天气（带重试）。定位失败、天气失败都会按退避重试。
- * @param {{locate?:function, delays?:number[], timer?:function}} [opts] 可注入依赖（测试用）
+ * @param {{locate?:function, delays?:number[], timer?:function, onSettle?:function}} [opts] 可注入依赖（测试用）
  * @returns {Promise<object|null>}
  */
 function locateWeather(opts) {
   opts = opts || {}
+  // [privacy-weather-gate v2] onSettle：**首次**定位调用有结论时回调一次（成功 / 失败 / 空坐标都算），
+  // 重试不重复回调。页面靠它判断「系统定位授权弹框已被用户处理完」，再把新手引导放出来
+  //（两个弹层不同屏）。回调异常一律吞掉 —— 绝不能因为引导的事影响取天气。
+  const onSettle = (typeof opts.onSettle === 'function') ? opts.onSettle : null
+  let settled = false
+  function markSettled() {
+    if (settled) return
+    settled = true
+    if (onSettle) { try { onSettle() } catch (e) { /* 静默 */ } }
+  }
   const locate = opts.locate || function (cb) {
     // [weather-city-backfill v2] 失败原因打日志（真机调试 Console 可见：auth deny / 系统定位关闭 / api 未声明）
     wx.getLocation({
@@ -212,11 +222,12 @@ function locateWeather(opts) {
     return new Promise(function (resolve) {
       locate({
         success: function (loc) {
+          markSettled()
           if (!loc || !loc.latitude || !loc.longitude) { resolve(null); return }
           lastCoords = { lat: loc.latitude, lon: loc.longitude }
           resolve(getWeather(loc.latitude, loc.longitude))
         },
-        fail: function () { resolve(null) }
+        fail: function () { markSettled(); resolve(null) }
       })
     })
   }, { delays: opts.delays, timer: opts.timer }).then(function (info) {

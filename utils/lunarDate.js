@@ -76,7 +76,7 @@ function termOf(date) {
  * 日期头视图模型 [quote-date v2]
  * @param {Date} date 本地日期（缺省 = 现在）
  * @returns {{gregorian:string, weekday:string, constellation:string, termName:string,
- *            termIcon:string, lunarFull:string}}
+ *            termIcon:string, lunarFull:string, zodiac:string}}
  *          gregorian = '2026年09月21日'（零填充）；lunarFull = '丙午年八月十一'
  *          （干支年，solarlunar 以立春分界）；termName/icon = 当前所处节气段（1.B 常驻）
  */
@@ -88,6 +88,7 @@ function header(date) {
   const day = d.getDate()
   let weekday = ''
   let lunarFull = ''
+  let zodiac = ''
   try {
     const r = solarLunar.solar2lunar(y, m, day)
     if (r) {
@@ -95,6 +96,7 @@ function header(date) {
       if (r.gzYear && r.monthCn && r.dayCn) {
         lunarFull = r.gzYear + '年' + r.monthCn + r.dayCn
       }
+      if (r.animal) zodiac = r.animal
     }
   } catch (e) {
     // 超出 1900~2100 支持区间等异常：农历缺省，页面仍显示公历/星期/星座（不阻塞渲染）
@@ -107,7 +109,8 @@ function header(date) {
     constellation: constellationOf(m, day),
     termName: term.name,
     termIcon: term.icon,
-    lunarFull: lunarFull
+    lunarFull: lunarFull,
+    zodiac: zodiac
   }
 }
 

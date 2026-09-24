@@ -11,6 +11,10 @@ App({
   },
 
   onLaunch() {
+    // 主题/字体首帧化 [theme-firstpaint v1]：必须在任何页面 JS 执行前安装
+    // （包装全局 Page —— 注册期补 data 初值、onLoad 首行同步，页面第一帧即正确主题）
+    require('./utils/firstPaint.js').install()
+
     // 云开发初始化（用于 AI 优化云函数），指定环境 ID
     if (wx.cloud) {
       wx.cloud.init({ env: 'aidiary-d6grgxkct50c30f45', traceUser: true })
@@ -18,6 +22,10 @@ App({
 
     // 日记字体：若用户选了托管字体（宋/楷），启动时按需预载（非托管字体此处为零开销）
     require('./utils/fontSetting.js').ensureLoaded()
+
+    // 分享卡片品牌图探活 [share-card-fallback v1]：启动后异步确认云图可达，
+    // 不可达时各页分享自动回落「当前页面截图」（详见 utils/shareCard.js）
+    require('./utils/shareCard.js').warmup()
 
     // 写日记页占位文案：打开次数 +1（首次安装后的第一次启动 = 第 1 次），
     // 并静默拉取云端文案规则（失败回落本地默认，不阻塞启动）
@@ -41,6 +49,10 @@ App({
   // 回到前台：密码开启且后台停留 ≥30 秒 → 重新上锁并跳锁屏页
   // （冷启动也会走这里，此时会话未解锁，同样跳锁屏页）
   onShow() {
+    // 窗口底 + 导航栏：App onShow 早于任何页面 onLoad/首帧渲染，深色用户启动即同步，
+    // 转场早期不露浅色底 [theme-firstpaint v1]
+    require('./utils/theme.js').applyChrome()
+
     require('./utils/lock.js').onAppShow()
   },
 

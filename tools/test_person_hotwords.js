@@ -172,7 +172,7 @@ async function main() {
   storage.saveArchives(MANY)
   w = hotwords.get(true)
   const archCount = w.filter(x => x.indexOf('测试') === 0).length
-  ok(archCount === 20, 'D8 档案词正好占满 100 token（20 × 5 = 100）', archCount)
+  ok(archCount === 30, 'D8 档案词正好占满 150 token（30 × 5 = 150，[hotword-budget-150 v1]）', archCount)
   ok(w.filter(x => THREES.indexOf(x) !== -1).length === 0, 'D9 主预算用尽 → 人名一个都不注入（只填空余）', w)
 
   // D10 与草稿词去重
@@ -203,9 +203,9 @@ async function main() {
   ok(built.words.indexOf('张三') !== -1, 'D14 build() 同样注入人名', built.words)
   ok(built.count.person >= 1, 'D15 build().count.person 计数存在', built.count)
 
-  // D16 总预算仍 ≤ 100
+  // D16 总预算仍 ≤ 150
   const total = built.words.reduce((s, x) => s + hotwords.estTokens(x), 0)
-  ok(total <= hotwords.TOKEN_BUDGET, 'D16 总 token 仍 ≤ 100（' + total + '）')
+  ok(total <= hotwords.TOKEN_BUDGET, 'D16 总 token 仍 ≤ ' + hotwords.TOKEN_BUDGET + '（' + total + '）')
 
   // ============================================================
   // E. voice.js 时序（用户硬约束：不牺牲录音浮层出现时间）

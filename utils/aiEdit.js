@@ -818,4 +818,23 @@ function extractEmbedded(content) {
   return { content: narrative, applied: applied, notFound: notFound, blocked: blocked, changed: applied.length > 0 }
 }
 
-module.exports = { detect, apply, splitCommands, extractEmbedded, scopeText }
+// ===== [voice-clearall-v1] 语音「清空全部」指令识别（2026-09-24 用户需求）=====
+// 口述「删除所有内容/删掉所有文字/清空所有内容/全部删除」等 → 清空输入框。
+// 规则化覆盖一族（清空动词 × 全量范围词 × 对象词），不逐条枚举：
+//   A) 动词在前：删除/删掉/去掉/清除/清空 + 短间隔 + 所有/全部 + 短间隔 + 内容/文字/东西
+//      （对象词必填——「删除了所有错别字」这类叙述不带这三个对象词，不触发）
+//   B) 范围在前：所有/全部 + 极短间隔 + 删除/删掉/去掉/清除/清空/删了
+// 句边界（。！？!?）与逗号不可跨越——「删除了。所有内容都很好」不触发；
+// 极少数叙述误命中（如「所有人都删除了」）由清空后的 5 秒撤销条兜底
+const CLEAR_ALL_STOP = '[^。！？!?\\n，,、；;：:]'
+const CLEAR_ALL_VERBS = '(?:删除|删掉|去掉|清除|清空|删了)'
+const CLEAR_ALL_PAT_A = new RegExp(CLEAR_ALL_VERBS + CLEAR_ALL_STOP + '{0,4}(?:所有|全部)' + CLEAR_ALL_STOP + '{0,6}(?:内容|文字|东西)')
+const CLEAR_ALL_PAT_B = new RegExp('(?:所有|全部)' + CLEAR_ALL_STOP + '{0,2}' + CLEAR_ALL_VERBS)
+
+function matchClearAll(text) {
+  const t = String(text || '')
+  if (!t) return false
+  return CLEAR_ALL_PAT_A.test(t) || CLEAR_ALL_PAT_B.test(t)
+}
+
+module.exports = { detect, apply, splitCommands, extractEmbedded, scopeText, matchClearAll }

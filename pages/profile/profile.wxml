@@ -113,6 +113,7 @@
   <view class="footer">
     <view class="footer-text">{{appName}} v1.0</view>
     <view class="footer-sub">数据默认只存本机；开启备份后仅上传 AES 加密密文</view>
+    <!-- 说明行已改放设置页页脚（2026-09-24，setting-credit v1） -->
   </view>
 </view>
 

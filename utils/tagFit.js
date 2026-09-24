@@ -22,6 +22,7 @@ const W = {
   cardPadL: 36,      // .diary-card   padding-left
   cardPadR: 32,      // .diary-card   padding-right
   dateWidth: 108,    // .diary-date 「8/12 周三」@24rpx（含 letter-spacing 余量）
+  dateWidthCrossYear: 210, // [date-year v1] .diary-date 跨年档「2026/12/20 周六」@24rpx（含余量）
   moodGapL: 24,      // .tag-list     margin-left
   moodFont: 22,      // .tag-mood     font-size
   moodPadX: 16,      // .tag-mood     padding 左右
@@ -64,8 +65,9 @@ function moodWidth(moodLabel) {
 }
 
 // 本卡片「标签区」可用宽（rpx）
-function availWidth(moodLabel) {
-  let avail = cardInnerWidth() - W.dateWidth
+function availWidth(moodLabel, dateW) {
+  // [date-year v1] dateW 省略（0/undefined）⇒ 沿用同年档常量，既有调用与断言零变化
+  let avail = cardInnerWidth() - (dateW > 0 ? dateW : W.dateWidth)
   const mw = moodWidth(moodLabel)
   if (mw > 0) avail -= mw + W.moodGapL
   return avail
@@ -95,16 +97,18 @@ function estimateLines(tags, avail) {
  * 列表卡片标签自适应：估算溢出到第 3 行时，从末尾丢到能保证两行（保底留 1 个）。
  * @param {string[]} tags      标签数组（列表侧最多 5 个）
  * @param {string}   moodLabel 心情文案（'' 表示本卡无心情 pill）
+ * @param {number}   [dateW]   本卡日期文案占宽（rpx）；省略 ⇒ 同年档 W.dateWidth；
+ *                            跨年档（带年份的紧凑日期）传 W.dateWidthCrossYear [date-year v1]
  * @return {{shown: string[], dropped: number, lines: number}}
  */
-function fitTags(tags, moodLabel) {
+function fitTags(tags, moodLabel, dateW) {
   // 过滤空串与纯空白标签（trim 覆盖半角/全角空格）—— 它们白占宽度却看不见
   const list = (Array.isArray(tags) ? tags : []).filter(function (t) {
     return String(t == null ? '' : t).trim() !== ''
   })
   const out = { shown: list, dropped: 0, lines: 0 }
   if (!list.length) return out
-  const avail = availWidth(moodLabel)
+  const avail = availWidth(moodLabel, dateW)
   out.lines = estimateLines(list, avail)
   if (out.lines <= MAX_LINES) return out
   let n = list.length

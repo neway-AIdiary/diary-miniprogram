@@ -49,7 +49,18 @@ function formatCompactDate(dateStr) {
   const month = d.getMonth() + 1
   const day = d.getDate()
   const weekDays = ['日', '一', '二', '三', '四', '五', '六']
-  return month + '/' + day + ' 周' + weekDays[d.getDay()]
+  // [date-year v1] 跨年补年份：条目不在今年时「8/14 周五」与今年的同月日分不出
+  //（2027 年回看 2026-12-20 会误读成今年 12 月）。同年内保持原样，零视觉变化。
+  return (isCrossYearDate(dateStr) ? d.getFullYear() + '/' : '') +
+    month + '/' + day + ' 周' + weekDays[d.getDay()]
+}
+
+// [date-year v1] 条目日期是否跨年（年份 ≠ 当前年）；空值 / 非法日期一律 false
+function isCrossYearDate(dateStr) {
+  if (!dateStr) return false
+  const d = new Date(dateStr)
+  if (isNaN(d.getTime())) return false
+  return d.getFullYear() !== new Date().getFullYear()
 }
 
 // 格式化完整日期 — "2026年8月14日 14:30"
@@ -240,6 +251,7 @@ module.exports = {
   formatFullDate,
   formatRelativeTime,
   formatCompactDate,
+  isCrossYearDate,
   getDefaultTitle,
   titleFromContent,
   resolveDiaryTitle,

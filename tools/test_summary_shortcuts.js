@@ -12,8 +12,14 @@
  *     关键约束：chip 的 toast **只在真进入生成态时**弹 —— onGenerate 会因
  *       无日记 / 防抖 / 自定义范围未选完 / 云开发不可用而早退，那时抢着说「正在生成」
  *       就是谎报，还会把它自己的提示顶掉（B20/B21 盯这条）
+ *   [summary-freeze v1] 生成中整页冻结（用户 2026-09-23 拍板：该页面其他按钮和元素
+ *     无法点击、点击不反应）：wxml 加 .gen-mask 遮罩（wx:if=loading + catchtap/catchtouchmove），
+ *     5 个入口统一 `if (this.data.loading) return`，textarea 加 disabled；遮罩同时把滑动吞掉（生成中禁滚动）。
+ *     ⚠️ 遮罩 z-index 必须夹在 range-picker 弹层(201) 与 .voice-modal(1000) 之间（A27 数值夹逼）
+ *     ⚠️ onHoldEnd / appendPrompt **故意不设守卫**（已在录音的会话要能松手收尾、识别结果不能丢字）
+ *     ⚠️ 本版取代 v1.3 的「生成中点 chip 给 toast 反馈」：整页冻结语义下静默才对（B12 已改判）
  * 用户给定六条（逐字，2026-09-22 二次修订后的现行版本）：
- *   月度复盘 - 本月日记的整体回顾 / 心迹追踪 - 分析情绪与心态变化
+ *   月度复盘 - 近两月日记的整体回顾 / 心迹追踪 - 分析情绪与心态变化
  *   强身规划 - 对比运动记录拟定健身方案 / 学途建言 - 总结学习情况给出提升建议
  *   大事速览 - 简要提取里程碑事件 / 年度剪影 - 生成一份年度简短回顾
  *   （二次修订只换第 3、4 条文案，chip 仍为 4 字 ⇒ 胶囊自适应宽度、样式无关；
@@ -24,8 +30,9 @@
  *        wxml chip 分层 catchtap+bindtap / wxss chip 样式与旧图标规则 /
  *        [v1.3] 说明行结构·文案逐字·避讳词·样式令牌）
  *   B 组：智能总结页行为（点 chip 即生成且 prompt=整句 / **不联动时间范围** /
- *        点整句只填入不生成 / 生成中点 chip 有反馈不重复发 /
- *        [v1.3] 两条确认 toast + 早退时不谎报）
+ *        点整句只填入不生成 / [v1.3] 两条确认 toast + 早退时不谎报 /
+ *        [summary-freeze v1] 生成中整页冻结：chip/整句/胶囊/输入框/按住说话逐个验明无反应，
+ *        并反向验证非生成态照常可用 —— 冻结绝不能把页面冻死（B12/B23~B30））
  *   C 组：零回归（onGenerate 守卫、防抖、组件 selectOption/reset 契约；setRange 已移除）
  */
 const path = require('path')
@@ -36,6 +43,8 @@ const base = path.resolve(__dirname, '..')
 const SJS = path.join(base, 'pages', 'summary', 'summary.js')
 const SWXML = path.join(base, 'pages', 'summary', 'summary.wxml')
 const SWXSS = path.join(base, 'pages', 'summary', 'summary.wxss')
+// [summary-freeze v1] 遮罩 z-index 的夹逼基准之一：range-picker 弹层（201）取自组件自身样式
+const RPWXSS = path.join(base, 'components', 'range-picker', 'range-picker.wxss')
 const RPJS = path.join(base, 'components', 'range-picker', 'range-picker.js')
 const dateRange = require(path.join(base, 'utils', 'dateRange.js'))
 
@@ -55,7 +64,7 @@ function clearCache() {
 
 // 用户给定的六条（chip = 前几字按钮，label = 进入输入框的整句）
 const EXPECT = [
-  ['月度复盘', '本月日记的整体回顾'],
+  ['月度复盘', '近两月日记的整体回顾'],
   ['心迹追踪', '分析情绪与心态变化'],
   ['强身规划', '对比运动记录拟定健身方案'],
   ['学途建言', '总结学习情况给出提升建议'],
@@ -75,7 +84,8 @@ function loadSummaryPage(opts) {
   opts = opts || {}
   clearCache()
   const store = opts.store || {}
-  const sink = { toasts: [], nav: [], emitted: [], req: null, calls: 0 }
+  // [summary-freeze v1] voiceStarts 记录 voice.start 调用：断言「生成中不起录 / 非生成态照常起录」
+  const sink = { toasts: [], nav: [], emitted: [], req: null, calls: 0, voiceStarts: [] }
   const picker = { calls: [] }
   const box = { page: null }
   // 组件桩：**保留 setRange 记录器当反向探针** —— [v1.2] 之后页面不该再调用它。
@@ -97,6 +107,11 @@ function loadSummaryPage(opts) {
     showToast: (o) => { sink.toasts.push((o && o.title) || '') },
     getWindowInfo: () => ({ safeArea: { bottom: 700 }, screenHeight: 700, windowWidth: 375 }),
     getSystemInfoSync: () => ({ safeArea: { bottom: 700 }, screenHeight: 700 }),
+    // [footer-center v1.1] SelectorQuery 桩：boundingClientRect 返回实测高度 700（px）
+    createSelectorQuery: () => ({
+      select: () => ({ boundingClientRect: () => ({ height: 700 }) }),
+      exec: (cb) => cb([{ height: 700 }])
+    }),
     navigateTo: (o) => {
       sink.nav.push(o || {})
       if (o && o.success) {
@@ -117,7 +132,12 @@ function loadSummaryPage(opts) {
   global.Page = (o) => { pageObj = o }
 
   const overrides = Object.assign({
-    'voice.js': { onStateChange: () => () => {}, start: () => {}, stop: () => {}, warmup: () => {} },
+    'voice.js': {
+      onStateChange: () => () => {},
+      start: (...a) => { sink.voiceStarts.push(a) },
+      stop: () => {},
+      warmup: () => {}
+    },
     'fontSetting.js': { buildStyle: () => '' },
     'theme.js': { applyTo: () => {} },
     'lock.js': { guard: () => false },
@@ -210,8 +230,8 @@ async function main() {
       'A2 六条顺序 = 用户给定顺序（月度复盘→…→年度剪影）', idxs)
 
     // [v1.2] 原「拍板 2」撤销：数据表不再有 range 字段，页面也无联动实现
-    ok(src.indexOf("chip: '月度复盘', label: '本月日记的整体回顾' }") !== -1,
-      'A3 月度复盘与其余五条同形（无 range 附属，不再特殊）')
+    ok(src.indexOf("chip: '月度复盘', label: '近两月日记的整体回顾' }") !== -1,
+      'A3 月度复盘与其余五条同形（数据层无 range 附属；近两月固定区间走 review 标志，不进数据表）')
     ok(src.indexOf(', range:') === -1 && src.indexOf('_setRange') === -1 && src.indexOf('data-range') === -1,
       'A4 range 联动残留清零（数据表字段 / 页面方法 / dataset 三处都无）')
     ok(src.indexOf("icon: 'ri-") === -1 && src.indexOf("fill: '") === -1,
@@ -272,6 +292,45 @@ async function main() {
     const hblock = hb < 0 ? '' : wxss.slice(hb, hb + 160)
     ok(hblock.indexOf('color: var(--ink-soft)') !== -1 && hblock.indexOf('font-size: 22rpx') !== -1,
       'A21 提示小字走 --ink-soft 令牌 + 22rpx（不硬编码色值 → 暗色主题也可读）', hblock)
+
+    // ---- [monthly-review v1 + footer-center v1]（2026-09-23 拍板）----
+    ok(wxml.indexOf('AI将根据你的指示生成总结') !== -1 && wxml.indexOf('您的') === -1,
+      'A22 空态文案「您」改「你」，且 wxml 无「您的」残留')
+    const ra = wxss.indexOf('.result-area {')
+    const raBlock = ra < 0 ? '' : wxss.slice(ra, ra + 300)
+    ok(raBlock.indexOf('flex: 1') !== -1 && raBlock.indexOf('justify-content: center') !== -1,
+      'A23 空态居中：result-area 占满剩余高度并 flex 纵向居中', raBlock)
+    // [footer-center v1.1] scroll-view 内百分比 min-height 真机不生效 ⇒ content-inner
+    // 最小高度必须走 JS 实测 px（wxml 内联 style + measureContent）
+    ok(wxml.indexOf("style=\"{{scrollMinHeight ? 'min-height:' + scrollMinHeight + 'px' : ''}}\"") !== -1 &&
+       src.indexOf('measureContent() {') !== -1 &&
+       src.indexOf("q.select('.content-scroll')") !== -1 &&
+       wxss.indexOf('首版翻车：提示贴底') !== -1,
+      'A25 居中兜底：content-inner 最小高度用 JS 实测 px（onReady/onShow 各测一次），wxss 注释记录翻车原因')
+    ok(src.indexOf('近两月没有日记记录，无法分析') !== -1 && src.indexOf('_reviewRange') !== -1 &&
+       src.indexOf("ds.chip === '月度复盘'") !== -1,
+      'A24 月度复盘固定近两月：review 标志 + 专属无日记提示在源码')
+
+    // ---- [summary-freeze v1] 生成中整页冻结（用户 2026-09-23 拍板）----
+    const mIdx = wxml.indexOf('class="gen-mask"')
+    const mBlock = mIdx < 0 ? '' : wxml.slice(mIdx, mIdx + 260)
+    ok(mIdx !== -1 && mBlock.indexOf('wx:if="{{loading}}"') !== -1 &&
+       mBlock.indexOf('catchtap="onFrozenTap"') !== -1 &&
+       mBlock.indexOf('catchtouchmove="onFrozenTap"') !== -1 &&
+       src.indexOf('onFrozenTap() {},') !== -1,
+      'A26 冻结遮罩：wxml 遮罩绑 wx:if=loading + catchtap/catchtouchmove，页面有空接收器', mBlock)
+    // 层级夹逼（真机口径）：> range-picker 弹层 ⇒ 盖得住胶囊与其弹层；< 语音浮层 ⇒ 松手事件不被吞
+    const maskZ = Number((wxss.match(/\.gen-mask\s*\{[^}]*z-index:\s*(\d+)/) || [])[1])
+    const modalZ = Number((wxss.match(/\.voice-modal\s*\{[^}]*z-index:\s*(\d+)/) || [])[1])
+    const rpZ = Math.max.apply(null, (read(RPWXSS).match(/z-index:\s*(\d+)/g) || ['0'])
+      .map((s) => Number(String(s).replace(/\D/g, ''))))
+    ok(maskZ > rpZ && maskZ < modalZ,
+      'A27 遮罩 z-index 落在「range-picker 弹层 ' + rpZ + '」与「语音浮层 ' + modalZ + '」之间（实测 ' +
+      maskZ + '）—— 低了盖不住胶囊，高了录音松手收不了尾', [maskZ, rpZ, modalZ])
+    const taIdx = wxml.indexOf('<textarea')
+    const taBlock = taIdx < 0 ? '' : wxml.slice(taIdx, wxml.indexOf('/>', taIdx))
+    ok(taBlock.indexOf('disabled="{{loading}}"') !== -1,
+      'A28 textarea 生成中 disabled（原生组件：遮罩未必压得住，必须有第二道闸）', taBlock)
   }
 
   // ----------------------------------------------------------
@@ -302,7 +361,7 @@ async function main() {
          (em.payload || {}).prompt === '分析情绪与心态变化',
         'B5 生成成功仍走 summaryResult 事件通道（原有链路未被替换）', em && em.name)
 
-      // ---- [v1.2] 月度复盘不再联动范围：胶囊由用户自己定，chip 只管需求 ----
+      // ---- [monthly-review v1] 月度复盘特例：固定近两月区间生成（胶囊状态仍不动） ----
       const ctx2 = loadSummaryPage()
       ctx2.page.onLoad()
       tapChip(ctx2.page, '月度复盘')
@@ -310,13 +369,63 @@ async function main() {
       ok(ctx2.picker.calls.length === 0,
         'B6 点「月度复盘」→ 绝不调用组件 setRange（v1.2：不自动切「本月」）', ctx2.picker.calls)
       ok(!ctx2.page._rangeState || ctx2.page._rangeState.range === 'all',
-        'B7 页面范围状态保持初始「全部时间」（未被 chip 改动）', ctx2.page._rangeState)
-      ok(ctx2.page.data.prompt === '本月日记的整体回顾',
-        'B8 需求照常填入（不动范围，只填需求）', ctx2.page.data.prompt)
-      const all = dateRange.rangeDateKeys('all', '', '')
-      ok(!!ctx2.sink.req && ctx2.sink.req.data.startDate === all.start && ctx2.sink.req.data.endDate === all.end,
-        'B8b 发给云函数的仍是「全部时间」区间（与顶部胶囊所见一致）',
+        'B7 页面范围状态保持初始「全部时间」（review 固定区间只影响本次生成，不改胶囊状态）', ctx2.page._rangeState)
+      ok(ctx2.page.data.prompt === '近两月日记的整体回顾',
+        'B8 需求照常填入（文案 v1.4：近两月日记的整体回顾）', ctx2.page.data.prompt)
+      // [monthly-review v1] 固定近两月：上月 1 日 ~ 今天（与 custom 档同口径），与顶部胶囊无关
+      const n0 = new Date()
+      const pad0 = (x) => (x < 10 ? '0' + x : '' + x)
+      const lm0 = new Date(n0.getFullYear(), n0.getMonth() - 1, 1)
+      ok(!!ctx2.sink.req &&
+         ctx2.sink.req.data.startDate === (lm0.getFullYear() + '-' + pad0(lm0.getMonth() + 1) + '-01') &&
+         ctx2.sink.req.data.endDate === (n0.getFullYear() + '-' + pad0(n0.getMonth() + 1) + '-' + pad0(n0.getDate())),
+        'B8b 点「月度复盘」→ 固定用近两月区间（上月 1 日 ~ 今天），不看顶部胶囊',
         ctx2.sink.req && [ctx2.sink.req.data.startDate, ctx2.sink.req.data.endDate])
+
+      // ---- [monthly-review v1] 边界：整句填入 / 手动改输入 / 近两月无日记 ----
+      const ctx2b = loadSummaryPage()
+      ctx2b.page.onLoad()
+      ctx2b.page.onShortcut({ currentTarget: { dataset: { fill: '近两月日记的整体回顾' } } })
+      ctx2b.page.onGenerate()
+      await tick(10)
+      ok(!!ctx2b.sink.req && ctx2b.sink.req.data.startDate === '' && ctx2b.sink.req.data.endDate === '',
+        'B8c 整句填入不触发近两月固定区间（恢复胶囊口径 = 全部时间）',
+        ctx2b.sink.req && [ctx2b.sink.req.data.startDate, ctx2b.sink.req.data.endDate])
+
+      const ctx2c = loadSummaryPage()
+      ctx2c.page.onLoad()
+      tapChip(ctx2c.page, '月度复盘')
+      await tick(10)
+      ctx2c.page._cooling = false // 跳过 3 秒防抖（上一轮生成已置位）
+      ctx2c.page.onPromptInput({ detail: { value: '换一个需求' } })
+      ctx2c.page.onGenerate()
+      await tick(10)
+      ok(!!ctx2c.sink.req && ctx2c.sink.req.data.startDate === '' && ctx2c.sink.req.data.endDate === '',
+        'B8d 用户手动改过输入框 → 近两月固定区间失效（恢复胶囊口径）',
+        ctx2c.sink.req && [ctx2c.sink.req.data.startDate, ctx2c.sink.req.data.endDate])
+
+      const ctx2d = loadSummaryPage({ diaries: [] })
+      ctx2d.page.onLoad()
+      ctx2d.sink.toasts.length = 0
+      tapChip(ctx2d.page, '月度复盘')
+      await tick(10)
+      ok(ctx2d.page.data.error === '近两月没有日记记录，无法分析',
+        'B8e 近两月无日记 → 专属提示（不走「所选时间段暂无日记」通用文案）', ctx2d.page.data.error)
+      ok(ctx2d.sink.calls === 0, 'B8f 近两月无日记 → 不发起云调用', ctx2d.sink.calls)
+      ok(ctx2d.sink.toasts.every((t) => t.indexOf('正在按') < 0),
+        'B8g 近两月无日记早退 → 不谎报「正在按…生成」', ctx2d.sink.toasts)
+
+      // ---- [footer-center v1.1] onReady 实测滚动区高度 → px 最小高度（真机百分比失效的兜底） ----
+      const ctx9 = loadSummaryPage()
+      ctx9.page.onLoad()
+      if (typeof ctx9.page.onReady !== 'function' || typeof ctx9.page.measureContent !== 'function') {
+        ok(false, 'B22 onReady/measureContent 存在（旧版此处精准红，不崩套件）')
+      } else {
+        ctx9.page.onReady()
+        await tick(5)
+        ok(ctx9.page.data.scrollMinHeight === 700,
+          'B22 onReady → SelectorQuery 实测高度写入 scrollMinHeight（700px 桩）', ctx9.page.data.scrollMinHeight)
+      }
 
       // ---- 点行内整句：只填入，不生成 ----
       const ctx3 = loadSummaryPage()
@@ -328,15 +437,16 @@ async function main() {
         'B10 点整句不发起生成（与 chip 行为分区）', ctx3.sink.calls)
       ok(ctx3.picker.calls.length === 0, 'B11 点整句不联动时间范围')
 
-      // ---- 生成中点 chip：有反馈、不重复发、不改写已填内容 ----
+      // ---- [summary-freeze v1] 生成中点 chip：静默无反应（用户 2026-09-23 拍板） ----
+      // v1.3 曾要求「给明确反馈、不静默早退」，本版按用户口径改为静默：整页冻结时不提示「你点错了」
       const ctx4 = loadSummaryPage()
       ctx4.page.onLoad()
       ctx4.page.setData({ loading: true, prompt: '原需求' })
       ctx4.sink.toasts.length = 0
       tapChip(ctx4.page, '大事速览')
       await tick(10)
-      ok(ctx4.sink.toasts.indexOf('正在生成，请稍候') >= 0,
-        'B12 生成中点 chip 给明确反馈（本项目铁律：不静默早退）', ctx4.sink.toasts)
+      ok(ctx4.sink.toasts.length === 0,
+        'B12 生成中点 chip → 静默无反应（[summary-freeze v1] 取代 v1.3 的 toast 反馈）', ctx4.sink.toasts)
       ok(ctx4.sink.calls === 0, 'B13 生成中不重复调用云函数')
       ok(ctx4.page.data.prompt === '原需求', 'B14 早退发生在写 prompt 之前（不留下错位的输入）', ctx4.page.data.prompt)
 
@@ -379,6 +489,54 @@ async function main() {
         'B20 无日记早退 → 不谎报「正在生成」（toast 只在 loading 真起来时才弹）', ctx8.sink.toasts)
       ok(String(ctx8.page.data.error).indexOf('暂无日记') >= 0,
         'B21 早退提示仍由 onGenerate 自己给出（没被我们的 toast 顶掉）', ctx8.page.data.error)
+
+      // ---- [summary-freeze v1] 生成中整页冻结：其余入口逐个验明「点了没反应」 ----
+      const frz = loadSummaryPage()
+      frz.page.onLoad()
+      frz.page.setData({ prompt: '原需求', loading: true })
+      frz.sink.toasts.length = 0
+      // ① 时间范围胶囊：change 被忽略
+      frz.page.onRangeChange({ detail: { range: 'month', customStart: '', customEnd: '' } })
+      ok(frz.page._rangeState.range === 'all' && frz.page._rangeState.customStart === '' &&
+         frz.page._rangeState.customEnd === '',
+        'B23 生成中改时间范围 → 忽略（胶囊状态不动）', frz.page._rangeState)
+      // ② 输入框：拒绝输入
+      frz.page.onPromptInput({ detail: { value: '生成中偷改的文字' } })
+      ok(frz.page.data.prompt === '原需求',
+        'B24 生成中输入框不接受输入（textarea disabled + 此处兜底）', frz.page.data.prompt)
+      // ③ 快捷模板整句行：不覆盖输入、不弹 toast
+      frz.page.onShortcut({ currentTarget: { dataset: { fill: '简要提取里程碑事件' } } })
+      ok(frz.page.data.prompt === '原需求' && frz.sink.toasts.length === 0,
+        'B25 生成中点整句行 → 既不覆盖输入也不提示（整页冻结）',
+        [frz.page.data.prompt, frz.sink.toasts])
+      // ④ 按住说话：不起录（否则录音浮层会盖住生成中的页面）
+      frz.page.onHoldStart()
+      ok(frz.sink.voiceStarts.length === 0 && frz.page._isHolding !== true,
+        'B26 生成中按住说话 → 不起录', frz.sink.voiceStarts)
+      // ⑤ 遮罩的点击/滑动接收器：故意空实现，绝不能有副作用
+      // （旧版无此方法：加存在性守卫，保证红灯自检「精准红、不崩套件」）
+      if (typeof frz.page.onFrozenTap !== 'function') {
+        ok(false, 'B27 onFrozenTap 存在（旧版此处精准红，不崩套件）')
+      } else {
+        frz.page.onFrozenTap()
+        ok(frz.sink.calls === 0 && frz.sink.toasts.length === 0 && frz.page.data.prompt === '原需求',
+          'B27 遮罩 catchtap/catchtouchmove 的接收器是空实现（只吞事件）',
+          [frz.sink.calls, frz.sink.toasts])
+      }
+
+      // ⑥ 反向：非生成态这些入口必须照常可用 —— 冻结别把页面冻死（防守卫写成常真）
+      const live = loadSummaryPage()
+      live.page.onLoad()
+      live.page.setData({ prompt: '原需求' })
+      live.page.onShortcut({ currentTarget: { dataset: { fill: '简要提取里程碑事件' } } })
+      ok(live.page.data.prompt === '简要提取里程碑事件' &&
+         live.sink.toasts.indexOf('已填入输入框，可修改后生成') >= 0,
+        'B28 反向：非生成态点整句行照常填入 + 提示', [live.page.data.prompt, live.sink.toasts])
+      live.page.onHoldStart()
+      ok(live.sink.voiceStarts.length === 1, 'B29 反向：非生成态按住说话照常起录', live.sink.voiceStarts)
+      live.page.onRangeChange({ detail: { range: 'month', customStart: '', customEnd: '' } })
+      ok(live.page._rangeState.range === 'month',
+        'B30 反向：非生成态时间范围变更照常生效', live.page._rangeState)
     }
   }
 

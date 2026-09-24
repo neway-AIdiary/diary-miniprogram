@@ -242,7 +242,7 @@
               bindtouchend="onHoldEnd"
               bindtouchcancel="onHoldEnd"
               bindtouchmove="onVoiceTouchMove"
-            >{{voiceCanceling ? '松开取消' : (recording ? '松开 结束' : (connecting ? '连接中…' : '按住 说话'))}}</view>
+            >{{voiceCanceling ? '松开取消' : (recording ? '松开 结束' : (connectingSlow ? '连接中…' : '按住 说话'))}}</view>
           </view>
 
           <!-- 添加(+)：图片 / 视频 / 位置 -->
@@ -259,18 +259,18 @@
       <view class="voice-modal" wx:if="{{recording || transcribing || connecting}}">
         <view class="voice-modal-mask"></view>
         <view class="voice-modal-body">
-          <view class="voice-card {{recording ? '' : 'voice-card-processing'}}">
+          <view class="voice-card {{(connectingSlow || transcribing) ? 'voice-card-processing' : ''}}">
             <view class="voice-card-header">
               <view class="voice-card-dot {{recording ? 'pulse' : ''}}"></view>
-              <text class="voice-card-title">{{transcribing ? '语音识别中' : (connecting ? '准备中' : '正在聆听')}}</text>
+              <text class="voice-card-title">{{transcribing ? '语音识别中' : (connectingSlow ? '准备中' : '正在聆听')}}</text>
             </view>
             <scroll-view class="voice-card-scroll" scroll-y scroll-top="{{liveScrollTop}}" enhanced show-scrollbar="{{false}}">
-              <text class="voice-card-text">{{liveText || (recording ? '请说话…' : (connecting ? '请稍候…' : '识别中…'))}}</text>
+              <text class="voice-card-text">{{liveText || (connectingSlow ? '请稍候…' : (recording || connecting ? '请说话…' : '识别中…'))}}</text>
             </scroll-view>
             <view class="voice-card-badge" wx:if="{{liveRemoved > 0}}">已过滤 {{liveRemoved}} 处语气词</view>
           </view>
 
-          <view class="voice-waves" wx:if="{{recording}}">
+          <view class="voice-waves {{recording ? '' : 'voice-waves-idle'}}">
             <view class="voice-wave voice-wave-1"></view>
             <view class="voice-wave voice-wave-2"></view>
             <view class="voice-wave voice-wave-3"></view>
@@ -282,7 +282,7 @@
         </view>
 
         <view class="voice-modal-footer">
-          <text class="voice-modal-tip" wx:if="{{voiceCanceling || transcribing}}">{{voiceCanceling ? '松开取消发送' : '处理中…'}}</text>
+          <text class="voice-modal-tip" wx:if="{{voiceCanceling}}">松开取消发送</text>
         </view>
       </view>
     </view>

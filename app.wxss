@@ -93,8 +93,16 @@ page {
   --ease: cubic-bezier(0.22, 0.61, 0.36, 1);
   --dur: 0.22s;
 
-  /* ---------- 全局排版基底 ---------- */
-  background-color: var(--bg);
+  /* ---------- 全局排版基底 ----------
+     [theme-transition v1] 本行原为浅色令牌背景。注意：`.theme-dark` 挂在页面根节点
+     (.page) 上，page 元素**吃不到**那套深色令牌 ⇒ 这里恒为浅色 #EFEBE5；而页面转场
+     那一瞬新页面 WXML 尚未上屏，屏幕上露出的正是 page 元素这一层，深色用户因此每次
+     都先看到一整屏浅色（「跳闪浅色」的主因，utils/firstPaint.js 修不到它）。
+     改为 transparent 后，转场期露出的是「窗口底」——窗口底由 utils/theme.js#applyChrome
+     的 wx.setBackgroundColor 全局设置且切页不重置，深色下即 #1B1916。
+     正常渲染时各页 .page 根节点自带 var(--bg) 背景 + 100vh 已完整盖住本层；浅色主题下
+     窗口底同样被设为 #EFEBE5，视觉零变化。回归防护见 tools/test_theme_transition.js。 */
+  background-color: transparent;
   font-family: var(--font-body);
   font-size: 28rpx;
   color: var(--ink);

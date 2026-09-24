@@ -97,6 +97,24 @@ function callDeepSeek(messages) {
   })
 }
 
+// [ai-usage v1] 商业化埋点：每次 DeepSeek 调用写一条 ai_usage（复用已有 db/cloud/getBeijingDateKey）。
+// 集合不存在/写失败只告警，绝不阻塞业务返回
+async function logAiUsage(fields) {
+  try {
+    const wxContext = cloud.getWXContext()
+    await db.collection('ai_usage').add({
+      data: Object.assign({
+        openid: (wxContext && wxContext.OPENID) || 'unknown',
+        fn: 'aiSummary',
+        date: getBeijingDateKey(),
+        ts: Date.now()
+      }, fields)
+    })
+  } catch (e) {
+    console.warn('[ai-usage] aiSummary 记账失败(不阻塞):', e && e.message)
+  }
+}
+
 // 构造系统提示词（文档十一节给的固定前缀）
 function buildSystemPrompt() {
   return [
@@ -227,6 +245,16 @@ exports.main = async (event) => {
 
   try {
     const res = await callDeepSeek(messages)
+    // [ai-usage v1] 记账：usage 来自 DeepSeek 响应（阻塞 await，防云函数提前冻结丢记录）
+    const usage = (res.body && res.body.usage) || {}
+    await logAiUsage({
+      ok: res.status === 200,
+      model: MODEL,
+      diaryCount: ctx.count,
+      promptTokens: usage.prompt_tokens || 0,
+      completionTokens: usage.completion_tokens || 0,
+      totalTokens: usage.total_tokens || 0
+    })
     if (res.status !== 200) {
       const msg = (res.body && (res.body.error && res.body.error.message || res.body.message)) || res.status
       return { success: false, error: 'AI 分析失败，请稍后重试', detail: msg }
@@ -247,6 +275,8 @@ exports.main = async (event) => {
     }
   } catch (e) {
     console.error('[aiSummary] 调用 AI 失败:', e && e.message)
+    // [ai-usage v1] 异常路径也记账（算失败率）
+    await logAiUsage({ ok: false, error: String((e && e.message) || 'exception').slice(0, 120) })
     return { success: false, error: 'AI 分析超时，请缩短时间范围后重试' }
   }
 }

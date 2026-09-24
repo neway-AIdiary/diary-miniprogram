@@ -156,7 +156,8 @@ PAGES.forEach(pg => {
   frostVar += (s.match(/var\(--surface-frost\)/g) || []).length
 })
 ok(frostLeft === 0, '写死磨砂色残留 = 0')
-ok(frostVar === 6, 'var(--surface-frost) 引用 x6（实际 x' + frostVar + '）')
+// x7：底栏 6 处 + [voice-clearall-v1] 语音清空撤销条 1 处（2026-09-24）
+ok(frostVar === 7, 'var(--surface-frost) 引用 x7（实际 x' + frostVar + '）')
 
 console.log('---- D. 深色继承重置（间接令牌 / color 继承）----')
 /*

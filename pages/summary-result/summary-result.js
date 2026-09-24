@@ -24,6 +24,8 @@ const app = getApp()
 const fontSetting = require('../../utils/fontSetting.js')
 const theme = require('../../utils/theme.js')
 const lock = require('../../utils/lock.js')
+const appInfo = require('../../utils/appInfo.js') // [share-card v1] 分享卡片品牌图引用
+const shareCard = require('../../utils/shareCard.js') // 分享卡片品牌图探活与兜底
 
 Page({
   data: {
@@ -129,10 +131,11 @@ Page({
   // 落库失败退回写日记主页（与旧兜底一致）。不配「取消分享删草稿」（拍板③明确）
   onShareAppMessage() {
     const id = this.ensureDiarySaved()
-    return {
+    // [share-card-fallback v1] 品牌图探活：取不到时自动回落「当前页面截图」，不再显示破图
+    return shareCard.build({
       title: this.data.title || '我的 AI 总结',
       path: id ? '/pages/detail/detail?id=' + encodeURIComponent(id) + '&share=1' : '/pages/write/write'
-    }
+    })
   },
 
   // [summary-share-align v1] 未落库则先落库（幂等），返回日记 id（失败空串）。

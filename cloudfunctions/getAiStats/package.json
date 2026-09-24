@@ -1,0 +1,9 @@
+{
+  "name": "getAiStats",
+  "version": "1.0.0",
+  "description": "AI 用量埋点统计（[ai-usage v1]）：按功能/按天聚合 ai_usage，为定价与成本红线提供数据",
+  "main": "index.js",
+  "dependencies": {
+    "wx-server-sdk": "~2.6.3"
+  }
+}

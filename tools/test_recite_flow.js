@@ -25,6 +25,29 @@ const vm = require('vm')
 const base = path.resolve(__dirname, '..')
 const WRITE = path.join(base, 'pages', 'write', 'write.js')
 
+// [ai-usage v1] optimizeDiary 引入了 wx-server-sdk（服务端用量记账）。本套件第 7 节直接
+// require 云函数源码跑判空闸行为测试——未配置 DEEPSEEK_API_KEY 时 main 早退、不触网络，
+// 桩只需让模块可加载（与 test_ai_usage.js 同款 Module._load 劫持，进程内生效）
+const Module = require('module')
+const __origModuleLoad = Module._load
+Module._load = function (request) {
+  if (request === 'wx-server-sdk') {
+    const col = {
+      where: function () { return col },
+      add: async function () { return { _id: 'stub' } },
+      doc: function () { return { update: async function () { return {} } } },
+      limit: function () { return { get: async function () { return { data: [] } } } }
+    }
+    return {
+      DYNAMIC_CURRENT_ENV: '[DYNAMIC_CURRENT_ENV]',
+      init: function () {},
+      getWXContext: function () { return { OPENID: 'oTEST-recite' } },
+      database: function () { return { collection: function () { return col } } }
+    }
+  }
+  return __origModuleLoad.apply(this, arguments)
+}
+
 let pass = 0
 let fail = 0
 function ok(cond, name, extra) {

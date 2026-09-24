@@ -724,36 +724,7 @@
   box-shadow: none;
 }
 
-/* ===== 技术支持说明（左下角背景层）=====
-   固定定位在固定输入栏上方；z-index 低于正文卡片/工具行，可被其压盖；
-   pointer-events: none 保证不拦截滚动与点击（纯装饰）。
-   底部偏移在 wxml 行内计算（输入栏高度 + safeAreaBottom） */
-.tech-credit {
-  position: fixed;
-  left: 24rpx;
-  /* 必须低于 .content-scroll 的 z-index:1，保证正文卡片/工具行能压盖说明文字；
-     0 仍高于 .page 背景，故文字正常可见 */
-  z-index: 0;
-  display: flex;
-  align-items: center;
-  gap: 8rpx;
-  pointer-events: none;
-}
-
-.tech-credit-icon {
-  width: 26rpx;
-  height: 26rpx;
-  flex-shrink: 0;
-  opacity: 0.5;
-}
-
-.tech-credit-text {
-  font-size: 20rpx;
-  line-height: 1.2;
-  color: var(--ink-faint);
-  letter-spacing: 0.5rpx;
-  white-space: nowrap;
-}
+/* 说明行样式已随迁设置页（2026-09-24，tech-credit-move v1） */
 
 /* ===== 底部固定区：面板 + 输入栏 =====
    面板展开时压盖在编辑区、AI 优化/保存按钮之上 */
@@ -770,6 +741,34 @@
 .input-bar-wrap {
   flex-shrink: 0;
   z-index: 20;
+}
+
+/* [voice-clearall-v1] 撤销条：绝对定位浮在底部固定区上方，不挤压任何布局 */
+.clear-undo-bar {
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  margin-bottom: 20rpx;
+  display: flex;
+  align-items: center;
+  padding: 14rpx 28rpx;
+  background: var(--surface-frost);
+  border: 1rpx solid var(--line);
+  border-radius: 40rpx;
+  box-shadow: 0 4rpx 16rpx var(--brand-tint-25);
+}
+
+.clear-undo-text {
+  font-size: 26rpx;
+  color: var(--ink-mid);
+}
+
+.clear-undo-btn {
+  margin-left: 20rpx;
+  font-size: 26rpx;
+  font-weight: 600;
+  color: var(--brand);
 }
 
 .input-bar {
@@ -1737,6 +1736,17 @@
   height: 44rpx;
 }
 
+/* [voice-ready-guard v1] 波形占位：非录音态也保留这 64rpx（20 外边距 + 44 高），
+   否则录音一开始波形出现会把整张卡片顶上去，与文案切换叠加成「两段式跳动」。
+   占位期间同时停掉动画，避免空转。 */
+.voice-waves-idle {
+  visibility: hidden;
+}
+
+.voice-waves-idle .voice-wave {
+  animation: none;
+}
+
 .voice-wave {
   width: 6rpx;
   border-radius: 3rpx;
@@ -1909,9 +1919,23 @@
   padding: 24rpx 28rpx;
   margin-bottom: 24rpx;
   flex-shrink: 0;
-  /* 要点条目多时内部滚动，避免挤压下方文本框 */
-  max-height: 240rpx;
+  position: relative;
+}
+
+/* 要点滚动区：这一层没有内边距 ⇒ 裁切口径不受盒模型影响；
+   实际上限由 JS 渲染后实测一行真实高度 × 4 以 px 内联写入（见 measureOptPoints），
+   机型行高差异被实测值自动吸收；下方静态值仅作测量未完成首帧的兜底 */
+.opt-point-probe {
+  position: absolute;
+  top: 0;
+  left: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.opt-points-scroll {
   overflow-y: auto;
+  max-height: 184rpx;
 }
 
 .opt-points-title {
@@ -1920,13 +1944,14 @@
   font-family: var(--font-display);
   font-weight: var(--title-w-3);
   letter-spacing: var(--title-track-3);
+  line-height: 36rpx;
   margin-bottom: 14rpx;
 }
 
 .opt-point {
   font-size: 26rpx;
   color: var(--ink-mid);
-  line-height: 1.8;
+  line-height: 46rpx;
 }
 
 .opt-original-toggle {

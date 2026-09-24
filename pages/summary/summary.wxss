@@ -16,7 +16,15 @@
   box-sizing: border-box;
 }
 
+/* [footer-center v1.1] 撑满滚动区高度并纵向 flex：结果区 flex:1 占据「最后一条模板 ↔ 底栏」
+   的剩余空间，空态羽毛提示在其中垂直居中（用户拍板 2）；内容超高时照常滚动。
+   ⚠️ scroll-view 内百分比 min-height 真机不生效（首版翻车：提示贴底）⇒ 实际生效的是 wxml
+   内联的实测 px（data.scrollMinHeight，measureContent 测定），此处 100% 仅作无 JS 时兜底 */
 .content-inner {
+  min-height: 100%;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
   padding: var(--sp-md) 0 var(--sp-lg);
 }
 
@@ -220,6 +228,11 @@
 /* ===== 结果区 ===== */
 .result-area {
   margin-top: var(--sp-sm);
+  /* [footer-center v1] 占满剩余高度并垂直居中（空态/加载/错误三种状态都吃这个居中） */
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
 }
 
 .result-placeholder {
@@ -341,6 +354,29 @@
 .action-text {
   font-size: 24rpx;
   color: var(--ink-mid);
+}
+
+/* ===== 生成中冻结遮罩 [summary-freeze v1] =====
+   生成中整页不可操作：wxml 侧用 catchtap + catchtouchmove 把点击与滑动都吞在遮罩层，
+   不再冒泡到下面的时间胶囊 / 输入框 / 快捷模板 / 按住说话。
+   ⚠️ z-index 300 是数值夹逼出来的硬约束，改前先看这两条：
+     · 必须 > 201（range-picker 弹层 200/201）—— 低了盖不住胶囊本体与其弹层
+     · 必须 < 1000（.voice-modal）—— 高了会盖住语音浮层，导致「先按住说话 → 再生成」
+       时松手事件被吞、录音无法结束
+   6% 极淡压暗：让人看出「现在不能操作」，又不干扰阅读；不加文案/动画（状态已在结果区与底栏）*/
+.gen-mask {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 300;
+  background: rgba(42, 38, 34, 0.06);
+}
+
+/* 深色主题：深色 scrim 在深底上几乎不可见 ⇒ 换极淡白（同样「呼吸级」，只为可感知） */
+.theme-dark .gen-mask {
+  background: rgba(255, 255, 255, 0.05);
 }
 
 /* ===== 语音录音浮层 ===== */

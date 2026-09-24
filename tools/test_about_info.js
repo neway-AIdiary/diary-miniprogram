@@ -70,8 +70,9 @@ try {
 } catch (e) {
   ok('about.json 是合法 JSON', false, e.message)
 }
-ok('导航标题与 APP_NAME 一致', aboutJson.navigationBarTitleText === info.APP_NAME,
-  'json=' + aboutJson.navigationBarTitleText + ' / appInfo=' + info.APP_NAME)
+ok('导航标题 = 关于我们（页面功能名，2026-09-24 用户指令；页内 H1 仍是 {{appName}}）[about-title v1]',
+  aboutJson.navigationBarTitleText === '关于我们',
+  'json=' + aboutJson.navigationBarTitleText)
 ok('about.json 声明了 usingComponents', aboutJson.usingComponents !== undefined)
 
 // ---------- 3. 路由与入口 ----------
@@ -244,8 +245,16 @@ ok('.nav-title 仍保留 left:50% + translateX(-50%)（内联偏移缺失时的�
 ok('.nav-title 显式垂直居中（top:50% + translateY(-50%)）[nav-title-center v2]',
   navTitleBlock.indexOf('top: 50%') !== -1 && navTitleBlock.indexOf('translateY(-50%)') !== -1,
   navTitleBlock.replace(/\s+/g, ' ').slice(0, 160))
-ok('write.wxml 技术支持行绑定 {{appName}}（3.A 收敛，不再硬编码）',
-  writeWxml.indexOf('<text class="tech-credit-text">{{appName}} 由DeepSeek、火山引擎、腾讯云提供技术支持</text>') !== -1)
+ok('技术支持行已移出首页（write.wxml 不再有该元素）[tech-credit-move v1]',
+  writeWxml.indexOf('tech-credit') === -1)
+ok('技术支持行已移出设置页（setting.wxml 不再有该元素）[tech-credit-about v1]',
+  read('pages/setting/setting.wxml').indexOf('tech-credit') === -1)
+ok('关于页底部技术支持行绑定 {{appName}}（品牌不硬编码）[tech-credit-about v1]',
+  read('pages/about/about.wxml').indexOf('<text class="tech-credit-text">{{appName}} 由DeepSeek、火山引擎、腾讯云提供技术支持</text>') !== -1)
+ok('关于页技术支持行羽毛笔图标前置 [tech-credit-about v1]',
+  read('pages/about/about.wxml').indexOf('tech-credit-icon ri ri-quill-pen-line') !== -1)
+ok('我的页不再有技术支持行（唯一位于关于页）[tech-credit-about v1]',
+  read('pages/profile/profile.wxml').indexOf('tech-credit') === -1)
 
 // 白名单：已知的、暂未收敛的硬编码点（值为允许出现次数）
 // 收敛后请把次数改为 0（或从表里删掉），别让白名单变成永久豁免
