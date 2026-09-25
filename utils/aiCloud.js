@@ -420,7 +420,7 @@ function callAIOrganizeArchive(text, instruction) {
 //       多字 → 出现在名词任意位置即否决（为了/然后/上一…基本都是误捕片段）
 const NAME_BLOCK_HEAD_CHARS = ['是', '的', '了', '着', '和', '跟', '与', '同', '在', '到', '从', '把', '被',
   '给', '叫', '说', '想', '要', '又', '还', '也', '就', '都', '让', '做', '吃', '待', '等', '去', '走', '看', '带']
-const NAME_BLOCK_WORDS = ['为了', '然后', '可以', '以及', '上一', '下一', '一家', '两家', '这家', '那家', '什么', '怎么']
+const NAME_BLOCK_WORDS = ['为了', '然后', '可以', '以及', '上一', '下一', '一家', '两家', '这家', '那家', '什么', '怎么', '以为', '知道', '终于', '擦肩']
 // [person-hotword A'] 人名场景**特有**的高频误报：常见姓氏 + 常用字撞出来的普通词。
 // 只用于人名清洗，**不动 entityClean 的既有词表**（备案链路零影响）。
 // 与 entityClean.NON_NOUN_WORDS 允许重叠（冗余无害）：那张表是按"名词/虚词"分类的，
@@ -802,4 +802,27 @@ function autoSegmentAfterSave(diaryId) {
   }
 }
 
-module.exports = { callAI, callAIParse, callAIExtractMetaBatch, callAITags, callAIOrganizeArchive, callAIExtractEntities, callAIMergeDiary, autoSegmentAfterSave, stripMoodTail, cleanPersonNames }
+/**
+ * [roster-filter v1] 花名册 AI 复核：把名单交给 AI 甄别真名（optimizeDiary action='rosterReview'）。
+ * resolve(保留名单数组)；失败 resolve(null)（调用方静默降级，绝不阻塞、绝不抛错）。
+ */
+function callAIRosterReview(names) {
+  return new Promise(function (resolve) {
+    try {
+      wx.cloud.callFunction({
+        name: 'optimizeDiary',
+        data: { action: 'rosterReview', names: names },
+        success: function (res) {
+          const r = (res && res.result) || {}
+          if (r.error) { resolve(null); return }
+          resolve(Array.isArray(r.names) ? r.names : [])
+        },
+        fail: function () { resolve(null) }
+      })
+    } catch (e) {
+      resolve(null)
+    }
+  })
+}
+
+module.exports = { callAI, callAIParse, callAIExtractMetaBatch, callAITags, callAIOrganizeArchive, callAIExtractEntities, callAIMergeDiary, autoSegmentAfterSave, stripMoodTail, cleanPersonNames, callAIRosterReview }

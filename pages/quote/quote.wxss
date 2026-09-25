@@ -173,6 +173,10 @@
   letter-spacing: 1rpx;
   white-space: nowrap;
 }
+/* 日期与星期几的间隔：原为全角空格（1em），改为 0.5em 定量间距 [quote-gap v1] */
+.date-week-gap {
+  margin-left: 0.5em;
+}
 /* 区隔线：日期区与诗词区之间，与 quote-rule 同语言、更轻 */
 .date-rule {
   margin: 30rpx 48rpx 0;

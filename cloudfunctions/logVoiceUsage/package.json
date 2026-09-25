@@ -1,0 +1,9 @@
+{
+  "name": "logVoiceUsage",
+  "version": "1.0.0",
+  "description": "流式语音用量记账（[voice-usage v1]）：流式链路客户端直连火山、不经云函数，用量由客户端上报",
+  "main": "index.js",
+  "dependencies": {
+    "wx-server-sdk": "~2.6.3"
+  }
+}

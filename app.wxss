@@ -385,3 +385,14 @@ button[disabled] {
 .theme-dark .generate-btn {
   color: var(--surface);
 }
+/* [panel-mask v1] 底栏面板透明遮罩：面板展开时盖住内容区（z 29 < 底栏容器 z 30，
+   不盖面板与输入栏），点击面板外任意区域收起；wxml 侧用 catchtap 防点击穿透 */
+.panel-mask {
+  position: fixed;
+  left: 0;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  z-index: 29;
+  background: transparent;
+}

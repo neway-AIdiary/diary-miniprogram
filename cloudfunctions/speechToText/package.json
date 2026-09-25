@@ -1,9 +1,10 @@
 {
   "name": "speechToText",
   "version": "1.0.0",
-  "description": "语音识别云函数（百度 ASR）",
+  "description": "语音识别云函数（火山流式 2.0 整段识别 + 极速版回退）",
   "main": "index.js",
   "dependencies": {
-    "wx-server-sdk": "~2.6.3"
+    "wx-server-sdk": "~2.6.3",
+    "ws": "^8.18.0"
   }
 }

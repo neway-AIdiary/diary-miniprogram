@@ -21,6 +21,7 @@
 const cloud = require('wx-server-sdk')
 cloud.init({ env: cloud.DYNAMIC_CURRENT_ENV })
 const db = cloud.database()
+const _ = db.command
 
 const TEMPLATE_ID = '43jTDjTJTUZd3tvis9ErkXv5Zoz0yUWPmB-7paOeGwc'
 
@@ -32,6 +33,27 @@ const TEMPLATE_FIELDS = {
   subject: 'thing1',
   time: 'time23',
   desc: 'thing4'
+}
+
+// [reminder-window v1] 触发器每 5 分钟一次（config.json "0 */5 * * * * *"）；
+// 查询由「time == 当前分钟」改为「过去 REMINDER_WINDOW_MIN 分钟」窗口匹配（_.in）：
+//   ① 非整 5 分钟档设置的提醒（如 21:03）也能命中；
+//   ② 发送失败后窗口内（10 分钟 > 触发间隔 5 分钟）下次触发仍命中可重试
+//     （旧实现「下一分钟再尝试」的注释实际无效：下一分钟查询条件已是新分钟，
+//      同一提醒永远匹配不回去——本次顺手修复）。
+// 幂等仍由 lastSentCycle 保证：发过/已写即标记当天/当周周期，窗口内不会重复推送。
+// ⚠️ REMINDER_WINDOW_MIN 必须 ≥ 触发间隔 × 2（当前 5×2）；改触发器频率时须同步调整。
+const REMINDER_WINDOW_MIN = 10
+
+// 生成覆盖 [nowMs-(n-1) 分钟, nowMs] 的窗口分钟串（升序），统一按北京时间计算；
+// 跨小时/跨天由时间算术自然正确（如北京 00:00 时窗口含 "23:51"~"00:00"）。
+function minuteWindow(nowMs, n) {
+  const list = []
+  for (let i = n - 1; i >= 0; i--) {
+    const d = new Date(nowMs + 8 * 3600 * 1000 - i * 60000)
+    list.push(pad2(d.getUTCHours()) + ':' + pad2(d.getUTCMinutes()))
+  }
+  return list
 }
 
 // 微信云函数运行在 UTC+0，统一按北京时间计算
@@ -78,10 +100,11 @@ exports.main = async () => {
   monday.setUTCDate(monday.getUTCDate() - (dow - 1))
   const mondayKey = fmtDateKey(monday.getUTCFullYear(), monday.getUTCMonth() + 1, monday.getUTCDate())
 
-  // 拉所有当前分钟匹配且 enabled 的提醒（按 _id 倒序保证最新生效；单次拉 100 条够个人量级）
+  // 拉所有 time 落在过去 REMINDER_WINDOW_MIN 分钟内且 enabled 的提醒（按 _id 倒序保证最新生效；单次拉 100 条够个人量级）
+  // [reminder-window v1] 原为「time == 当前分钟」精确匹配；触发器改稀疏后须窗口匹配才能覆盖任意分钟档
   const remindersRes = await db.collection('reminders').where({
     enabled: true,
-    time: timeStr
+    time: _.in(minuteWindow(Date.now(), REMINDER_WINDOW_MIN))
   }).limit(100).get()
   const reminders = remindersRes.data || []
   if (!reminders.length) return { ok: true, processed: 0 }
@@ -149,7 +172,7 @@ exports.main = async () => {
         ' errCode=' + (e && e.errCode) +
         ' errMsg=' + (e && e.errMsg)
       )
-      // 不更新 lastSentCycle，下一分钟再尝试
+      // 不更新 lastSentCycle；窗口匹配下下次触发仍命中，10 分钟内自动重试
     }
   }
 

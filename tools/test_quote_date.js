@@ -278,11 +278,11 @@ ok(wxml.indexOf('date-line1') >= 0 && wxml.indexOf('{{gregorian}}') >= 0 &&
    wxml.indexOf('{{weekday}}') >= 0 && wxml.indexOf('date-cal') === -1 &&
    wxml.indexOf('公历') === -1 && wxml.indexOf('农历') === -1,
   'wxml [quote-date v4]：第一行 = 公历日期 + 星期几，「公历/农历」标签字样清零')
-ok(wxml.indexOf('{{lunarFull}}') >= 0 && wxml.indexOf('{{zodiac}} · ') >= 0 &&
-   wxml.indexOf('{{constellation}}') >= 0 && wxml.indexOf('{{termName}}') >= 0 &&
-   wxml.indexOf('{{zodiac}} · ') > wxml.indexOf('{{lunarFull}}') &&
-   wxml.indexOf('{{zodiac}} · ') < wxml.indexOf('{{constellation}}'),
-  'wxml [quote-zodiac]：第二行 = 干支日期 + 生肖 + 星座 + 节气（生肖在农历与星座之间）')
+ok(wxml.indexOf('{{lunarFull}}') >= 0 && wxml.indexOf('{{zodiac}}') >= 0 &&
+   wxml.indexOf('{{constellation}}') === -1 && wxml.indexOf('{{termName}}') >= 0 &&
+   wxml.indexOf('{{zodiac}}') > wxml.indexOf('{{lunarFull}}') &&
+   wxml.indexOf('{{zodiac}}') < wxml.indexOf('{{termName}}'),
+  'wxml [quote-no-xz]：第二行 = 干支日期 + 生肖 + 节气，星座已移除')
 ok(wxml.indexOf('wx:if="{{termName}}"') >= 0 && wxml.indexOf('{{termName}}') >= 0 &&
    wxml.indexOf('termIcon') === -1,
   'wxml：节气段绑定且不带 emoji [quote-date v3]（2.A）')

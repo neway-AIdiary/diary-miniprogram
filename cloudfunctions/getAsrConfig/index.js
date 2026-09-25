@@ -12,8 +12,9 @@
 // 可在云函数环境变量配置（新旧二选一，不配则用下方兜底密钥）：
 //   新版：VOLC_ASR_API_KEY
 //   旧版：VOLC_ASR_APP_ID + VOLC_ASR_ACCESS_TOKEN
-//   可选：VOLC_ASR_RESOURCE_ID（默认 volc.bigasr.sauc.duration 小时版；
-//         并发版填 volc.bigasr.sauc.concurrent）
+//   可选：VOLC_ASR_RESOURCE_ID（默认 volc.seedasr.sauc.duration = 豆包流式语音识别模型 2.0 小时版；
+//         [volc-asr20] 1.0 小时版 volc.bigasr.sauc.duration 已属历史版本，仅作回滚备选；
+//         并发版把末尾的 duration 换成 concurrent）
 // 兜底密钥：未配置环境变量时使用（更换密钥只需改这里重新部署，或配置环境变量覆盖）
 // 2026-08-31 实测有效的火山旧版双 Key（App ID + Access Token）
 const FALLBACK_APP_ID = '7992637022'
@@ -32,6 +33,6 @@ exports.main = async () => {
     apiKey: apiKey || '',
     appId: appId || '',
     accessToken: accessToken || '',
-    resourceId: process.env.VOLC_ASR_RESOURCE_ID || 'volc.bigasr.sauc.duration'
+    resourceId: process.env.VOLC_ASR_RESOURCE_ID || 'volc.seedasr.sauc.duration'
   }
 }

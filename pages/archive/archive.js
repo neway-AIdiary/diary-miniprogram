@@ -164,6 +164,12 @@ Page({
     this.setData({ quickText: text })
   },
 
+  // 花名册入口 [roster v1]：底栏表情按钮 → 花名册页
+  onRosterTap() {
+    this.setData({ showEmojiPanel: false })
+    wx.navigateTo({ url: '/pages/roster/roster' })
+  },
+
   // 右侧 +：输入框有内容→直接发送；为空→弹出「添加档案」编辑框
   onPlusTap() {
     this.setData({ showEmojiPanel: false })

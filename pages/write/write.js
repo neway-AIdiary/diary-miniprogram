@@ -9,6 +9,7 @@ const personNames = require('../../utils/personNames.js') // [person-hotword A']
 const weather = require('../../utils/weather.js')
 const mediaGuard = require('../../utils/mediaGuard.js')
 const transfer = require('../../utils/transfer.js')
+const summaryNudge = require('../../utils/summaryNudge.js') // [summary-nudge v1] 智能总结篇数引导
 const navbar = require('../../utils/navbar.js')
 const app = getApp()
 
@@ -1299,7 +1300,9 @@ Page({
           title: added === -1 ? '导入失败' : (added > 0 ? '导入成功' : '导入提示'),
           content: toast,
           showCancel: false,
-          confirmText: '知道了'
+          confirmText: '知道了',
+          // [summary-nudge v1] 导入结果弹窗关掉后再判引导（showModal 不可叠加，须串行在回调里）
+          success: () => { if (added > 0) summaryNudge.maybePrompt() }
         })
       },
       onError: (msg) => {
@@ -2143,6 +2146,8 @@ Page({
     if (this._navigated) return // 防重入：兜底路径和正常路径只会跳一次
     this._navigated = true
     console.log('[write] afterSaveNavigate 进入, id =', this._lastSavedId)
+    // [summary-nudge v1] 保存落定：已达阈值只置标志，引导由详情页 onShow 弹（不与备案弹窗抢时序）
+    try { summaryNudge.markSavedPending(app) } catch (e) { console.warn('[write] 总结引导标志失败:', e) }
     if (this._lastSavedId) {
       const navUrl = '/pages/detail/detail?id=' + this._lastSavedId
       // 先跳转：自动分段是后台增强功能，永远不允许挡在导航前面

@@ -30,9 +30,10 @@ const PRODUCER = '北京伟帆科技中心'
 const WECHAT_ID = 'baguanshanren'
 
 /* [share-card v1] 分享卡片品牌图（云存储文件 ID）：各页 onShareAppMessage 统一引用。
- * 图片位于云存储 media/share-card.png（5:4，1000x800）；换图只改这一行。
+ * 图片位于云存储 media/share-card-final.png（5:4，1000x800）；换图只改这一行
+ * （换图必须换新文件名，别同名覆盖——URL 不变会吃微信真机缓存）。
  * ⚠️ 若控制台实际 fileID 与此处不一致，以控制台复制为准替换。 */
-const SHARE_CARD_FILEID = 'cloud://aidiary-d6grgxkct50c30f45.6169-aidiary-d6grgxkct50c30f45-1468488197/media/share-card.png'
+const SHARE_CARD_FILEID = 'cloud://aidiary-d6grgxkct50c30f45.6169-aidiary-d6grgxkct50c30f45-1468488197/media/share-card-final.png'
 
 module.exports = {
   APP_NAME,

@@ -9,6 +9,7 @@
  *   action='extractEntities'  — AI 从日记中提取人名/地名/机构名等实体
  *   action='merge'            — AI 把同一天的旧日记和新内容融合成一篇完整日记
  *   action='segment'          — AI 自动划分段落（只插入换行，严禁改动任何字符）
+ *   action='rosterReview'     — 花名册 AI 复核：甄别人名，剔除非人名/带职位头衔的称呼 [roster-filter v1]
  *
  * 事件参数（optimize/continue）：
  *   content: 用户日记内容（必填）
@@ -236,6 +237,9 @@ function buildSystemPrompt(action, ctx) {
     '- 反例：日记写"明神大陆是否再次矛头相接" → 不提取，"是否"开头是疑问句不是定义句；日记写"娶她是为了羞辱她" → 不提取，"娶她"是动词+人称代词根本不是名词；"总而言之"是总结连词，这类常用词/非名词结构一律不提取；',
     '- 反例：日记写"怎料却是个爹不亲、娘不爱的主" → 不提取，"怎料却"是疑问副词（怎料/怎奈/岂料/岂知）开头的拼接碎片根本不是名词；疑问/揣测副词开头的字串一律不提取；',
     '- 反例：日记写"到了如今，这是她的思想" → 不提取，"如今"是时间词（如今/至今/而今）不是名词；日记写"充其量是舆论的玩偶" → 不提取，"充其量"是揣测性情态副词（充其量/顶多/至多）；时间词与情态副词一律不提取；',
+    '- 反例：日记写"我以为是微信的框架不会差那么大" → 不提取，"以为"是动词（表达主观猜测/误判，如"我以为是你没来"），不是名词；"我以为是…"是主谓句、不是对"以为"的定义；',
+    '- 反例：日记写"终于知道是微信小程序的开发平台登录出了问题" → 不提取，"终于知道"是副词"终于"和动词"知道"拼出的句子碎片、不是名词；副词（终于/居然/竟然/明明/其实等）开头的字串一律不提取；',
+    '- 反例：日记写"擦肩，也是一种缘分" → 不提取，"擦肩"是动宾式动词（动词+宾语语素，如"擦肩而过"），不是名词；动宾结构词（擦肩/点头/鼓掌类）一律不提取；',
     '- 反例：日记写"妹妹吵架时是一条心的" → 不提取，"妹妹吵架时"是时间从句（X时收尾）不是名词；日记写"原来我妈只是一个平凡的女人" → 不提取，"原来"开头的串是副词+代词拼出的句子碎片根本不是名词；时间从句与副词开头的碎片一律不提取；',
     '补充硬性要求：name 必须是原文中真实出现的专有名词本体，绝不能是"分别/一共/然后/大概/可能/都/也/还/其中/主要"这类虚词、副词、连接词；name 里不得含"的/了/是"等助词；判断"是否被解释"时，必须是「名词 + 是/叫/就是…」这种针对该名词本体的定义句式，不能把名词后面任意一段文字当成解释；',
     '补充硬性要求二：不要提取以"性"结尾的常用抽象名词（积极性/可能性/重要性/主动性/灵活性等）；也不要把转折词、副词和后面的文字拼接成碎片当名词（如"但总是…"绝不能截出"但总"）；',
@@ -364,6 +368,26 @@ function buildSystemPrompt(action, ctx) {
     '',
     '请严格按以下 JSON 格式返回（不要输出任何其他文字）：',
     '{"archives":[{"name":"张三","description":"好朋友，认识十几年了，经常一起玩游戏"}]}'
+  ].join('\n')
+  }
+
+  // [roster-filter v1] 花名册 AI 复核：甄别真名，剔除地名/物品词/「张部/王总」类带职位头衔的称呼
+  if (action === 'rosterReview') {
+    return [
+    '你是一位严谨的中文人名审核助手。用户的花名册由本地规则从日记中自动提取，其中混有非人名词语，请逐个甄别。',
+    '任务：只保留「真实的中文人名」，其余全部剔除。',
+    '剔除规则（宁严勿松）：',
+    '1. 地名、机构名、品牌名、建筑景点（如：罗马、孔府）一律剔除；',
+    '2. 普通词语、物品或专用名词（如：范围、宋体、朱砂、双打）一律剔除；',
+    '3. 「姓 + 职位/头衔/称谓」的称呼（如：张部、王总、李工、刘处、赵经理、陈老师）不是完整人名，一律剔除；',
+    '4. 「姓 + 虚词」的拼接碎片（如：任在、范也）一律剔除；',
+    '5. 常见姓氏开头的词组若更像普通词汇而非人名，剔除；拿不准真假时，宁剔除不保留。',
+    '保留规则：',
+    '1. 2~4 个字的中文人名全名（如：王威、王小明、欧阳飞）保留；',
+    '2. 只输出原名单中出现过的名字，逐字返回，不得改写、不得新增、不得去重后改名。',
+    '',
+    '请严格按以下 JSON 格式返回（不要输出任何其他文字）：',
+    '{"names":["保留的人名1","保留的人名2"]}'
   ].join('\n')
   }
 
@@ -553,6 +577,16 @@ function buildExtractMetaBatchPrompt(items) {
   return [
     '日记列表：',
     listText
+  ].join('\n')
+}
+
+/**
+ * 构造 rosterReview（花名册 AI 复核）的 prompt [roster-filter v1]
+ */
+function buildRosterReviewPrompt(names) {
+  return [
+    '待审核名单（共 ' + names.length + ' 个）：',
+    names.join('、')
   ].join('\n')
 }
 
@@ -861,7 +895,7 @@ exports.main = async (event, context) => {
       // 单字只在「名词首字」否决：含字即拦会误杀 北汽新能源(能)/蔚来汽车(来)/上汽集团(上)
       const NAME_BLOCK_HEAD_CHARS = ['是', '的', '了', '着', '和', '跟', '与', '同', '在', '到', '从', '把', '被',
   '给', '叫', '说', '想', '要', '又', '还', '也', '就', '都', '让', '做', '吃', '待', '等', '去', '走', '看', '带']
-      const NAME_BLOCK_WORDS = ['为了', '然后', '可以', '以及', '上一', '下一', '一家', '两家', '这家', '那家', '什么', '怎么']
+      const NAME_BLOCK_WORDS = ['为了', '然后', '可以', '以及', '上一', '下一', '一家', '两家', '这家', '那家', '什么', '怎么', '以为', '知道', '终于', '擦肩']
       const hasBlockedNameWord = (raw) => {
         const n = String(raw || '').trim()
         if (!n) return true
@@ -954,6 +988,26 @@ exports.main = async (event, context) => {
           .slice(0, 5)
       }))
       return { results: cleaned }
+    } catch (err) {
+      return { error: '调用 AI 失败: ' + (err && err.message || err) }
+    }
+  }
+
+  // ===== rosterReview：花名册 AI 复核（满 100 后静默剔除非人名，[roster-filter v1]）=====
+  if (action === 'rosterReview') {
+    const rawNames = Array.isArray(event && event.names) ? event.names : []
+    const nameList = rawNames.map(n => String(n || '').trim()).filter(Boolean).slice(0, 120)
+    if (!nameList.length) return { names: [] }
+    if (!API_KEY) return { error: '服务端未配置 DEEPSEEK_API_KEY' }
+    try {
+      const r = await runPrompt(buildRosterReviewPrompt(nameList), 2000, 0.1, buildSystemPrompt('rosterReview'))
+      if (r.error) return { error: r.error }
+      // 只允许返回原名单的子集：AI 编造/改写的名字一律丢弃
+      const src = new Set(nameList)
+      const kept = ((r.parsed && Array.isArray(r.parsed.names)) ? r.parsed.names : [])
+        .map(n => String(n || '').trim())
+        .filter(n => n && src.has(n))
+      return { names: kept, removed: nameList.length - kept.length }
     } catch (err) {
       return { error: '调用 AI 失败: ' + (err && err.message || err) }
     }

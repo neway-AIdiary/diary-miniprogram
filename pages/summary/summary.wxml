@@ -117,7 +117,7 @@
     <view class="voice-modal-body">
       <view class="voice-dot {{recording ? 'pulse' : ''}}"></view>
       <view class="voice-title">{{transcribing ? '语音识别中' : (connectingSlow ? '准备中' : '正在聆听')}}</view>
-      <scroll-view class="voice-text-scroll" scroll-y enhanced show-scrollbar="{{false}}">
+      <scroll-view class="voice-text-scroll" scroll-y enhanced show-scrollbar="{{false}}" scroll-top="{{voiceScrollTop}}">
         <text class="voice-text">{{liveText || (connectingSlow ? '请稍候…' : (recording || connecting ? '请说话…' : '识别中…'))}}</text>
       </scroll-view>
     </view>

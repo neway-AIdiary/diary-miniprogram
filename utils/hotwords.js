@@ -120,7 +120,7 @@ function buildBase() {
   let budget = TOKEN_BUDGET
   const words = []
   const seen = new Set()
-  const count = { archive: 0, keyword: 0 }
+  const count = { archive: 0, keyword: 0, roster: 0 }
 
   const push = (w) => {
     w = String(w || '').trim()
@@ -138,6 +138,15 @@ function buildBase() {
     const archives = storage.getArchives() || []
     for (let i = 0; i < archives.length; i++) {
       if (push(archives[i] && archives[i].name)) count.archive++
+    }
+  } catch (e) {}
+  // 1.5 花名册人名 [roster v1]：用户从花名册确认的名字，优先级仅次于档案、高于自动挖掘；
+  //     与档案可重名（push 内 seen 去重）；懒加载防循环 require
+  try {
+    const roster = require('./roster.js')
+    const rosterNames = roster.getNames() || []
+    for (let i = 0; i < rosterNames.length; i++) {
+      if (push(rosterNames[i])) count.roster++
     }
   } catch (e) {}
 
@@ -324,7 +333,7 @@ function get(force, opts) {
   if (force || cache.dateKey !== today || !cache.baseWords.length && !cache.count.archive && !cache.count.keyword) {
     const base = buildBase()
     cache.baseWords = base.words
-    cache.count = { archive: base.count.archive, keyword: base.count.keyword }
+    cache.count = { archive: base.count.archive, keyword: base.count.keyword, roster: base.count.roster || 0 }
     cache.dateKey = today
   }
   // 拼接 ctx：ctx 每次新算（草稿文本会变），且 ctx 优先装在最前
@@ -343,8 +352,14 @@ function getLastCount() {
   return {
     archive: cache.count ? cache.count.archive : 0,
     keyword: cache.count ? cache.count.keyword : 0,
+    roster: cache.count ? (cache.count.roster || 0) : 0,
     person: lastPersonCount
   }
 }
 
-module.exports = { get, build, getContextTerms, getLastCount, estTokens, isValidWord, TOKEN_BUDGET, PERSON_SUB_BUDGET }
+/** [roster v1] 花名册变更后清基础词缓存（下次 get/build 重建，带上最新名单） */
+function resetBaseCache() {
+  cache.dateKey = ''
+}
+
+module.exports = { get, build, getContextTerms, getLastCount, estTokens, isValidWord, TOKEN_BUDGET, PERSON_SUB_BUDGET, resetBaseCache }

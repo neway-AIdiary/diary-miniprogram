@@ -80,6 +80,19 @@ let finishSent = false           // 已发送最后一包（负包）
 let finishWaitTimer = null       // 服务端 4s 未关闭连接的兜底定时器
 let streamFinalized = false      // 本次流式会话是否已收尾（防重入）
 
+// ===== [voice-usage v1] 语音用量记账（商业化埋点）=====
+// 流式链路（Android/开发者工具的火山实时识别）**由客户端直连火山、不经过任何云函数**，
+// 云函数侧的 logAiUsage 天然覆盖不到它 ⇒ 用量只能由客户端在会话收尾时上报一次。
+// 四个标记的分工（缺一个就会出现「少数/多算」）：
+//   sessionSeconds   本次录音时长（onStop 冻结，用于额度制的「语音分钟数」）
+//   sessionStreamUsed 本次**真的连上过** WS（纯流式判据；没连上就是整段链路，云端已记账）
+//   sessionBatchUsed  本次已走整段识别（speechToText 内部已记账）⇒ 抑制流式上报，防双计
+//   usageReported    一次会话只上报一条（finalizeStream 有多条触发路径）
+let sessionSeconds = 0
+let sessionStreamUsed = false
+let sessionBatchUsed = false
+let usageReported = false
+
 // 开始一次录音会话：置状态并启动秒数计时器
 function beginSession() {
   state.connecting = false
@@ -166,7 +179,7 @@ function getAsrConfig() {
         apiKey: r.apiKey || '',
         appId: r.appId || '',
         accessToken: r.accessToken || '',
-        resourceId: r.resourceId || 'volc.bigasr.sauc.duration',
+        resourceId: r.resourceId || 'volc.seedasr.sauc.duration',   // [volc-asr20] 兜底=2.0 小时版（正常永远走云端下发，此处仅防配置缺失）
         fetchedAt: Date.now()
       }
       return asrConfigCache
@@ -313,6 +326,9 @@ function openSocket(cfg) {
       return
     }
     socketOpen = true
+    // [voice-usage v1] 真连上了 ⇒ 本次是「纯流式」会话（用量需客户端上报；
+    // 未连上就退整段链路的会话由 speechToText 云函数记账，见 transcribe）
+    sessionStreamUsed = true
     // [hotword-off-critical-path v1] 在此处（而非 connectSocket 之前）构建热词：
     // 此刻录音已启动、浮层已渲染，构建耗时不再推迟任何用户可见的反馈；
     // 握手期间产出的音频帧已缓存在 pendingFrames，构建完再补发，不丢开头、不影响识别内容。
@@ -326,7 +342,7 @@ function openSocket(cfg) {
       hotwordList = hotwords.get(false, { contextText: currentContextText })
       if (hotwordList.length) {
         const c = hotwords.getLastCount()
-        console.log('[voice] 热词已注入:', hotwordList.length, '个（档案', c.archive, '+ 日记高频', c.keyword, '+ 人名', c.person || 0, '）')
+        console.log('[voice] 热词已注入:', hotwordList.length, '个（档案', c.archive, '+ 花名册', c.roster || 0, '+ 日记高频', c.keyword, '+ 人名', c.person || 0, '）')
       }
     } catch (e) { /* 热词构建失败不影响录音 */ }
     // 首帧：full client request（JSON 参数）
@@ -462,12 +478,38 @@ function finalizeStream() {
 
   state.liveRaw = fullText
   const r = voiceFilter.purify(fullText)
+  // [voice-usage v1] 流式链路用量上报（唯一记账点）：到这里说明本次确实用完了识别服务
+  //（识别出内容 or「没听清」——火山时长都已消耗）。误触取消 / 回退整段会被 reportVoiceUsage 内部拦掉。
+  reportVoiceUsage(!!r.text)
   if (r.text) {
     deliver(r.text, r.count)
   } else if (!cancelRequested) {
     // 仅在正常会话（非用户提前松手取消）时提示没听清
     wx.showToast({ title: '没听清，再试一次', icon: 'none' })
   }
+}
+
+// ===== [voice-usage v1] 流式链路用量上报 =====
+// 这是**客户端唯一**的用量上报点。口径（用户 2026-09-24 拍板）：
+//   · 只在真的用完一次识别时上报（成功交付 / 没听清都算：火山时长已消耗）
+//   · 误触取消（cancelRequested）、回退整段链路（sessionBatchUsed，云端已记账）一律不上报
+//   · 静默 fire-and-forget：不 await、失败吞掉 —— 记账绝不干扰语音交互
+function reportVoiceUsage(recognized) {
+  if (usageReported) return
+  if (!sessionStreamUsed || sessionBatchUsed) return
+  if (cancelRequested) return
+  usageReported = true
+  if (!wx.cloud || !wx.cloud.callFunction) return
+  try {
+    wx.cloud.callFunction({
+      name: 'logVoiceUsage',
+      data: {
+        mode: 'stream',
+        seconds: sessionSeconds,
+        ok: !!recognized
+      }
+    }).catch(() => {})
+  } catch (e) { /* 静默：记账失败不影响交付 */ }
 }
 
 // ===== 回退链路：录音 → 上传 → speechToText 云函数（火山录音文件极速识别）=====
@@ -507,6 +549,8 @@ function initRecorder() {
   recorderManager.onStop((res) => {
     if (recordTimer) { clearInterval(recordTimer); recordTimer = null }
     const duration = state.seconds
+    // [voice-usage v1] 先冻结秒数：state.seconds 下面立刻被清零，而 finalizeStream 稍后才跑
+    sessionSeconds = state.seconds
     state.recording = false
     state.connecting = false
     state.seconds = 0
@@ -589,6 +633,9 @@ function fallbackToBatch(filePath) {
 
 // 上传录音并调用 speechToText 云函数识别，结果先净化再交给页面
 async function transcribe(filePath, format) {
+  // [voice-usage v1] 这一路（iOS / 流式失败回退）经 speechToText 云函数识别，
+  // 用量已由云函数内部 logAiUsage 记账 ⇒ 客户端**不再重复上报**（防双计）
+  sessionBatchUsed = true
   state.transcribing = true
   emitState()
   try {
@@ -681,6 +728,11 @@ function start(opts) {
   sessionStartAt = Date.now()
   // 记录本次录音的草稿上下文：每次录音都重置（上一段录音的草稿不污染本次）
   currentContextText = String((opts && opts.contextText) || '')
+  // [voice-usage v1] 新一轮会话：记账状态复位（上一轮的标记绝不能继承）
+  sessionSeconds = 0
+  sessionStreamUsed = false
+  sessionBatchUsed = false
+  usageReported = false
   cancelRequested = false
   // 新一轮录音：清空上次的实时识别文本，浮层从空白开始
   state.liveText = ''

@@ -7,6 +7,7 @@ const storage = require('../../utils/storage.js')
 const util = require('../../utils/util.js')
 const voice = require('../../utils/voice.js')
 const dateRange = require('../../utils/dateRange.js') // [range-toolbar v1] 日期范围公共口径
+const summaryNudge = require('../../utils/summaryNudge.js') // [summary-nudge v1] 智能总结篇数引导
 const app = getApp()
 
 // 快捷模板（[summary-shortcut v1.3] 六条）
@@ -57,7 +58,8 @@ Page({
     connecting: false,
     transcribing: false,
     voiceCanceling: false,
-    liveText: ''
+    liveText: '',
+    voiceScrollTop: 0
   },
 
   onLoad() {
@@ -77,6 +79,20 @@ Page({
         transcribing: s.transcribing,
         voiceCanceling: false,
         liveText: s.liveText || ''
+      }, () => {
+        // [voice-scroll v1] 说话多了自动滚到底：文本高于视口时把 scroll-top 推到底部
+        //（内容单调变长 => 高度差单调增 => 每出新行都会触发一次滚动；文本未变则不 setData）
+        if (!s.liveText || !wx.createSelectorQuery) return
+        const q = wx.createSelectorQuery()
+        q.select('.voice-text').boundingClientRect()
+        q.select('.voice-text-scroll').boundingClientRect()
+        q.exec((res) => {
+          const txt = res && res[0]
+          const box = res && res[1]
+          if (!txt || !box || txt.height <= box.height) return
+          const top = Math.ceil(txt.height - box.height)
+          if (top > (this.data.voiceScrollTop || 0)) this.setData({ voiceScrollTop: top })
+        })
       })
     })
   },
@@ -322,6 +338,7 @@ Page({
           outputTruncated: !!r.outputTruncated
         }
         app.globalData.summaryResult = payload // 兜底：eventChannel 未命中时结果页读全局
+        summaryNudge.refreshAnchor() // [summary-nudge v1] 生成成功即刷新篇数锚点（拍板：2.1）
         // 本页回到初始态（保留输入的需求方便继续提问），避免返回时残留 loading / 旧结果
         this.setData({ loading: false, hasResult: false, result: '', resultHtml: '', diaryCount: 0, truncated: false })
         wx.navigateTo({

@@ -1,0 +1,47 @@
+<!-- 花名册 [roster v1]：一键提取日记人名 → 确认面板 → 注入语音热词 -->
+<view class="page {{themeClass}}" style="{{fontStyle}}">
+
+  <!-- 提示栏（用户指定文案，样式对齐档案页提示区） -->
+  <view class="hint-bar">
+    <view class="hint-text">添加名字到花名册后，语音识别会更精准</view>
+    <view class="hint-text">花名册（{{count}}/100）· 长按名字可删除</view>
+  </view>
+
+  <!-- 名单列表 -->
+  <scroll-view class="roster-scroll" scroll-y enhanced show-scrollbar="{{false}}">
+    <view class="roster-empty" wx:if="{{!items.length}}">花名册还是空的，点下方「一键提取人名」试试</view>
+    <view class="roster-list" wx:else>
+      <view class="roster-card" wx:for="{{items}}" wx:key="name"
+            bindlongpress="onRemoveName" data-name="{{item.name}}">
+        <view class="roster-name">{{item.name}}</view>
+        <view class="roster-meta" wx:if="{{item.count}}">出现 {{item.count}} 次<text wx:if="{{item.lastDate}}"> · 最近 {{item.lastDate}}</text></view>
+      </view>
+    </view>
+  </scroll-view>
+
+  <!-- 底部：一键提取 -->
+  <view class="roster-foot" style="padding-bottom: calc(22rpx + {{safeAreaBottom}}px);">
+    <view class="roster-btn {{extracting || count >= 100 ? 'off' : ''}}" bindtap="onExtract">
+      {{extracting ? '提取中…' : (count >= 100 ? '花名册已满' : '一键提取人名')}}
+    </view>
+  </view>
+
+  <!-- 确认面板：默认全选，点 chip 切换 [roster-panel v1] -->
+  <view class="panel-mask" wx:if="{{panelShow}}" bindtap="onPanelCancel"></view>
+  <view class="panel-sheet" wx:if="{{panelShow}}" style="padding-bottom: calc(22rpx + {{safeAreaBottom}}px);">
+    <view class="panel-title">发现 {{candidates.length}} 个新名字（默认全选）</view>
+    <scroll-view class="panel-scroll" scroll-y>
+      <view class="panel-grid">
+        <view class="panel-chip {{item.checked ? 'on' : ''}}" wx:for="{{candidates}}" wx:key="name"
+              bindtap="onToggle" data-name="{{item.name}}">
+          <view class="panel-chip-name">{{item.name}}</view>
+          <view class="panel-chip-meta">出现 {{item.count}} 次</view>
+        </view>
+      </view>
+    </scroll-view>
+    <view class="panel-btns">
+      <view class="panel-btn cancel" bindtap="onPanelCancel">取消</view>
+      <view class="panel-btn ok" bindtap="onPanelConfirm">确认添加{{checkedCount ? '（' + checkedCount + '）' : ''}}</view>
+    </view>
+  </view>
+</view>

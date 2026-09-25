@@ -218,52 +218,39 @@
   margin-bottom: 16rpx;
 }
 
-/* 标题区 / 心情区：固定在上，底部加详情页同款分隔线，三块（标题/心情/正文）区隔 */
-.section-title,
-.section-mood {
+/* 标题区：固定在上，底部加详情页同款分隔线 [mood-capsule v1] 心情栏已并入标题行 */
+.section-title {
   flex-shrink: 0;
   border-bottom: 1rpx solid var(--line);
-  padding-bottom: 20rpx;
+  padding-bottom: 12rpx;
 }
 
-/* 心情选择：上下留白减半 */
-.mood-bar {
-  background: var(--surface);
-  border-radius: 16rpx;
-  padding: 14rpx 28rpx;
+/* 标题行：标题输入占剩余宽度（min-width:0 防长标题把胶囊挤出），心情胶囊贴右；
+   输入高度收成 60rpx 贴文字行，胶囊与文字上下中心对齐 [mood-capsule v1.1] */
+.title-row {
   display: flex;
   align-items: center;
+  gap: 16rpx;
 }
 
-.mood-label {
-  font-size: 28rpx;
-  color: var(--ink);
+.title-row .edit-title-input {
+  flex: 1;
+  min-width: 0;
+  height: 60rpx;
+  padding: 0;
+}
+
+/* 心情胶囊：与写字页 write.wxss .mood-pill 同款（颜色/底色由 wxml 内联提供，无心情走灰底兜底） */
+.mood-pill {
+  display: flex;
+  align-items: center;
+  gap: 6rpx;
+  padding: 10rpx 22rpx;
+  border: 1rpx solid var(--line);
+  border-radius: 30rpx;
+  font-size: 24rpx;
   font-weight: 500;
   flex-shrink: 0;
-}
-
-.mood-value {
-  flex: 1;
-  font-size: 28rpx;
-  margin-left: 24rpx;
-  color: var(--ink);
-}
-
-.mood-value.placeholder {
-  color: var(--ink-soft);
-}
-
-/* 心情行右侧可点击箭头 */
-.mood-arrow {
-  flex-shrink: 0;
-  margin-left: 8rpx;
-  font-size: 36rpx;
-  line-height: 1;
-  color: var(--ink-faint);
-}
-
-.mood-bar-hover {
-  opacity: 0.7;
 }
 
 .mood-options {
@@ -861,7 +848,8 @@
 }
 
 .voice-card-processing {
-  background: var(--brand-tint-08);
+  /* [voice-card-bg v1] tint-08 只有 10% 不透明度，深色下叠底栏近乎透明；换实心档 */
+  background: var(--brand-soft);
   border: 2rpx solid var(--brand-shadow-20);
 }
 

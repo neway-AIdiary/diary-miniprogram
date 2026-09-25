@@ -1666,7 +1666,8 @@
 }
 
 .voice-card-processing {
-  background: var(--brand-tint-08);
+  /* [voice-card-bg v1] tint-08 只有 10% 不透明度，深色下叠底栏近乎透明；换实心档 */
+  background: var(--brand-soft);
   border: 2rpx solid var(--brand-shadow-20);
 }
 

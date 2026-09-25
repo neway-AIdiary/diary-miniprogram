@@ -241,6 +241,11 @@
   background-image: url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCI+PGNpcmNsZSBjeD0iMTIiIGN5PSIxMiIgcj0iOSIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjMkIyQjJCIiBzdHJva2Utd2lkdGg9IjEuNyIvPjxjaXJjbGUgY3g9IjguOCIgY3k9IjEwIiByPSIxLjEiIGZpbGw9IiMyQjJCMkIiLz48Y2lyY2xlIGN4PSIxNS4yIiBjeT0iMTAiIHI9IjEuMSIgZmlsbD0iIzJCMkIyQiIvPjxwYXRoIGQ9Ik04IDEzLjdjMS4yIDEuNyA2LjggMS43IDggMCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjMkIyQjJCIiBzdHJva2Utd2lkdGg9IjEuNiIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIi8+PC9zdmc+");
 }
 
+/* 花名册入口图标 [roster v1.1]：人名卡片 + 底部书页线（仅档案页使用） */
+.icon-roster {
+  background-image: url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCI+PHJlY3QgeD0iNCIgeT0iMy41IiB3aWR0aD0iMTYiIGhlaWdodD0iMTciIHJ4PSIzIiBmaWxsPSJub25lIiBzdHJva2U9IiMyQjJCMkIiIHN0cm9rZS13aWR0aD0iMS42Ii8+PGNpcmNsZSBjeD0iMTIiIGN5PSI5LjYiIHI9IjIuMiIgZmlsbD0iIzJCMkIyQiIvPjxwYXRoIGZpbGw9IiMyQjJCMkIiIGQ9Ik04LjYgMTYuNmMwLTIuNSA2LjgtMi41IDYuOCAwdi41SDguNnoiLz48L3N2Zz4=");
+}
+
 /* ===== 表情面板（与主页一致）===== */
 .panel {
   flex-shrink: 0;
@@ -465,7 +470,8 @@
 }
 
 .voice-card-processing {
-  background: var(--brand-tint-08);
+  /* [voice-card-bg v1] tint-08 只有 10% 不透明度，深色下叠底栏近乎透明；换实心档 */
+  background: var(--brand-soft);
   border: 2rpx solid var(--brand-shadow-20);
 }
 
@@ -699,5 +705,7 @@
 .theme-dark .icon-keyboard { background-image: url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCI+PHBhdGggZmlsbD0iI0FEQTQ5NiIgZD0iTTIwIDVINGEyIDIgMCAwIDAtMiAydjEwYTIgMiAwIDAgMCAyIDJoMTZhMiAyIDAgMCAwIDItMlY3YTIgMiAwIDAgMC0yLTJ6bS05IDRoMnYyaC0yVjl6TTcgOWgydjJIN1Y5em0xMCA4SDd2LTJoMTB2MnptMC02aC0yVjloMnYyem0tNCA0di0yaDJ2MmgtMnptLTYgMHYtMmgydjJIN3oiLz48L3N2Zz4="); }
 
 .theme-dark .icon-plus { background-image: url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCI+PHBhdGggZmlsbD0iI0FEQTQ5NiIgZD0iTTExIDExVjVIMTNWMTFIMTlWMTNIMTNWMTlIMTFWMTNINVYxMUgxMVoiLz48L3N2Zz4="); }
+
+.theme-dark .icon-roster { background-image: url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCI+PHJlY3QgeD0iNCIgeT0iMy41IiB3aWR0aD0iMTYiIGhlaWdodD0iMTciIHJ4PSIzIiBmaWxsPSJub25lIiBzdHJva2U9IiNBREE0OTYiIHN0cm9rZS13aWR0aD0iMS42Ii8+PGNpcmNsZSBjeD0iMTIiIGN5PSI5LjYiIHI9IjIuMiIgZmlsbD0iI0FEQTQ5NiIvPjxwYXRoIGZpbGw9IiNBREE0OTYiIGQ9Ik04LjYgMTYuNmMwLTIuNSA2LjgtMi41IDYuOCAwdi41SDguNnoiLz48L3N2Zz4="); }
 
 .theme-dark .icon-smiley { background-image: url("data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCI+PGNpcmNsZSBjeD0iMTIiIGN5PSIxMiIgcj0iOSIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjQURBNDk2IiBzdHJva2Utd2lkdGg9IjEuNyIvPjxjaXJjbGUgY3g9IjguOCIgY3k9IjEwIiByPSIxLjEiIGZpbGw9IiNBREE0OTYiLz48Y2lyY2xlIGN4PSIxNS4yIiBjeT0iMTAiIHI9IjEuMSIgZmlsbD0iI0FEQTQ5NiIvPjxwYXRoIGQ9Ik04IDEzLjdjMS4yIDEuNyA2LjggMS43IDggMCIgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjQURBNDk2IiBzdHJva2Utd2lkdGg9IjEuNiIgc3Ryb2tlLWxpbmVjYXA9InJvdW5kIi8+PC9zdmc+"); }

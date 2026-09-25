@@ -397,6 +397,34 @@ check('jb-7 「叫」+人名仍可弹（姐夫叫王磊）', entityClean.isExpla
   check('pn-6 变体：放学时同类时间从句碎片', entityClean.isNonNounWord('放学时'), true)
   check('pn-7 护栏：真定义不回归（王磊是我的大学同学）', entityClean.isExplainedNoun('王磊', '王磊是我的大学同学。', '我的大学同学'), true)
   check('pn-8 护栏：不含代词/副词前缀的真专名不受误伤', entityClean.isNonNounWord('明神大陆'), false)
+
+  // ===== [entity-yiwei-v1] 第 27 节：动词「以为」不备案（2026-09-24 用户侧 bug：
+  // 「我以为是微信的框架不会差那么大。」弹出备案「以为」——以为=主观猜测，动词不是名词） =====
+  check('yw-1 用户案例：动词「以为」不备案', entityClean.isExplainedNoun('以为', '我以为是微信的框架不会差那么大。', '微信的框架不会差那么大'), false)
+  check('yw-2 以为本体按动词表否决（热词链路同口径）', entityClean.isNonNounWord('以为'), true)
+  check('yw-3 护栏：真定义不回归（王磊是我的大学同学）', entityClean.isExplainedNoun('王磊', '王磊是我的大学同学。', '我的大学同学'), true)
+  check('yw-4 护栏：含「以为」的字串不受整词表误伤（以为斋）', entityClean.isNonNounWord('以为斋'), false)
+
+  // ===== [entity-advprefix2-v1] 第 28 节：副词前缀横展（2026-09-25 用户指令「收紧备案提醒」：
+  // 「终于知道是微信小程序的开发平台登录出了问题。」弹备案「终于知道」——副词+动词拼片不是名词） =====
+  check('zy-1 用户案例：副词+动词「终于知道」不备案', entityClean.isExplainedNoun('终于知道', '终于知道是微信小程序的开发平台登录出了问题。', '微信小程序的开发平台登录出了问题'), false)
+  check('zy-2 副词前缀「终于开学」碎片不备案（前缀规则独立于动词表生效）', entityClean.isExplainedNoun('终于开学', '拖了两个月，终于开学是他的坚持。', '是他的坚持'), false)
+  check('zy-3 同族「竟然熬夜」碎片不备案', entityClean.isExplainedNoun('竟然熬夜', '竟然熬夜是他的常态。', '是他的常态'), false)
+  check('zy-4 动词「知道」本体不备案', entityClean.isExplainedNoun('知道', '知道是他的苦心。', '是他的苦心'), false)
+  check('zy-5 知道本体按动词表否决（热词链路同口径）', entityClean.isNonNounWord('知道'), true)
+  check('zy-6 护栏：真定义不回归（王磊是我的大学同学）', entityClean.isExplainedNoun('王磊', '王磊是我的大学同学。', '我的大学同学'), true)
+  check('zy-7 护栏：果然山不受前缀横展误伤', entityClean.isExplainedNoun('果然山', '果然山是我们村后的大山。'), true)
+  // ===== [entity-verbobj-v1] 第 29 节：动宾式动词不备案（2026-09-25 用户指令：
+  // 「擦肩，也是一种缘分」弹备案「擦肩」——动宾结构词是动词不是名词） =====
+  check('jo-1 用户案例：动宾式动词「擦肩」不备案', entityClean.isExplainedNoun('擦肩', '擦肩，也是一种缘分。', '一种缘分'), false)
+  check('jo-2 变体「擦肩而过」含动宾成分不备案', entityClean.isExplainedNoun('擦肩而过', '擦肩而过也是一种缘分。', '一种缘分'), false)
+  check('jo-3 擦肩本体按动宾表否决（热词链路同口径）', entityClean.isNonNounWord('擦肩'), true)
+  check('jo-4 「也是」带「也」已被功能字子串拦截不备案', entityClean.isExplainedNoun('也是缘分', '擦肩也是一种缘分。', '一种缘分'), false)
+  check('jo-5 变体「也成为」带「也」不备案', entityClean.isExplainedNoun('也成为', '这次相聚也成为他的转折点。', '他的转折点'), false)
+  check('jo-6 两端黑名单含「擦肩」（云端路径同拦）',
+    fs.readFileSync(path.join(base, 'utils/aiCloud.js'), 'utf8').indexOf("'擦肩'") !== -1 &&
+    fs.readFileSync(path.join(base, 'cloudfunctions/optimizeDiary/index.js'), 'utf8').indexOf("'擦肩'") !== -1, true)
+  check('jo-7 护栏：真定义不回归（王磊是我的大学同学）', entityClean.isExplainedNoun('王磊', '王磊是我的大学同学。', '我的大学同学'), true)
   console.log('\n===== 结果: pass', pass, 'fail', fail, '=====')
   process.exit(fail > 0 ? 1 : 0)
 }).catch(err => {

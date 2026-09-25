@@ -9,5 +9,11 @@ project.private.config.json
 *.log
 .DS_Store
 
+# Windows 保留名误建的空文件（shell 重定向 > nul 的产物，无法常规删除）
+nul
+
 # 测试产物
 tools/docxtest/output/
+
+# 补丁备份目录（本地保留，不入库）
+*-backup-*/

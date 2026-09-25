@@ -1,0 +1,168 @@
+/* 花名册页 [roster v1] —— 颜色一律走主题令牌，深色模式由 theme-dark 覆盖令牌生效 */
+/* 宽底：page 元素让位后本页自带遮挡（theme-transition C3/C4），且为 flex 纵向布局供 scroll 撑满 */
+.page {
+  background: var(--bg);
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+}
+.hint-bar {
+  flex-shrink: 0;
+  padding: 20rpx 32rpx;
+  background: var(--brand-tint-08);
+  border: 1rpx solid var(--brand-tint-12);
+  border-radius: var(--r-md);
+}
+.hint-text {
+  font-size: 24rpx;
+  color: var(--ink-soft);
+  line-height: 1.7;
+}
+
+/* 头部统计行已并入提示栏第二行 [roster-hint v1] */
+
+.roster-scroll {
+  flex: 1;
+  min-height: 0;
+  padding: 0 24rpx;
+  box-sizing: border-box;
+}
+.roster-empty {
+  padding: 80rpx 40rpx;
+  text-align: center;
+  font-size: 26rpx;
+  color: var(--ink-faint);
+  line-height: 1.8;
+}
+.roster-list {
+  padding-bottom: 24rpx;
+}
+.roster-card {
+  background: var(--surface);
+  border-radius: 16rpx;
+  padding: 24rpx 32rpx;
+  margin-bottom: 16rpx;
+}
+.roster-name {
+  font-size: 30rpx;
+  font-weight: var(--title-w);
+  color: var(--title-ink);
+  letter-spacing: var(--title-track);
+}
+.roster-meta {
+  font-size: 22rpx;
+  color: var(--ink-faint);
+  margin-top: 6rpx;
+}
+
+/* 底部按钮 */
+.roster-foot {
+  flex-shrink: 0;
+  padding: 16rpx 32rpx 0;
+}
+.roster-btn {
+  height: 88rpx;
+  line-height: 88rpx;
+  text-align: center;
+  border-radius: 16rpx;
+  background: var(--brand);
+  color: var(--surface); /* 反白文字禁写死 #fff：深色 --brand 提亮后须自动转深字保证对比度 */
+  font-size: 30rpx;
+}
+.roster-btn.off {
+  opacity: 0.5;
+}
+
+/* 确认面板 */
+.panel-mask {
+  position: fixed;
+  left: 0;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.45);
+  z-index: 1200;
+}
+.panel-sheet {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 1201;
+  background: var(--bg);
+  border-radius: 24rpx 24rpx 0 0;
+  padding: 32rpx 32rpx 0;
+  max-height: 70vh;
+  display: flex;
+  flex-direction: column;
+}
+.panel-title {
+  font-size: 28rpx;
+  font-weight: 600;
+  color: var(--title-ink);
+  padding-bottom: 20rpx;
+}
+.panel-scroll {
+  flex: 1;
+  min-height: 0;
+  max-height: 44vh;
+}
+.panel-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16rpx;
+  padding: 8rpx 0 24rpx;
+}
+.panel-chip {
+  min-width: 150rpx;
+  max-width: 220rpx;
+  padding: 14rpx 20rpx;
+  border-radius: 14rpx;
+  border: 2rpx solid var(--line);
+  background: var(--surface);
+  text-align: center;
+  box-sizing: border-box;
+}
+.panel-chip.on {
+  background: var(--brand);
+  border-color: var(--brand);
+}
+.panel-chip-name {
+  font-size: 30rpx;
+  font-weight: var(--title-w);
+  color: var(--title-ink);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.panel-chip-meta {
+  font-size: 20rpx;
+  color: var(--ink-faint);
+  margin-top: 4rpx;
+}
+.panel-chip.on .panel-chip-name,
+.panel-chip.on .panel-chip-meta {
+  color: var(--surface); /* 反白文字禁写死 #fff：深色 --brand 提亮后须自动转深字保证对比度 */
+}
+.panel-btns {
+  display: flex;
+  gap: 24rpx;
+  padding: 24rpx 0;
+}
+.panel-btn {
+  flex: 1;
+  height: 84rpx;
+  line-height: 84rpx;
+  text-align: center;
+  border-radius: 16rpx;
+  font-size: 30rpx;
+}
+.panel-btn.cancel {
+  background: var(--surface);
+  color: var(--ink-mid);
+}
+.panel-btn.ok {
+  background: var(--brand);
+  color: var(--surface);
+}

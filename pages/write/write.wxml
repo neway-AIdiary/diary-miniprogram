@@ -158,6 +158,8 @@
     </view>
   </view>
 
+  <!-- [panel-mask v1] 面板展开时的透明遮罩：点击面板外区域收起（catchtap 防穿透） -->
+  <view class="panel-mask" wx:if="{{showEmojiPanel || showAddPanel}}" catchtap="closeAllPanels"></view>
   <!-- ===== 底部固定区：面板 + 输入栏，面板展开时压盖编辑区/AI优化·保存按钮 ===== -->
   <view class="write-bottom">
     <!-- ===== 表情/颜文字面板 ===== -->

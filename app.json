@@ -15,7 +15,8 @@
     "pages/lock/lock",
     "pages/setting-lock/setting-lock",
     "pages/summary/summary",
-    "pages/summary-result/summary-result"
+    "pages/summary-result/summary-result",
+    "pages/roster/roster"
   ],
   "networkTimeout": {
     "request": 90000

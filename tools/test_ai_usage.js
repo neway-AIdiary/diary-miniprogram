@@ -28,6 +28,11 @@ function eq(name, actual, expected) {
 // ===== 桩：wx-server-sdk =====
 const state = {
   records: [],        // 所有 add 写入 {collection, data}
+  calls: [],          // [st-6/st-7] 收尾调用观测：'deleteFile' / 'add' 的发起顺序
+  deferDelete: false, // [st-6/st-7] 让 deleteFile 挂住不返回（模拟云存储抖动）
+  deferAdd: false,    // [st-7] 让 ai_usage 写入挂住不返回（模拟云库抖动）
+  releaseDelete: null,
+  releaseAdd: null,
   failAdd: false,     // 令 add 抛错（模拟云库故障）
   throwWXContext: false,
   httpStatus: 200,
@@ -61,7 +66,11 @@ const sdk = {
             return { data: src.slice(q._skip, q._skip + q._limit) }
           },
           add: async function (op) {
+            if (name === 'ai_usage') state.calls.push('add')
             if (state.failAdd) throw new Error('mock add fail')
+            if (state.deferAdd) {
+              return new Promise(function (res) { state.releaseAdd = res })
+            }
             state.records.push({ collection: name, data: (op && op.data) || {} })
             return { _id: 'id' + state.records.length }
           },
@@ -77,7 +86,13 @@ const sdk = {
     if (state.downloadFile) return state.downloadFile(ev)
     throw new Error('no mock downloadFile')
   },
-  deleteFile: async function () { return {} }
+  deleteFile: async function () {
+    state.calls.push('deleteFile')
+    if (state.deferDelete) {
+      return new Promise(function (res) { state.releaseDelete = res })
+    }
+    return {}
+  }
 }
 
 // ===== 桩：https =====
@@ -112,6 +127,8 @@ const origLoad = Module._load
 Module._load = function (request) {
   if (request === 'wx-server-sdk') return sdk
   if (request === 'https') return fakeHttps
+  // [asr-nostream v1] 屏蔽真实 ws：speechToText 优先流式 2.0，此处令其即刻失败走 flash 回退路径
+  if (request === 'ws') throw new Error('mock: ws blocked')
   return origLoad.apply(this, arguments)
 }
 
@@ -121,6 +138,8 @@ const optFn = require(path.join(__dirname, '..', 'cloudfunctions', 'optimizeDiar
 const aiFn = require(path.join(__dirname, '..', 'cloudfunctions', 'aiSummary', 'index.js'))
 const asrFn = require(path.join(__dirname, '..', 'cloudfunctions', 'speechToText', 'index.js'))
 const statsFn = require(path.join(__dirname, '..', 'cloudfunctions', 'getAiStats', 'index.js'))
+
+function wait(ms) { return new Promise(function (r) { setTimeout(r, ms) }) }
 
 function resetHttp() {
   state.httpStatus = 200
@@ -316,6 +335,46 @@ async function run() {
   ret = await asrFn.main({ fileID: 'cloud://f4', format: 'wav' })
   eq('st-5 add抛错 业务不受影响', ret.text, '识别出的文字内容')
   state.failAdd = false
+  state.downloadFile = null
+
+  // ===== [ai-usage v2] 收尾提速：清理 ‖ 记账 并行 + 有界等待 =====
+  // st-6（并行性）：deleteFile 挂住不返回时，「记账已发出」——旧版串行 await ⇒ add 永不发出 ⇒ 红
+  resetHttp()
+  state.httpHeaders = { 'x-api-status-code': '20000000' }
+  state.httpBody = { result: { text: '并行收尾' } }
+  state.downloadFile = function () { return { fileContent: Buffer.from('xx') } }
+  state.calls = []
+  state.deferDelete = true
+  const p6 = asrFn.main({ fileID: 'cloud://f6', format: 'wav' })
+  await wait(60)
+  check('st-6 清理挂起时记账已并行发起（不再串行等清理）',
+    state.calls.indexOf('deleteFile') >= 0 && state.calls.indexOf('add') >= 0, state.calls.slice())
+  state.deferDelete = false
+  if (state.releaseDelete) state.releaseDelete()
+  const r6 = await p6
+  eq('st-6 并行收尾后业务返回不变', r6.text, '并行收尾')
+
+  // st-7（有界性）：清理与记账双双挂住时，仍须在等待上限内返回识别结果
+  //（旧版会一直挂住 ⇒ 客户端等到函数执行超时 ⇒ 正是 iOS 长录音「云函数调用失败」的形态）
+  resetHttp()
+  state.httpHeaders = { 'x-api-status-code': '20000000' }
+  state.httpBody = { result: { text: '限时兜底' } }
+  state.calls = []
+  state.deferDelete = true
+  state.deferAdd = true
+  const t7 = Date.now()
+  const r7 = await Promise.race([
+    asrFn.main({ fileID: 'cloud://f7', format: 'wav' }),
+    wait(2500).then(function () { return 'TIMEOUT' })
+  ])
+  const cost7 = Date.now() - t7
+  check('st-7 收尾双双挂起时仍限时返回（不被拖到函数超时）',
+    r7 !== 'TIMEOUT' && r7.text === '限时兜底', { cost: cost7, ret: r7 })
+  check('st-7 收尾等待上限约 1s', r7 !== 'TIMEOUT' && cost7 >= 900 && cost7 < 2200, cost7)
+  state.deferDelete = false
+  state.deferAdd = false
+  state.releaseDelete = null
+  state.releaseAdd = null
   state.downloadFile = null
 
   // ================= D. getAiStats 聚合 =================

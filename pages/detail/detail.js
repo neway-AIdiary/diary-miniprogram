@@ -29,6 +29,7 @@ const MEDIA_GAP_RPX = 16
 const fontSetting = require('../../utils/fontSetting.js')
 const theme = require('../../utils/theme.js')
 const lock = require('../../utils/lock.js')
+const summaryNudge = require('../../utils/summaryNudge.js') // [summary-nudge v1] 智能总结篇数引导
 
 Page({
   data: {
@@ -92,8 +93,9 @@ Page({
     // 底部输入栏高度：内容区 80rpx + padding-top 12rpx + base padding-bottom 22rpx + 安全区 + 16rpx 缓冲
     const rpx2px = (win.windowWidth || 375) / 750
     const inputBarHeight = Math.ceil((80 + 12 + 22 + 16) * rpx2px + safeAreaBottom)
-    // 正文滚动区最大高度：屏幕减去顶部安全区、标题/心情/按钮/输入栏等固定占用
-    const fixedRpx = 380
+    // 正文滚动区最大高度：屏幕减去顶部安全区、标题/按钮/输入栏等固定占用
+    // [mood-capsule v1.1] 心情栏并入标题行（-90）+ 标题行收紧跟文字（-30）⇒ 380 → 260
+    const fixedRpx = 260
     const scrollMaxHeight = Math.max(
       240,
       Math.floor(win.windowHeight - safeAreaTop - 8 - fixedRpx * rpx2px - inputBarHeight)
@@ -151,6 +153,8 @@ Page({
 
   onShow() {
     theme.applyTo(this)
+    // [summary-nudge v1] 保存后待提示的智能总结引导：详情页落定后弹，避免与写页备案弹窗抢时序
+    try { summaryNudge.consumePending(app) } catch (e) { console.warn('[detail] 总结引导弹窗失败:', e) }
     // 日记本密码：需要锁且本会话未解锁 → 跳锁屏页（页面栈清空，退不回内容页）
     if (lock.guard()) return
     this.setData({ fontStyle: fontSetting.buildStyle() })
@@ -215,6 +219,8 @@ Page({
         content: diary.content || '',
         mood: diary.mood || '',
         moodLabel: util.getMoodLabel(diary.mood),
+        moodColor: diary.mood ? util.getMoodColor(diary.mood) : '',
+        moodBg: diary.mood ? util.getMoodBg(diary.mood) : '',
         loading: false,
         // 编辑模式：带入日记原有的位置与媒体（图片/视频）
         editLocation: diary.location ? { ...diary.location } : null,
@@ -358,12 +364,14 @@ Page({
   selectMood(e) {
     const key = e.currentTarget.dataset.key
     if (key === 'none') {
-      this.setData({ mood: '', moodLabel: '', showMoodPicker: false })
+      this.setData({ mood: '', moodLabel: '', moodColor: '', moodBg: '', showMoodPicker: false })
       return
     }
     this.setData({
       mood: key,
       moodLabel: util.MOOD_MAP[key].label,
+      moodColor: util.getMoodColor(key),
+      moodBg: util.getMoodBg(key),
       showMoodPicker: false
     })
   },
